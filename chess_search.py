@@ -36,6 +36,8 @@ PIECE_VALUE = {
 
 NULL_MOVE_REDUCTION = 2
 NODES_PER_TIME_CHECK = 1024
+REVERSE_FUTILITY_DEPTH = 3
+REVERSE_FUTILITY_MARGIN_PER_PLY = 120
 
 TTEntry = tuple[Hashable, int, int, int, chess.Move | None]
 
@@ -289,6 +291,12 @@ class Search:
         moves = list(board.legal_moves)
         if not moves:
             return -(MATE - ply) if in_check else DRAW
+
+        if not in_check and depth <= REVERSE_FUTILITY_DEPTH and abs(beta) < MATE_THRESHOLD:
+            static_eval = self.evaluate(board, len(moves))
+            margin = REVERSE_FUTILITY_MARGIN_PER_PLY * depth
+            if static_eval - margin >= beta:
+                return static_eval - margin
 
         if allow_null and not in_check and depth >= 3 and _has_non_pawn_material(board):
             board.push(chess.Move.null())
