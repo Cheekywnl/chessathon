@@ -39,6 +39,9 @@ NODES_PER_TIME_CHECK = 1024
 REVERSE_FUTILITY_DEPTH = 3
 REVERSE_FUTILITY_MARGIN_PER_PLY = 120
 DELTA_MARGIN = 200
+LATE_MOVE_PRUNING_DEPTH = 2
+LATE_MOVE_PRUNING_BASE = 6
+LATE_MOVE_PRUNING_PER_DEPTH = 3
 
 TTEntry = tuple[Hashable, int, int, int, chess.Move | None]
 
@@ -325,6 +328,19 @@ class Search:
             mover = board.turn
             is_capture = board.is_capture(move)
             extension = 1 if in_check else 0
+            is_killer = move == self.killers[k_ply][0] or move == self.killers[k_ply][1]
+
+            if (
+                depth <= LATE_MOVE_PRUNING_DEPTH
+                and i >= LATE_MOVE_PRUNING_BASE + LATE_MOVE_PRUNING_PER_DEPTH * depth
+                and extension == 0
+                and not is_capture
+                and not move.promotion
+                and not is_killer
+                and best_score > -MATE_THRESHOLD
+                and not board.gives_check(move)
+            ):
+                continue
 
             reduce = 0
             if (
@@ -333,8 +349,7 @@ class Search:
                 and extension == 0
                 and not is_capture
                 and not move.promotion
-                and move != self.killers[k_ply][0]
-                and move != self.killers[k_ply][1]
+                and not is_killer
             ):
                 reduce = 1
 
