@@ -38,6 +38,7 @@ NULL_MOVE_REDUCTION = 2
 NODES_PER_TIME_CHECK = 1024
 REVERSE_FUTILITY_DEPTH = 3
 REVERSE_FUTILITY_MARGIN_PER_PLY = 120
+DELTA_MARGIN = 200
 
 TTEntry = tuple[Hashable, int, int, int, chess.Move | None]
 
@@ -203,10 +204,10 @@ class Search:
             if move == tt_move:
                 return 1_000_000
             if board.is_capture(move):
-                victim = _captured_piece_type(board, move)
-                attacker = board.piece_type_at(move.from_square)
-                attacker_value = PIECE_VALUE[attacker] if attacker is not None else 0
-                return 100_000 + PIECE_VALUE[victim] * 10 - attacker_value
+                exchange = see(board, move)
+                # A losing capture ranks below quiet moves and killers, not above them --
+                # MVV-LVA alone can't tell a winning trade from a losing one.
+                return (100_000 + exchange) if exchange >= 0 else (-100_000 + exchange)
             if move == killer0:
                 return 90_000
             if move == killer1:
@@ -246,8 +247,12 @@ class Search:
 
         for move in sorted(moves, key=qscore, reverse=True):
             is_capture = not move.promotion and board.is_capture(move)
-            if not in_check and is_capture and see(board, move) < 0:
-                continue
+            if not in_check and is_capture:
+                victim = _captured_piece_type(board, move)
+                if stand_pat + PIECE_VALUE[victim] + DELTA_MARGIN <= alpha:
+                    continue
+                if see(board, move) < 0:
+                    continue
             board.push(move)
             key = board._transposition_key()
             self.seen[key] = self.seen.get(key, 0) + 1

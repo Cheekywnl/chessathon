@@ -20,11 +20,11 @@ PONDER_TIME_CAP_S = 300.0
 PONDER_JOIN_TIMEOUT_S = 1.0
 
 # Import time runs once per game, inside a 60 second budget, before your clock starts.
-# The transposition table is sized to stay well under the 2 GB cap even fully populated
-# (~0.5 GB at this size, measured empirically) -- an OOM kill is an instant loss, so this
-# errs toward a smaller table and more hash collisions over a long game rather than a bigger
-# one that risks the ceiling.
-_TT = cs.TranspositionTable(size_power=20)
+# size_power=21 measures at ~1.0 GB fully populated plus ~0.12 GB baseline (interpreter,
+# numpy/numba, python-chess) -- comfortably under the 2 GB cap with ~0.85 GB of margin left
+# for board copies, recursion, and the ponder thread's own local state. An OOM kill is an
+# instant loss, so this was re-measured empirically before raising it, not guessed.
+_TT = cs.TranspositionTable(size_power=21)
 _GAME_HISTORY: dict[object, int] = {}
 
 # Pondering: while the opponent thinks, the harness blocks on stdin and this core sits idle
