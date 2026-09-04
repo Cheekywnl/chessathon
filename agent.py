@@ -5,6 +5,7 @@ has to survive between moves in the same game -- the transposition table and the
 position history -- and the time budget that keeps a slow position from flagging the clock.
 """
 
+import sys
 import threading
 import time
 
@@ -129,15 +130,29 @@ def get_move(fen: str, time_left_ms: int) -> str:
 
     search = cs.Search(_TT, _GAME_HISTORY, ce.evaluate_board)
     depth = 1
+    completed_depth = 0
+    last_score = 0
     while depth <= MAX_SEARCH_DEPTH:
         try:
             move, score, _ = search.search_root(board, depth, deadline)
         except cs.TimeUp:
             break
         best_move = move
+        completed_depth = depth
+        last_score = score
         if abs(score) >= cs.MATE_THRESHOLD or time.monotonic() >= soft_deadline:
             break
         depth += 1
+
+    # Safe per the rules: stdout is redirected away from the protocol stream before this
+    # module is even imported, so print() can never corrupt it. Discarded in rated games,
+    # shown in the validation log -- cheap visibility into real games, not just local ones.
+    elapsed_ms = (time.monotonic() - start) * 1000.0
+    print(
+        f"move={best_move.uci()} depth={completed_depth} score={last_score} "
+        f"nodes={search.nodes} ms={elapsed_ms:.0f} time_left_ms={time_left_ms}",
+        file=sys.stderr,
+    )
 
     _start_pondering(board, best_move)
     return best_move.uci()
