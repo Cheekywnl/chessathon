@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Engine Viewer</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e38;
+    --text: #e6e8ee;
+    --muted: #8a90a0;
+    --accent: #4f9dff;
+    --good: #3ecf7a;
+    --bad: #ef5b5b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; margin-right: 8px; }
+  select, button, input {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { font-size: 13px; color: var(--muted); margin-left: auto; }
+  #status.running { color: var(--accent); }
+  #status.win { color: var(--good); }
+  #status.loss { color: var(--bad); }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 16px;
+    padding: 16px 20px;
+    overflow: hidden;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    overflow: auto;
+  }
+  #board-col { display: flex; flex-direction: column; gap: 12px; }
+  #board img { width: 100%; display: block; border-radius: 6px; }
+  #right-col { display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
+  tr.us td { color: var(--text); }
+  tr.opp td { color: var(--muted); }
+  #moves-wrap { flex: 1; overflow: auto; }
+  #chart-wrap { height: 160px; }
+  #history-wrap { max-height: 220px; overflow: auto; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.us { background: rgba(79,157,255,0.15); color: var(--accent); }
+  .badge.opponent { background: rgba(239,91,91,0.15); color: var(--bad); }
+  .badge.draw { background: rgba(138,144,160,0.15); color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Engine Viewer</h1>
+  <select id="opponent">
+    <option value="random">random</option>
+    <option value="greedy">greedy</option>
+    <option value="minimax" selected>minimax</option>
+    <option value="stockfish">stockfish</option>
+  </select>
+  <select id="color">
+    <option value="white">we play White</option>
+    <option value="black">we play Black</option>
+  </select>
+  <input id="base-s" type="number" value="15" min="1" style="width:60px" title="base seconds"> s +
+  <input id="inc-ms" type="number" value="200" min="0" style="width:70px" title="increment ms"> ms
+  <button id="start">Start game</button>
+  <span id="status">idle</span>
+</header>
+<main>
+  <div class="panel" id="board-col">
+    <div id="board"><img id="board-img" src="/api/board.svg" alt="board"></div>
+    <div id="history" class="panel" id="history-wrap">
+      <h2>Recent games</h2>
+      <table id="history-table"><tbody></tbody></table>
+    </div>
+  </div>
+  <div id="right-col">
+    <div class="panel" id="chart-wrap">
+      <h2>Eval (our moves, centipawns, our POV)</h2>
+      <svg id="chart" width="100%" height="110" viewBox="0 0 600 110" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="panel" id="moves-wrap">
+      <h2>Moves</h2>
+      <table>
+        <thead><tr><th>#</th><th>Move</th><th>Side</th><th>Depth</th><th>Eval</th><th>Nodes</th><th>ms</th></tr></thead>
+        <tbody id="moves-body"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('start');
+const boardImg = document.getElementById('board-img');
+const movesBody = document.getElementById('moves-body');
+const historyBody = document.querySelector('#history-table tbody');
+const chart = document.getElementById('chart');
+
+let lastMoveCount = -1;
+
+startBtn.addEventListener('click', async () => {
+  const opponent = document.getElementById('opponent').value;
+  const we_play_white = document.getElementById('color').value === 'white';
+  const base_ms = Math.round(parseFloat(document.getElementById('base-s').value) * 1000);
+  const increment_ms = parseInt(document.getElementById('inc-ms').value, 10);
+  const res = await fetch('/api/game/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({opponent, we_play_white, base_ms, increment_ms}),
+  });
+  if (!res.ok) {
+    const body = await res.json();
+    alert(body.error || 'failed to start');
+  }
+});
+
+function fmtResult(g) {
+  if (g.result === 'us') return '<span class="badge us">WIN</span>';
+  if (g.result === 'opponent' || g.result === 'opponent_failed_to_start') return '<span class="badge opponent">LOSS</span>';
+  if (g.result === 'draw') return '<span class="badge draw">DRAW</span>';
+  return g.result;
+}
+
+function drawChart(moves) {
+  const ours = moves.filter(m => m.is_us && m.score !== null);
+  chart.innerHTML = '';
+  if (ours.length < 2) return;
+  const scores = ours.map(m => Math.max(-1500, Math.min(1500, m.score)));
+  const minS = Math.min(...scores, 0), maxS = Math.max(...scores, 0);
+  const range = Math.max(1, maxS - minS);
+  const w = 600, h = 110, pad = 6;
+  const x = i => pad + (i / (scores.length - 1)) * (w - 2 * pad);
+  const y = s => h - pad - ((s - minS) / range) * (h - 2 * pad);
+  const zeroY = y(0);
+  const zeroLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  zeroLine.setAttribute('x1', 0); zeroLine.setAttribute('x2', w);
+  zeroLine.setAttribute('y1', zeroY); zeroLine.setAttribute('y2', zeroY);
+  zeroLine.setAttribute('stroke', '#2a2e38'); zeroLine.setAttribute('stroke-dasharray', '4,4');
+  chart.appendChild(zeroLine);
+  const pathData = scores.map((s, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(s).toFixed(1)}`).join(' ');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', pathData);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', '#4f9dff');
+  path.setAttribute('stroke-width', '2');
+  chart.appendChild(path);
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/state');
+    const s = await res.json();
+
+    statusEl.textContent = s.status === 'running' ? 'running...' :
+      s.status === 'finished' ? `finished: ${s.result} (${s.termination})` : 'idle';
+    statusEl.className = s.status === 'running' ? 'running' : (s.result === 'us' ? 'win' : s.result === 'opponent' ? 'loss' : '');
+    startBtn.disabled = s.status === 'running';
+
+    if (s.moves.length !== lastMoveCount) {
+      lastMoveCount = s.moves.length;
+      boardImg.src = '/api/board.svg?t=' + Date.now();
+      movesBody.innerHTML = s.moves.map(m => `
+        <tr class="${m.is_us ? 'us' : 'opp'}">
+          <td>${m.ply}</td><td>${m.san}</td><td>${m.is_us ? 'us' : 'opp'}</td>
+          <td>${m.depth ?? ''}</td><td>${m.score ?? ''}</td>
+          <td>${m.nodes ?? ''}</td><td>${m.ms ?? ''}</td>
+        </tr>`).reverse().join('');
+      drawChart(s.moves);
+    }
+
+    historyBody.innerHTML = s.history.map(g => `
+      <tr><td>${fmtResult(g)}</td><td>${g.opponent}</td><td>${g.we_play_white ? 'W' : 'B'}</td>
+      <td>${g.termination}</td><td>${g.plies}pl</td></tr>`).join('');
+  } catch (e) {
+    // server not up yet; ignore
+  }
+}
+setInterval(poll, 900);
+poll();
+</script>
+</body>
+</html>
