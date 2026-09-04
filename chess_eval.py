@@ -162,6 +162,22 @@ def evaluate(
                     if pawns & white & adjacent_file_mask[square % 8] == 0:
                         mg -= 10
                         eg -= 12
+                elif piece_type == ROOK:
+                    file_pawns = pawns & file_mask[square % 8]
+                    if file_pawns == 0:
+                        mg += 20
+                        eg += 16
+                    elif file_pawns & white == 0:
+                        mg += 10
+                        eg += 8
+                elif piece_type == KING:
+                    king_file = square % 8
+                    lo = king_file - 1 if king_file > 0 else 0
+                    hi = king_file + 1 if king_file < 7 else 7
+                    for f in range(lo, hi + 1):
+                        fmask = file_mask[f]
+                        if pawns & white & fmask == 0:
+                            mg -= 12 if pawns & fmask == 0 else 6
             elif b_bb & mask:
                 mirror = square ^ 56
                 mg -= MG_VALUE[piece_type] + mg_pst[piece_type][mirror]
@@ -177,6 +193,22 @@ def evaluate(
                     if pawns & black & adjacent_file_mask[square % 8] == 0:
                         mg += 10
                         eg += 12
+                elif piece_type == ROOK:
+                    file_pawns = pawns & file_mask[square % 8]
+                    if file_pawns == 0:
+                        mg -= 20
+                        eg -= 16
+                    elif file_pawns & black == 0:
+                        mg -= 10
+                        eg -= 8
+                elif piece_type == KING:
+                    king_file = square % 8
+                    lo = king_file - 1 if king_file > 0 else 0
+                    hi = king_file + 1 if king_file < 7 else 7
+                    for f in range(lo, hi + 1):
+                        fmask = file_mask[f]
+                        if pawns & black & fmask == 0:
+                            mg += 12 if pawns & fmask == 0 else 6
 
     if bishop_count_w >= 2:
         mg += 30
@@ -224,7 +256,7 @@ def evaluate_board(board: chess.Board, mobility: int) -> int:
         _castling_rights_count(board, chess.BLACK),
     )
     mover_relative = int(positional) if board.turn == chess.WHITE else -int(positional)
-    return mover_relative + 4 * mobility
+    return mover_relative + 2 * mobility
 
 
 def warm_up() -> None:
