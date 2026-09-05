@@ -26,14 +26,20 @@
     height: 100vh;
   }
   header {
-    padding: 12px 20px;
+    padding: 10px 20px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
   }
-  header h1 { font-size: 15px; font-weight: 600; margin: 0; margin-right: 8px; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; margin-right: 4px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab {
+    background: transparent; border: none; color: var(--muted);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .tab.active { background: var(--panel); color: var(--text); }
   select, button, input {
     background: var(--panel);
     color: var(--text);
@@ -42,26 +48,21 @@
     padding: 6px 10px;
     font-size: 13px;
   }
-  button {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-  }
+  button { background: var(--accent); color: #fff; border: none; cursor: pointer; font-weight: 600; }
   button:disabled { opacity: 0.5; cursor: default; }
+  button.ghost { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
   #status { font-size: 13px; color: var(--muted); margin-left: auto; }
   #status.running { color: var(--accent); }
   #status.win { color: var(--good); }
   #status.loss { color: var(--bad); }
-  main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 460px 1fr;
-    gap: 16px;
-    padding: 16px 20px;
-    overflow: hidden;
+  #summary-bar {
+    padding: 8px 20px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 18px; align-items: center; font-size: 12px; color: var(--muted);
   }
+  #summary-bar b { color: var(--text); }
+  .view { flex: 1; overflow: hidden; padding: 16px 20px; display: none; }
+  .view.active { display: flex; flex-direction: column; overflow: hidden; }
+  #live-view.active { display: grid; grid-template-columns: 460px 1fr; gap: 16px; }
   .panel {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -70,7 +71,7 @@
     overflow: auto;
   }
   #board-col { display: flex; flex-direction: column; gap: 12px; }
-  #board img { width: 100%; display: block; border-radius: 6px; }
+  #board img, #replay-board img { width: 100%; display: block; border-radius: 6px; }
   #right-col { display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -78,38 +79,64 @@
   th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
   tr.us td { color: var(--text); }
   tr.opp td { color: var(--muted); }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover td { background: rgba(79,157,255,0.08); }
   #moves-wrap { flex: 1; overflow: auto; }
   #chart-wrap { height: 160px; }
   #history-wrap { max-height: 220px; overflow: auto; }
   .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-  .badge.us { background: rgba(79,157,255,0.15); color: var(--accent); }
-  .badge.opponent { background: rgba(239,91,91,0.15); color: var(--bad); }
+  .badge.win, .badge.us { background: rgba(62,207,122,0.15); color: var(--good); }
+  .badge.loss, .badge.opponent { background: rgba(239,91,91,0.15); color: var(--bad); }
   .badge.draw { background: rgba(138,144,160,0.15); color: var(--muted); }
+  /* real games tab */
+  #real-games-view { display: grid; grid-template-columns: 1fr 460px; gap: 16px; overflow: hidden; }
+  #real-games-list { overflow: auto; }
+  #replay-panel { display: flex; flex-direction: column; gap: 10px; }
+  #replay-controls { display: flex; gap: 6px; align-items: center; }
+  #replay-info { font-size: 12px; color: var(--muted); }
+  #replay-moves { flex: 1; overflow: auto; max-height: 220px; }
+  /* changelog tab */
+  #changelog-view { overflow: auto; }
+  .commit { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .commit-head { display: flex; gap: 10px; align-items: baseline; }
+  .commit-hash { font-family: ui-monospace, monospace; color: var(--accent); font-size: 12px; }
+  .commit-date { color: var(--muted); font-size: 12px; }
+  .commit-subject { font-weight: 600; margin: 4px 0; }
+  .commit-body { color: var(--muted); font-size: 12px; white-space: pre-wrap; line-height: 1.5; }
 </style>
 </head>
 <body>
 <header>
   <h1>Engine Viewer</h1>
-  <select id="opponent">
-    <option value="random">random</option>
-    <option value="greedy">greedy</option>
-    <option value="minimax" selected>minimax</option>
-    <option value="stockfish">stockfish</option>
-  </select>
-  <select id="color">
-    <option value="white">we play White</option>
-    <option value="black">we play Black</option>
-  </select>
-  <input id="base-s" type="number" value="15" min="1" style="width:60px" title="base seconds"> s +
-  <input id="inc-ms" type="number" value="200" min="0" style="width:70px" title="increment ms"> ms
-  <button id="start">Start game</button>
-  <span id="status">idle</span>
+  <div class="tabs">
+    <button class="tab active" data-view="live">Live game</button>
+    <button class="tab" data-view="real-games">Real games</button>
+    <button class="tab" data-view="changelog">Changelog</button>
+  </div>
+  <span id="status"></span>
 </header>
-<main>
+<div id="summary-bar"></div>
+
+<div class="view active" id="live-view">
   <div class="panel" id="board-col">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <select id="opponent">
+        <option value="random">random</option>
+        <option value="greedy">greedy</option>
+        <option value="minimax" selected>minimax</option>
+        <option value="stockfish">stockfish</option>
+      </select>
+      <select id="color">
+        <option value="white">we play White</option>
+        <option value="black">we play Black</option>
+      </select>
+      <input id="base-s" type="number" value="15" min="1" style="width:55px" title="base seconds"> s +
+      <input id="inc-ms" type="number" value="200" min="0" style="width:65px" title="increment ms"> ms
+      <button id="start">Start game</button>
+    </div>
     <div id="board"><img id="board-img" src="/api/board.svg" alt="board"></div>
-    <div id="history" class="panel" id="history-wrap">
-      <h2>Recent games</h2>
+    <div class="panel" id="history-wrap">
+      <h2>Session games</h2>
       <table id="history-table"><tbody></tbody></table>
     </div>
   </div>
@@ -126,15 +153,72 @@
       </table>
     </div>
   </div>
-</main>
+</div>
+
+<div class="view" id="real-games-view">
+  <div class="panel" id="real-games-list">
+    <h2>All rated games (from games/real/*.pgn)</h2>
+    <table>
+      <thead><tr><th>Round</th><th>Opponent</th><th>Colour</th><th>Result</th><th>Termination</th><th>Plies</th><th>Date</th></tr></thead>
+      <tbody id="real-games-body"></tbody>
+    </table>
+  </div>
+  <div class="panel" id="replay-panel">
+    <h2>Replay</h2>
+    <div id="replay-info">Click a game on the left to replay it.</div>
+    <div id="replay-board"><img id="replay-img" src="" alt="" style="display:none"></div>
+    <div id="replay-controls" style="display:none">
+      <button class="ghost" id="replay-start">|&lt;</button>
+      <button class="ghost" id="replay-prev">&lt;</button>
+      <button class="ghost" id="replay-next">&gt;</button>
+      <button class="ghost" id="replay-end">&gt;|</button>
+      <span id="replay-ply-label" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <table id="replay-moves" style="display:none">
+      <thead><tr><th>#</th><th>Move</th><th>Side</th><th>Clock</th></tr></thead>
+      <tbody id="replay-moves-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="view panel" id="changelog-view"></div>
+
 <script>
 const statusEl = document.getElementById('status');
+const summaryBar = document.getElementById('summary-bar');
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.view + '-view').classList.add('active');
+    if (btn.dataset.view === 'real-games') loadRealGames();
+    if (btn.dataset.view === 'changelog') loadChangelog();
+  });
+});
+
+// ---------- summary bar (real record, always visible) ----------
+async function loadSummary() {
+  try {
+    const res = await fetch('/api/analytics');
+    const a = await res.json();
+    const r = a.real_games;
+    const term = Object.entries(r.terminations).map(([k, v]) => `${k}: ${v}`).join(', ');
+    summaryBar.innerHTML = `
+      <span>Real rated record: <b>${r.wins}W ${r.draws}D ${r.losses}L</b> (${r.score_pct}%) over ${r.total} games</span>
+      <span>Terminations: ${term}</span>
+      <span>${a.changelog_count} commits logged</span>`;
+  } catch (e) { /* server not up yet */ }
+}
+
+// ================= LIVE TAB =================
 const startBtn = document.getElementById('start');
 const boardImg = document.getElementById('board-img');
 const movesBody = document.getElementById('moves-body');
 const historyBody = document.querySelector('#history-table tbody');
 const chart = document.getElementById('chart');
-
 let lastMoveCount = -1;
 
 startBtn.addEventListener('click', async () => {
@@ -185,13 +269,13 @@ function drawChart(moves) {
   chart.appendChild(path);
 }
 
-async function poll() {
+async function pollLive() {
   try {
     const res = await fetch('/api/state');
     const s = await res.json();
 
     statusEl.textContent = s.status === 'running' ? 'running...' :
-      s.status === 'finished' ? `finished: ${s.result} (${s.termination})` : 'idle';
+      s.status === 'finished' ? `finished: ${s.result} (${s.termination})` : '';
     statusEl.className = s.status === 'running' ? 'running' : (s.result === 'us' ? 'win' : s.result === 'opponent' ? 'loss' : '');
     startBtn.disabled = s.status === 'running';
 
@@ -210,12 +294,84 @@ async function poll() {
     historyBody.innerHTML = s.history.map(g => `
       <tr><td>${fmtResult(g)}</td><td>${g.opponent}</td><td>${g.we_play_white ? 'W' : 'B'}</td>
       <td>${g.termination}</td><td>${g.plies}pl</td></tr>`).join('');
-  } catch (e) {
-    // server not up yet; ignore
-  }
+  } catch (e) { /* server not up yet; ignore */ }
 }
-setInterval(poll, 900);
-poll();
+
+// ================= REAL GAMES TAB =================
+const realGamesBody = document.getElementById('real-games-body');
+let realGamesLoaded = false;
+let currentReplay = null;
+let replayPly = 0;
+
+async function loadRealGames() {
+  if (realGamesLoaded) return;
+  realGamesLoaded = true;
+  const res = await fetch('/api/real_games');
+  const games = await res.json();
+  realGamesBody.innerHTML = games.map(g => `
+    <tr class="clickable" data-round="${g.round}">
+      <td>${g.round}</td><td>${g.opponent}</td><td>${g.we_play_white ? 'White' : 'Black'}</td>
+      <td><span class="badge ${g.result}">${g.result.toUpperCase()}</span></td>
+      <td>${g.termination}</td><td>${g.plies}</td><td>${g.date}</td>
+    </tr>`).join('');
+  realGamesBody.querySelectorAll('tr').forEach(row => {
+    row.addEventListener('click', () => openReplay(parseInt(row.dataset.round, 10)));
+  });
+}
+
+async function openReplay(round) {
+  const res = await fetch(`/api/real_games/${round}`);
+  currentReplay = await res.json();
+  replayPly = currentReplay.moves.length;
+  document.getElementById('replay-info').textContent =
+    `Round ${currentReplay.round} vs ${currentReplay.opponent} -- we played ${currentReplay.we_play_white ? 'White' : 'Black'}, ${currentReplay.result.toUpperCase()} by ${currentReplay.termination}`;
+  document.getElementById('replay-img').style.display = 'block';
+  document.getElementById('replay-controls').style.display = 'flex';
+  document.getElementById('replay-moves').style.display = 'table';
+  document.getElementById('replay-moves-body').innerHTML = currentReplay.moves.map((m, i) => `
+    <tr class="${m.is_us ? 'us' : 'opp'} clickable" data-ply="${i + 1}">
+      <td>${i + 1}</td><td>${m.san}</td><td>${m.is_us ? 'us' : 'opp'}</td><td>${m.clock ?? ''}</td>
+    </tr>`).reverse().join('');
+  document.querySelectorAll('#replay-moves-body tr').forEach(row => {
+    row.addEventListener('click', () => { replayPly = parseInt(row.dataset.ply, 10); renderReplay(); });
+  });
+  renderReplay();
+}
+
+function renderReplay() {
+  if (!currentReplay) return;
+  document.getElementById('replay-img').src = `/api/real_games/${currentReplay.round}/board.svg?ply=${replayPly}&t=${Date.now()}`;
+  document.getElementById('replay-ply-label').textContent = `ply ${replayPly} / ${currentReplay.moves.length}`;
+}
+
+document.getElementById('replay-start').addEventListener('click', () => { replayPly = 0; renderReplay(); });
+document.getElementById('replay-end').addEventListener('click', () => { if (currentReplay) { replayPly = currentReplay.moves.length; renderReplay(); } });
+document.getElementById('replay-prev').addEventListener('click', () => { if (replayPly > 0) { replayPly--; renderReplay(); } });
+document.getElementById('replay-next').addEventListener('click', () => { if (currentReplay && replayPly < currentReplay.moves.length) { replayPly++; renderReplay(); } });
+
+// ================= CHANGELOG TAB =================
+let changelogLoaded = false;
+async function loadChangelog() {
+  if (changelogLoaded) return;
+  changelogLoaded = true;
+  const res = await fetch('/api/changelog');
+  const commits = await res.json();
+  const view = document.getElementById('changelog-view');
+  view.innerHTML = '<h2>Development history</h2>' + commits.map(c => `
+    <div class="commit">
+      <div class="commit-head">
+        <span class="commit-hash">${c.hash}</span>
+        <span class="commit-date">${c.date}</span>
+      </div>
+      <div class="commit-subject">${c.subject}</div>
+      <div class="commit-body">${(c.body || '').replace(/</g, '&lt;')}</div>
+    </div>`).join('');
+}
+
+setInterval(pollLive, 900);
+pollLive();
+loadSummary();
+setInterval(loadSummary, 5000);
 </script>
 </body>
 </html>

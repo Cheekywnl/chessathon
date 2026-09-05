@@ -13,16 +13,19 @@ import contextlib
 import io
 import json
 import re
+import subprocess
 import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import chess  # noqa: E402
+import chess.pgn  # noqa: E402
 import chess.svg  # noqa: E402
 
 import agent as our_agent  # noqa: E402
@@ -32,6 +35,8 @@ from harness.sandbox import AgentFailure, local  # noqa: E402
 
 PORT = 8765
 OUR_TT_SIZE_POWER = 21
+REAL_GAMES_DIR = ROOT / "games" / "real"
+OUR_NAME = "Cheeky"
 
 OPPONENTS = {
     "random": ROOT / "baselines" / "random",
@@ -57,6 +62,121 @@ _state: dict[str, object] = {
 }
 # Completed games, newest first: {opponent, we_play_white, result, termination, plies}
 _history: list[dict] = []
+
+_real_games_cache: list[dict] | None = None
+
+
+def _round_number(path: Path) -> int:
+    match = re.search(r"round-(\d+)", path.name)
+    return int(match.group(1)) if match else 0
+
+
+def load_real_games() -> list[dict]:
+    """Parse every PGN in games/real/ once and cache it -- these are real rated games
+    downloaded from the dashboard, read-only reference data for the viewer."""
+    global _real_games_cache
+    if _real_games_cache is not None:
+        return _real_games_cache
+
+    games = []
+    if REAL_GAMES_DIR.is_dir():
+        for path in sorted(REAL_GAMES_DIR.glob("*.pgn"), key=_round_number):
+            with open(path) as f:
+                game = chess.pgn.read_game(f)
+            if game is None:
+                continue
+            headers = game.headers
+            white = headers.get("White", "?")
+            black = headers.get("Black", "?")
+            we_play_white = white == OUR_NAME
+            opponent = black if we_play_white else white
+            result = headers.get("Result", "*")
+            if result == "1/2-1/2":
+                our_result = "draw"
+            elif (result == "1-0") == we_play_white:
+                our_result = "win"
+            else:
+                our_result = "loss"
+
+            board = game.board()
+            moves = []
+            for node in game.mainline():
+                move = node.move
+                san = board.san(move)
+                clk = None
+                if "%clk" in node.comment:
+                    clk = node.comment.split("%clk")[1].split("]")[0].strip()
+                board.push(move)
+                moves.append(
+                    {
+                        "san": san,
+                        "uci": move.uci(),
+                        "is_us": (board.turn != chess.WHITE) == we_play_white,
+                        "clock": clk,
+                    }
+                )
+
+            games.append(
+                {
+                    "round": _round_number(path),
+                    "file": path.name,
+                    "opponent": opponent,
+                    "we_play_white": we_play_white,
+                    "result": our_result,
+                    "termination": headers.get("Termination", "?"),
+                    "date": headers.get("Date", "?"),
+                    "plies": len(moves),
+                    "start_fen": headers.get("FEN", chess.STARTING_FEN),
+                    "moves": moves,
+                }
+            )
+    _real_games_cache = list(reversed(games))
+    return _real_games_cache
+
+
+def real_games_summary() -> dict:
+    games = load_real_games()
+    wins = sum(1 for g in games if g["result"] == "win")
+    draws = sum(1 for g in games if g["result"] == "draw")
+    losses = sum(1 for g in games if g["result"] == "loss")
+    terminations: dict[str, int] = {}
+    for g in games:
+        terminations[g["termination"]] = terminations.get(g["termination"], 0) + 1
+    score = (wins + draws * 0.5) / len(games) * 100 if games else 0.0
+    return {
+        "total": len(games),
+        "wins": wins,
+        "draws": draws,
+        "losses": losses,
+        "score_pct": round(score, 1),
+        "terminations": terminations,
+    }
+
+
+def get_changelog(limit: int = 30) -> list[dict]:
+    try:
+        fmt = "%H%x1f%ad%x1f%s%x1f%b%x1e"
+        out = subprocess.run(
+            ["git", "log", f"-{limit}", f"--pretty=format:{fmt}", "--date=short"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    entries = []
+    for record in out.split("\x1e"):
+        record = record.strip()
+        if not record:
+            continue
+        parts = record.split("\x1f")
+        if len(parts) < 3:
+            continue
+        commit_hash, date, subject = parts[0], parts[1], parts[2]
+        body = parts[3].strip() if len(parts) > 3 else ""
+        entries.append({"hash": commit_hash[:7], "date": date, "subject": subject, "body": body})
+    return entries
 
 
 def _reset_our_agent_state() -> None:
@@ -206,7 +326,10 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        path = self.path.split("?", 1)[0]
+        parsed = urlsplit(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
+
         if path in ("/", "/index.html"):
             self._send_file(ROOT / "viewer" / "index.html", "text/html")
         elif path == "/api/state":
@@ -218,16 +341,58 @@ class Handler(BaseHTTPRequestHandler):
                 moves = _state["moves"]
             board = chess.Board(fen)
             lastmove = chess.Move.from_uci(moves[-1]["uci"]) if moves else None
-            svg = chess.svg.board(board, lastmove=lastmove, size=420).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "image/svg+xml")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", str(len(svg)))
-            self.end_headers()
-            self.wfile.write(svg)
+            self._send_svg(chess.svg.board(board, lastmove=lastmove, size=420))
+        elif path == "/api/real_games":
+            games = load_real_games()
+            summary_only = [{k: v for k, v in g.items() if k != "moves"} for g in games]
+            self._send_json(summary_only)
+        elif path == "/api/analytics":
+            self._send_json(
+                {
+                    "real_games": real_games_summary(),
+                    "changelog_count": len(get_changelog(limit=200)),
+                }
+            )
+        elif path == "/api/changelog":
+            self._send_json(get_changelog())
+        elif path.startswith("/api/real_games/") and path.endswith("/board.svg"):
+            round_no = int(path.split("/")[3])
+            ply = int(query.get("ply", ["0"])[0])
+            game = next((g for g in load_real_games() if g["round"] == round_no), None)
+            if game is None:
+                self.send_response(404)
+                self.end_headers()
+                return
+            board = chess.Board(game["start_fen"])
+            lastmove = None
+            for m in game["moves"][:ply]:
+                lastmove = chess.Move.from_uci(m["uci"])
+                board.push(lastmove)
+            self._send_svg(
+                chess.svg.board(
+                    board, lastmove=lastmove, flipped=not game["we_play_white"], size=420
+                )
+            )
+        elif path.startswith("/api/real_games/"):
+            round_no = int(path.rsplit("/", 1)[-1])
+            game = next((g for g in load_real_games() if g["round"] == round_no), None)
+            if game is None:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self._send_json(game)
         else:
             self.send_response(404)
             self.end_headers()
+
+    def _send_svg(self, svg: str) -> None:
+        body = svg.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "image/svg+xml")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_POST(self) -> None:
         if self.path != "/api/game/start":
