@@ -44,11 +44,20 @@ ce.warm_up()
 def _time_budget(time_left_ms: float, fullmove_number: int) -> tuple[float, float]:
     """(soft_ms, hard_ms): soft is when iterative deepening stops starting new depths, hard is
     the absolute deadline passed into the search. Budgeted from the clock we were handed, not a
-    constant, and never spends the increment before it has actually been credited."""
-    moves_to_go = max(15, 45 - fullmove_number)
+    constant, and never spends the increment before it has actually been credited.
+
+    Real rated games showed the previous formula (moves_to_go floor 15, hard cap 4x soft, 50%
+    of remaining time) burning most of the clock by move 30 and then playing out the rest of a
+    long game -- these regularly run 100+ plies -- on 2-4 seconds a move for 40+ more moves.
+    The hard cap let any single complex position eat a large multiple of the intended average,
+    and that happened often enough, not as a rare exception, to be the actual failure mode.
+    Tighter now: a higher moves-to-go floor and reference (don't assume the game is nearly over
+    just because it's already gone long -- these games often haven't), a 2x hard-cap multiplier
+    instead of 4x, and at most 25% of remaining time on any one move instead of 50%."""
+    moves_to_go = max(20, 60 - fullmove_number)
     soft_ms = max(time_left_ms / moves_to_go, MIN_THINK_MS)
     hard_ms = max(
-        min(soft_ms * 4.0, time_left_ms * 0.5, time_left_ms - SAFETY_MARGIN_MS),
+        min(soft_ms * 2.0, time_left_ms * 0.25, time_left_ms - SAFETY_MARGIN_MS),
         MIN_THINK_MS,
     )
     return soft_ms, hard_ms
