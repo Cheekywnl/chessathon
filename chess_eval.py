@@ -8,6 +8,12 @@ White's point of view. The search negates it for the side to move.
 Piece-square tables are generated from a formula (centralisation, king safety, pawn advancement),
 not copied from a published table, so every number here is derivable and checkable rather than
 a block of magic constants nobody on the team can explain to a judge.
+
+The hand-picked bonuses/penalties (material, mobility, pawn structure, rook files, king safety,
+bishop pair, castling) live in one PARAMS array rather than as scattered literals, specifically
+so they can be tuned automatically (see tune.py) instead of guessed one at a time -- manual
+guesses were hitting diminishing returns. DEFAULT_PARAMS holds today's hand-picked values;
+evaluate_board always uses them unless a tuned array is passed in explicitly.
 """
 
 import chess
@@ -18,8 +24,42 @@ Bitboard = np.uint64
 
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
 
-MG_VALUE = np.array([0, 100, 320, 330, 500, 900, 0], dtype=np.int32)
-EG_VALUE = np.array([0, 120, 300, 320, 540, 950, 0], dtype=np.int32)
+# Indices into the params array. Kept as plain module constants (not an enum) so numba can
+# inline them as compile-time literals when indexing the array inside the jitted function.
+P_PAWN_MG, P_KNIGHT_MG, P_BISHOP_MG, P_ROOK_MG, P_QUEEN_MG = 0, 1, 2, 3, 4
+P_PAWN_EG, P_KNIGHT_EG, P_BISHOP_EG, P_ROOK_EG, P_QUEEN_EG = 5, 6, 7, 8, 9
+P_MOBILITY = 10
+P_DOUBLED_MG, P_DOUBLED_EG = 11, 12
+P_ISOLATED_MG, P_ISOLATED_EG = 13, 14
+P_PASSED_MG_PER_RANK, P_PASSED_EG_PER_RANK = 15, 16
+P_ROOK_OPEN_MG, P_ROOK_OPEN_EG = 17, 18
+P_ROOK_SEMI_MG, P_ROOK_SEMI_EG = 19, 20
+P_KING_OPEN_PENALTY, P_KING_SEMI_PENALTY = 21, 22
+P_BISHOP_PAIR_MG, P_BISHOP_PAIR_EG = 23, 24
+P_CASTLING_MG = 25
+NUM_PARAMS = 26
+
+DEFAULT_PARAMS = np.zeros(NUM_PARAMS, dtype=np.int32)
+_MG_MATERIAL_IDX = [P_PAWN_MG, P_KNIGHT_MG, P_BISHOP_MG, P_ROOK_MG, P_QUEEN_MG]
+_EG_MATERIAL_IDX = [P_PAWN_EG, P_KNIGHT_EG, P_BISHOP_EG, P_ROOK_EG, P_QUEEN_EG]
+DEFAULT_PARAMS[_MG_MATERIAL_IDX] = [100, 320, 330, 500, 900]
+DEFAULT_PARAMS[_EG_MATERIAL_IDX] = [120, 300, 320, 540, 950]
+DEFAULT_PARAMS[P_MOBILITY] = 2
+DEFAULT_PARAMS[P_DOUBLED_MG] = -8
+DEFAULT_PARAMS[P_DOUBLED_EG] = -16
+DEFAULT_PARAMS[P_ISOLATED_MG] = -10
+DEFAULT_PARAMS[P_ISOLATED_EG] = -12
+DEFAULT_PARAMS[P_PASSED_MG_PER_RANK] = 4
+DEFAULT_PARAMS[P_PASSED_EG_PER_RANK] = 18
+DEFAULT_PARAMS[P_ROOK_OPEN_MG] = 20
+DEFAULT_PARAMS[P_ROOK_OPEN_EG] = 16
+DEFAULT_PARAMS[P_ROOK_SEMI_MG] = 10
+DEFAULT_PARAMS[P_ROOK_SEMI_EG] = 8
+DEFAULT_PARAMS[P_KING_OPEN_PENALTY] = -12
+DEFAULT_PARAMS[P_KING_SEMI_PENALTY] = -6
+DEFAULT_PARAMS[P_BISHOP_PAIR_MG] = 30
+DEFAULT_PARAMS[P_BISHOP_PAIR_EG] = 40
+DEFAULT_PARAMS[P_CASTLING_MG] = 15
 
 # Tapered-eval phase weight per piece type; starting position sums to 24.
 PHASE_WEIGHT = np.array([0, 0, 1, 1, 2, 4, 0], dtype=np.int32)
@@ -126,7 +166,10 @@ def evaluate(
     adjacent_file_mask: np.ndarray,
     white_castling_rights: int,
     black_castling_rights: int,
+    params: np.ndarray,
 ) -> int:
+    mg_value = params[P_PAWN_MG : P_QUEEN_MG + 1]
+    eg_value = params[P_PAWN_EG : P_QUEEN_EG + 1]
     piece_bb = (pawns, knights, bishops, rooks, queens, kings)
     mg = 0
     eg = 0
@@ -149,27 +192,30 @@ def evaluate(
         for square in range(64):
             mask = np.uint64(1) << np.uint64(square)
             if w_bb & mask:
-                mg += MG_VALUE[piece_type] + mg_pst[piece_type][square]
-                eg += EG_VALUE[piece_type] + eg_pst[piece_type][square]
+                if piece_type != KING:
+                    mg += mg_value[piece_type - 1]
+                    eg += eg_value[piece_type - 1]
+                mg += mg_pst[piece_type][square]
+                eg += eg_pst[piece_type][square]
                 if piece_type == PAWN:
                     if pawns & passed_white[square] & black == 0:
                         rank = square // 8
-                        mg += 4 * rank
-                        eg += 18 * rank
+                        mg += params[P_PASSED_MG_PER_RANK] * rank
+                        eg += params[P_PASSED_EG_PER_RANK] * rank
                     if _popcount(pawns & white & file_mask[square % 8]) > 1:
-                        mg -= 8
-                        eg -= 16
+                        mg += params[P_DOUBLED_MG]
+                        eg += params[P_DOUBLED_EG]
                     if pawns & white & adjacent_file_mask[square % 8] == 0:
-                        mg -= 10
-                        eg -= 12
+                        mg += params[P_ISOLATED_MG]
+                        eg += params[P_ISOLATED_EG]
                 elif piece_type == ROOK:
                     file_pawns = pawns & file_mask[square % 8]
                     if file_pawns == 0:
-                        mg += 20
-                        eg += 16
+                        mg += params[P_ROOK_OPEN_MG]
+                        eg += params[P_ROOK_OPEN_EG]
                     elif file_pawns & white == 0:
-                        mg += 10
-                        eg += 8
+                        mg += params[P_ROOK_SEMI_MG]
+                        eg += params[P_ROOK_SEMI_EG]
                 elif piece_type == KING:
                     king_file = square % 8
                     lo = king_file - 1 if king_file > 0 else 0
@@ -177,30 +223,37 @@ def evaluate(
                     for f in range(lo, hi + 1):
                         fmask = file_mask[f]
                         if pawns & white & fmask == 0:
-                            mg -= 12 if pawns & fmask == 0 else 6
+                            mg += (
+                                params[P_KING_OPEN_PENALTY]
+                                if pawns & fmask == 0
+                                else params[P_KING_SEMI_PENALTY]
+                            )
             elif b_bb & mask:
                 mirror = square ^ 56
-                mg -= MG_VALUE[piece_type] + mg_pst[piece_type][mirror]
-                eg -= EG_VALUE[piece_type] + eg_pst[piece_type][mirror]
+                if piece_type != KING:
+                    mg -= mg_value[piece_type - 1]
+                    eg -= eg_value[piece_type - 1]
+                mg -= mg_pst[piece_type][mirror]
+                eg -= eg_pst[piece_type][mirror]
                 if piece_type == PAWN:
                     if pawns & passed_black[square] & white == 0:
                         rank = 7 - (square // 8)
-                        mg -= 4 * rank
-                        eg -= 18 * rank
+                        mg -= params[P_PASSED_MG_PER_RANK] * rank
+                        eg -= params[P_PASSED_EG_PER_RANK] * rank
                     if _popcount(pawns & black & file_mask[square % 8]) > 1:
-                        mg += 8
-                        eg += 16
+                        mg -= params[P_DOUBLED_MG]
+                        eg -= params[P_DOUBLED_EG]
                     if pawns & black & adjacent_file_mask[square % 8] == 0:
-                        mg += 10
-                        eg += 12
+                        mg -= params[P_ISOLATED_MG]
+                        eg -= params[P_ISOLATED_EG]
                 elif piece_type == ROOK:
                     file_pawns = pawns & file_mask[square % 8]
                     if file_pawns == 0:
-                        mg -= 20
-                        eg -= 16
+                        mg -= params[P_ROOK_OPEN_MG]
+                        eg -= params[P_ROOK_OPEN_EG]
                     elif file_pawns & black == 0:
-                        mg -= 10
-                        eg -= 8
+                        mg -= params[P_ROOK_SEMI_MG]
+                        eg -= params[P_ROOK_SEMI_EG]
                 elif piece_type == KING:
                     king_file = square % 8
                     lo = king_file - 1 if king_file > 0 else 0
@@ -208,24 +261,28 @@ def evaluate(
                     for f in range(lo, hi + 1):
                         fmask = file_mask[f]
                         if pawns & black & fmask == 0:
-                            mg += 12 if pawns & fmask == 0 else 6
+                            mg -= (
+                                params[P_KING_OPEN_PENALTY]
+                                if pawns & fmask == 0
+                                else params[P_KING_SEMI_PENALTY]
+                            )
 
     if bishop_count_w >= 2:
-        mg += 30
-        eg += 40
+        mg += params[P_BISHOP_PAIR_MG]
+        eg += params[P_BISHOP_PAIR_EG]
     if bishop_count_b >= 2:
-        mg -= 30
-        eg -= 40
+        mg -= params[P_BISHOP_PAIR_MG]
+        eg -= params[P_BISHOP_PAIR_EG]
 
     # Castling rights are worth real tempo/safety even before castling happens: an early,
     # unforced king move that forfeits them should cost more than a PST square difference
     # alone would charge it. Endgame-tapered away since the king wants to centralise there.
-    mg += 15 * white_castling_rights
-    mg -= 15 * black_castling_rights
+    mg += params[P_CASTLING_MG] * white_castling_rights
+    mg -= params[P_CASTLING_MG] * black_castling_rights
 
     phase = min(phase, MAX_PHASE)
     tapered = (mg * phase + eg * (MAX_PHASE - phase)) // MAX_PHASE
-    return tapered
+    return int(tapered)
 
 
 def _castling_rights_count(board: chess.Board, color: chess.Color) -> int:
@@ -234,7 +291,7 @@ def _castling_rights_count(board: chess.Board, color: chess.Color) -> int:
     )
 
 
-def evaluate_board(board: chess.Board, mobility: int) -> int:
+def evaluate_board(board: chess.Board, mobility: int, params: np.ndarray = DEFAULT_PARAMS) -> int:
     """Centipawn score relative to the side to move (negamax convention): positive means the
     position favours whoever is about to play. `mobility` is that side's own legal-move count."""
     positional = evaluate(
@@ -254,9 +311,10 @@ def evaluate_board(board: chess.Board, mobility: int) -> int:
         ADJACENT_FILE_MASK,
         _castling_rights_count(board, chess.WHITE),
         _castling_rights_count(board, chess.BLACK),
+        params,
     )
     mover_relative = int(positional) if board.turn == chess.WHITE else -int(positional)
-    return mover_relative + 2 * mobility
+    return mover_relative + int(params[P_MOBILITY]) * mobility
 
 
 def warm_up() -> None:
