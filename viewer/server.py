@@ -88,15 +88,22 @@ def load_real_games() -> list[dict]:
             headers = game.headers
             white = headers.get("White", "?")
             black = headers.get("Black", "?")
+            is_reference = OUR_NAME not in (white, black)
             we_play_white = white == OUR_NAME
-            opponent = black if we_play_white else white
             result = headers.get("Result", "*")
-            if result == "1/2-1/2":
-                our_result = "draw"
-            elif (result == "1-0") == we_play_white:
-                our_result = "win"
+            if is_reference:
+                # Neither side is us -- a reference game (e.g. a top-rated player's game
+                # against someone else), not one of ours. Keep both names, don't score it.
+                opponent = f"{white} vs {black}"
+                our_result = "reference"
             else:
-                our_result = "loss"
+                opponent = black if we_play_white else white
+                if result == "1/2-1/2":
+                    our_result = "draw"
+                elif (result == "1-0") == we_play_white:
+                    our_result = "win"
+                else:
+                    our_result = "loss"
 
             board = game.board()
             moves = []
@@ -107,13 +114,9 @@ def load_real_games() -> list[dict]:
                 if "%clk" in node.comment:
                     clk = node.comment.split("%clk")[1].split("]")[0].strip()
                 board.push(move)
+                is_us = not is_reference and (board.turn != chess.WHITE) == we_play_white
                 moves.append(
-                    {
-                        "san": san,
-                        "uci": move.uci(),
-                        "is_us": (board.turn != chess.WHITE) == we_play_white,
-                        "clock": clk,
-                    }
+                    {"san": san, "uci": move.uci(), "is_us": is_us, "clock": clk}
                 )
 
             games.append(
@@ -122,6 +125,7 @@ def load_real_games() -> list[dict]:
                     "file": path.name,
                     "opponent": opponent,
                     "we_play_white": we_play_white,
+                    "is_reference": is_reference,
                     "result": our_result,
                     "termination": headers.get("Termination", "?"),
                     "date": headers.get("Date", "?"),
@@ -135,7 +139,7 @@ def load_real_games() -> list[dict]:
 
 
 def real_games_summary() -> dict:
-    games = load_real_games()
+    games = [g for g in load_real_games() if not g["is_reference"]]
     wins = sum(1 for g in games if g["result"] == "win")
     draws = sum(1 for g in games if g["result"] == "draw")
     losses = sum(1 for g in games if g["result"] == "loss")

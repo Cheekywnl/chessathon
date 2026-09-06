@@ -88,6 +88,7 @@
   .badge.win, .badge.us { background: rgba(62,207,122,0.15); color: var(--good); }
   .badge.loss, .badge.opponent { background: rgba(239,91,91,0.15); color: var(--bad); }
   .badge.draw { background: rgba(138,144,160,0.15); color: var(--muted); }
+  .badge.reference { background: rgba(79,157,255,0.12); color: var(--accent); }
   /* real games tab */
   #real-games-view { display: grid; grid-template-columns: 1fr 460px; gap: 16px; overflow: hidden; }
   #real-games-list { overflow: auto; }
@@ -310,7 +311,7 @@ async function loadRealGames() {
   const games = await res.json();
   realGamesBody.innerHTML = games.map(g => `
     <tr class="clickable" data-round="${g.round}">
-      <td>${g.round}</td><td>${g.opponent}</td><td>${g.we_play_white ? 'White' : 'Black'}</td>
+      <td>${g.round}</td><td>${g.opponent}</td><td>${g.is_reference ? '—' : (g.we_play_white ? 'White' : 'Black')}</td>
       <td><span class="badge ${g.result}">${g.result.toUpperCase()}</span></td>
       <td>${g.termination}</td><td>${g.plies}</td><td>${g.date}</td>
     </tr>`).join('');
@@ -323,8 +324,9 @@ async function openReplay(round) {
   const res = await fetch(`/api/real_games/${round}`);
   currentReplay = await res.json();
   replayPly = currentReplay.moves.length;
-  document.getElementById('replay-info').textContent =
-    `Round ${currentReplay.round} vs ${currentReplay.opponent} -- we played ${currentReplay.we_play_white ? 'White' : 'Black'}, ${currentReplay.result.toUpperCase()} by ${currentReplay.termination}`;
+  document.getElementById('replay-info').textContent = currentReplay.is_reference
+    ? `Round ${currentReplay.round}: ${currentReplay.opponent} (reference game, not ours) -- ${currentReplay.termination}`
+    : `Round ${currentReplay.round} vs ${currentReplay.opponent} -- we played ${currentReplay.we_play_white ? 'White' : 'Black'}, ${currentReplay.result.toUpperCase()} by ${currentReplay.termination}`;
   document.getElementById('replay-img').style.display = 'block';
   document.getElementById('replay-controls').style.display = 'flex';
   document.getElementById('replay-moves').style.display = 'table';
