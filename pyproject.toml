@@ -34,4 +34,4 @@ ignore = ["N818"]
 
 [tool.mypy]
 strict = true
-files = ["agent.py", "chess_eval.py", "chess_search.py", "harness"]
+files = ["agent.py", "chess_eval.py", "chess_search.py", "chess_movegen.py", "harness"]

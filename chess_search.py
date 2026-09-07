@@ -18,6 +18,8 @@ from collections.abc import Callable, Hashable
 
 import chess
 
+import chess_movegen as mg
+
 MATE = 32_000
 MATE_THRESHOLD = MATE - 1_000
 DRAW = 0
@@ -226,12 +228,12 @@ class Search:
 
         in_check = board.is_check()
         if in_check:
-            moves = list(board.legal_moves)
+            moves = mg.fast_legal_moves(board)
             if not moves:
                 return -(MATE - ply)
             best = -MATE - 1
         else:
-            all_moves = list(board.legal_moves)
+            all_moves = mg.fast_legal_moves(board)
             stand_pat = self.evaluate(board, len(all_moves))
             if stand_pat >= beta:
                 return stand_pat
@@ -296,7 +298,7 @@ class Search:
             return self.quiescence(board, alpha, beta, ply)
 
         in_check = board.is_check()
-        moves = list(board.legal_moves)
+        moves = mg.fast_legal_moves(board)
         if not moves:
             return -(MATE - ply) if in_check else DRAW
 
@@ -398,7 +400,7 @@ class Search:
         before every root move has been searched -- callers should only trust the return value
         of a call that completes without raising."""
         self.deadline = deadline
-        moves = list(board.legal_moves)
+        moves = mg.fast_legal_moves(board)
         key = board._transposition_key()
         _, tt_move = self.tt.probe(key, depth, -MATE, MATE, 0)
         ordered = self._order_moves(board, moves, tt_move, 0)
