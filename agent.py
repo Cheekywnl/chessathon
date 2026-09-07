@@ -26,7 +26,7 @@ PONDER_JOIN_TIMEOUT_S = 1.0
 # for board copies, recursion, and the ponder thread's own local state. An OOM kill is an
 # instant loss, so this was re-measured empirically before raising it, not guessed.
 _TT = cs.TranspositionTable(size_power=21)
-_GAME_HISTORY: dict[object, int] = {}
+_GAME_HISTORY: dict[int, int] = {}
 
 # Pondering: while the opponent thinks, the harness blocks on stdin and this core sits idle
 # unless we use it ourselves -- the rules explicitly allow this ("the process keeps its core
@@ -72,20 +72,24 @@ def _stop_pondering() -> None:
 
 
 def _predict_reply(board_after_our_move: chess.Board) -> chess.Move | None:
-    key = board_after_our_move._transposition_key()
-    _, tt_move = _TT.probe(key, 0, -cs.MATE, cs.MATE, 0)
+    key = cs.hash_of_board(board_after_our_move)
+    _, tt_move_packed = _TT.probe(key, 0, -cs.MATE, cs.MATE, 0)
+    tt_move = cs.packed_to_move(tt_move_packed)
     if tt_move is not None and tt_move in board_after_our_move.legal_moves:
         return tt_move
     return None
 
 
 def _ponder(board_to_ponder: chess.Board, stop_event: threading.Event) -> None:
-    search = cs.Search(_TT, _GAME_HISTORY, ce.evaluate_board, stop_event=stop_event)
+    search = cs.Search(_TT, _GAME_HISTORY, stop_event=stop_event)
     deadline = time.monotonic() + PONDER_TIME_CAP_S
     depth = 1
+    last_score: int | None = None
     while depth <= MAX_SEARCH_DEPTH:
         try:
-            search.search_root(board_to_ponder, depth, deadline)
+            _, last_score, _ = search.search_root(
+                board_to_ponder, depth, deadline, prev_score=last_score
+            )
         except cs.TimeUp:
             return
         depth += 1
@@ -122,7 +126,7 @@ def get_move(fen: str, time_left_ms: int) -> str:
     _stop_pondering()
 
     board = chess.Board(fen)
-    key = board._transposition_key()
+    key = cs.hash_of_board(board)
     _GAME_HISTORY[key] = _GAME_HISTORY.get(key, 0) + 1
 
     legal_moves = list(board.legal_moves)
@@ -134,16 +138,18 @@ def get_move(fen: str, time_left_ms: int) -> str:
     deadline = start + hard_ms / 1000.0
     soft_deadline = start + soft_ms / 1000.0
 
-    _, tt_move = _TT.probe(key, 0, -cs.MATE, cs.MATE, 0)
+    _, tt_move_packed = _TT.probe(key, 0, -cs.MATE, cs.MATE, 0)
+    tt_move = cs.packed_to_move(tt_move_packed)
     best_move = tt_move if tt_move in legal_moves else legal_moves[0]
 
-    search = cs.Search(_TT, _GAME_HISTORY, ce.evaluate_board)
+    search = cs.Search(_TT, _GAME_HISTORY)
     depth = 1
     completed_depth = 0
     last_score = 0
     while depth <= MAX_SEARCH_DEPTH:
+        prev_score = last_score if completed_depth > 0 else None
         try:
-            move, score, _ = search.search_root(board, depth, deadline)
+            move, score, _ = search.search_root(board, depth, deadline, prev_score=prev_score)
         except cs.TimeUp:
             break
         best_move = move
