@@ -42,24 +42,30 @@ NUM_PARAMS = 26
 DEFAULT_PARAMS = np.zeros(NUM_PARAMS, dtype=np.int32)
 _MG_MATERIAL_IDX = [P_PAWN_MG, P_KNIGHT_MG, P_BISHOP_MG, P_ROOK_MG, P_QUEEN_MG]
 _EG_MATERIAL_IDX = [P_PAWN_EG, P_KNIGHT_EG, P_BISHOP_EG, P_ROOK_EG, P_QUEEN_EG]
-DEFAULT_PARAMS[_MG_MATERIAL_IDX] = [100, 320, 330, 500, 900]
-DEFAULT_PARAMS[_EG_MATERIAL_IDX] = [120, 300, 320, 540, 950]
+# Texel-tuned against 4283 self-play positions (see tune.py); two values overridden by hand
+# where the tuner's fit contradicted basic chess principles rather than trusted blindly --
+# isolated pawns as a bonus, and a fully-open file next to the king penalised at zero -- both
+# most likely artifacts of tuning against fast, shallow self-play games rather than real signal.
+DEFAULT_PARAMS[_MG_MATERIAL_IDX] = [76, 272, 378, 548, 828]
+DEFAULT_PARAMS[_EG_MATERIAL_IDX] = [144, 332, 296, 516, 1022]
 DEFAULT_PARAMS[P_MOBILITY] = 2
-DEFAULT_PARAMS[P_DOUBLED_MG] = -8
-DEFAULT_PARAMS[P_DOUBLED_EG] = -16
-DEFAULT_PARAMS[P_ISOLATED_MG] = -10
-DEFAULT_PARAMS[P_ISOLATED_EG] = -12
-DEFAULT_PARAMS[P_PASSED_MG_PER_RANK] = 4
+DEFAULT_PARAMS[P_DOUBLED_MG] = -4
+DEFAULT_PARAMS[P_DOUBLED_EG] = -10
+DEFAULT_PARAMS[P_ISOLATED_MG] = -3  # tuner wanted +2 (a bonus) -- overridden, kept a penalty
+DEFAULT_PARAMS[P_ISOLATED_EG] = -24
+DEFAULT_PARAMS[P_PASSED_MG_PER_RANK] = 12
 DEFAULT_PARAMS[P_PASSED_EG_PER_RANK] = 18
-DEFAULT_PARAMS[P_ROOK_OPEN_MG] = 20
-DEFAULT_PARAMS[P_ROOK_OPEN_EG] = 16
-DEFAULT_PARAMS[P_ROOK_SEMI_MG] = 10
-DEFAULT_PARAMS[P_ROOK_SEMI_EG] = 8
-DEFAULT_PARAMS[P_KING_OPEN_PENALTY] = -12
-DEFAULT_PARAMS[P_KING_SEMI_PENALTY] = -6
-DEFAULT_PARAMS[P_BISHOP_PAIR_MG] = 30
-DEFAULT_PARAMS[P_BISHOP_PAIR_EG] = 40
-DEFAULT_PARAMS[P_CASTLING_MG] = 15
+DEFAULT_PARAMS[P_ROOK_OPEN_MG] = 8
+DEFAULT_PARAMS[P_ROOK_OPEN_EG] = 4
+DEFAULT_PARAMS[P_ROOK_SEMI_MG] = 22
+DEFAULT_PARAMS[P_ROOK_SEMI_EG] = 20
+# tuner wanted 0 (no penalty at all); kept negative and more severe than semi-open (-18) below,
+# since "fully open file next to the king" being safer than "semi-open" has no chess basis.
+DEFAULT_PARAMS[P_KING_OPEN_PENALTY] = -24
+DEFAULT_PARAMS[P_KING_SEMI_PENALTY] = -18
+DEFAULT_PARAMS[P_BISHOP_PAIR_MG] = 48
+DEFAULT_PARAMS[P_BISHOP_PAIR_EG] = 46
+DEFAULT_PARAMS[P_CASTLING_MG] = 3
 
 # Tapered-eval phase weight per piece type; starting position sums to 24.
 PHASE_WEIGHT = np.array([0, 0, 1, 1, 2, 4, 0], dtype=np.int32)
