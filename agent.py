@@ -12,7 +12,9 @@ import time
 import chess
 
 import chess_eval as ce
+import chess_movegen as mg
 import chess_search as cs
+import chess_state as cst
 
 SAFETY_MARGIN_MS = 300.0
 MIN_THINK_MS = 50.0
@@ -39,6 +41,8 @@ _ponder_thread: threading.Thread | None = None
 _ponder_stop = threading.Event()
 
 ce.warm_up()
+mg.warm_up()
+cst.warm_up()
 
 
 def _time_budget(time_left_ms: float, fullmove_number: int) -> tuple[float, float]:
