@@ -1,0 +1,7 @@
+{"time": 1788743801.583072, "message": "Built Texel-style automated tuning pipeline: self-play data generation (7 parallel shards, 4283 positions) + coordinate-descent optimizer", "status": "done"}
+{"time": 1788743801.6197581, "message": "Ran Texel tuning against 4283 self-play positions; overrode 2 parameters that contradicted basic chess principles (isolated-pawn bonus, zeroed king-safety penalty)", "status": "done"}
+{"time": 1788743801.663983, "message": "A/B tested tuned+corrected eval params: 54.2% (subprocess, 24 games) and 51.2% (in-process, 40 games) -- weakly positive, not a clear win, but never tested worse", "status": "info"}
+{"time": 1788743801.7033112, "message": "Committed tuned eval params (677014a) -- honest framing: modest/unproven improvement, real value is the reusable tuning pipeline", "status": "done"}
+{"time": 1788743801.742767, "message": "Built a fast in-process arena (no subprocess spawn per game) for quicker A/B testing; validated it against itself (50.0% exactly) before trusting results from it", "status": "done"}
+{"time": 1788743801.7803268, "message": "Analyzed all 24 Emile Andrieu (top-rated, 2608) reference games: consistently 2-5s per move even in 95-move games, never spiking -- informs next time-management refinement", "status": "info"}
+{"time": 1788743801.817138, "message": "Building this activity log so progress is visible without asking", "status": "done"}

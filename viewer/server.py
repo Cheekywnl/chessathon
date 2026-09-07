@@ -183,6 +183,42 @@ def get_changelog(limit: int = 30) -> list[dict]:
     return entries
 
 
+def get_head_info() -> dict:
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--pretty=format:%H%x1f%s"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+        commit_hash, subject = out.split("\x1f", 1)
+        return {"hash": commit_hash[:7], "subject": subject, "dirty": bool(dirty)}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return {"hash": "?", "subject": "?", "dirty": False}
+
+
+ACTIVITY_LOG_PATH = ROOT / "viewer" / "activity_log.jsonl"
+
+
+def get_activity_log(limit: int = 100) -> list[dict]:
+    if not ACTIVITY_LOG_PATH.exists():
+        return []
+    entries = []
+    with open(ACTIVITY_LOG_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    return list(reversed(entries[-limit:]))
+
+
 def _reset_our_agent_state() -> None:
     """Simulate what a fresh process gives the real submission for free: a game's worth of
     state (TT, position history, any live ponder thread) never survives to the next game."""
@@ -355,10 +391,13 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "real_games": real_games_summary(),
                     "changelog_count": len(get_changelog(limit=200)),
+                    "head": get_head_info(),
                 }
             )
         elif path == "/api/changelog":
             self._send_json(get_changelog())
+        elif path == "/api/activity":
+            self._send_json(get_activity_log())
         elif path.startswith("/api/real_games/") and path.endswith("/board.svg"):
             round_no = int(path.split("/")[3])
             ply = int(query.get("ply", ["0"])[0])

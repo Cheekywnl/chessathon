@@ -98,6 +98,14 @@
   #replay-moves { flex: 1; overflow: auto; max-height: 220px; }
   /* changelog tab */
   #changelog-view { overflow: auto; }
+  #activity-view { overflow: auto; }
+  .activity-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .activity-time { color: var(--muted); font-size: 11px; white-space: nowrap; width: 70px; }
+  .activity-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; height: fit-content; }
+  .activity-badge.running { background: rgba(79,157,255,0.15); color: var(--accent); }
+  .activity-badge.done { background: rgba(62,207,122,0.15); color: var(--good); }
+  .activity-badge.issue { background: rgba(239,91,91,0.15); color: var(--bad); }
+  .activity-badge.info { background: rgba(138,144,160,0.15); color: var(--muted); }
   .commit { padding: 12px 0; border-bottom: 1px solid var(--border); }
   .commit-head { display: flex; gap: 10px; align-items: baseline; }
   .commit-hash { font-family: ui-monospace, monospace; color: var(--accent); font-size: 12px; }
@@ -113,6 +121,7 @@
     <button class="tab active" data-view="live">Live game</button>
     <button class="tab" data-view="real-games">Real games</button>
     <button class="tab" data-view="changelog">Changelog</button>
+    <button class="tab" data-view="activity">Activity</button>
   </div>
   <span id="status"></span>
 </header>
@@ -184,6 +193,8 @@
 
 <div class="view panel" id="changelog-view"></div>
 
+<div class="view panel" id="activity-view"></div>
+
 <script>
 const statusEl = document.getElementById('status');
 const summaryBar = document.getElementById('summary-bar');
@@ -197,20 +208,47 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.getElementById(btn.dataset.view + '-view').classList.add('active');
     if (btn.dataset.view === 'real-games') loadRealGames();
     if (btn.dataset.view === 'changelog') loadChangelog();
+    if (btn.dataset.view === 'activity') loadActivity();
   });
 });
 
-// ---------- summary bar (real record, always visible) ----------
+// ---------- summary bar (real record + live version, always visible) ----------
 async function loadSummary() {
   try {
     const res = await fetch('/api/analytics');
     const a = await res.json();
     const r = a.real_games;
     const term = Object.entries(r.terminations).map(([k, v]) => `${k}: ${v}`).join(', ');
+    const dirty = a.head.dirty ? ' <span style="color:var(--bad)">(uncommitted changes)</span>' : '';
     summaryBar.innerHTML = `
+      <span>Live: <b>${a.head.hash}</b> ${a.head.subject}${dirty}</span>
       <span>Real rated record: <b>${r.wins}W ${r.draws}D ${r.losses}L</b> (${r.score_pct}%) over ${r.total} games</span>
-      <span>Terminations: ${term}</span>
-      <span>${a.changelog_count} commits logged</span>`;
+      <span>Terminations: ${term}</span>`;
+  } catch (e) { /* server not up yet */ }
+}
+
+// ---------- activity feed ----------
+function timeAgo(unixSeconds) {
+  const diff = Math.max(0, Date.now() / 1000 - unixSeconds);
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+async function loadActivity() {
+  try {
+    const res = await fetch('/api/activity');
+    const entries = await res.json();
+    const view = document.getElementById('activity-view');
+    view.innerHTML = '<h2>Activity</h2>' + (entries.length
+      ? entries.map(e => `
+          <div class="activity-row">
+            <span class="activity-time">${timeAgo(e.time)}</span>
+            <span class="activity-badge ${e.status}">${e.status}</span>
+            <span>${e.message}</span>
+          </div>`).join('')
+      : '<p style="color:var(--muted)">No activity logged yet.</p>');
   } catch (e) { /* server not up yet */ }
 }
 
@@ -374,6 +412,7 @@ setInterval(pollLive, 900);
 pollLive();
 loadSummary();
 setInterval(loadSummary, 5000);
+setInterval(() => { if (document.getElementById('activity-view').classList.contains('active')) loadActivity(); }, 4000);
 </script>
 </body>
 </html>
