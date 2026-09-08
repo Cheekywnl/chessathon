@@ -313,7 +313,51 @@ def evaluate(
     black_has_mating_material = major_pieces & black
     white_is_bare = (losing_side_bare & white) == 0
     black_is_bare = (losing_side_bare & black) == 0
-    if (white_has_mating_material != 0 and black_is_bare) or (
+    # KBN vs K: famous even outside computer chess for being hard to convert without a
+    # tablebase -- the mating net needs driving the bare king to a corner matching the
+    # bishop's own square colour specifically (the other two corners are only a draw), not
+    # just any edge the way the rook/queen technique below wants. Detected as its own case
+    # (exactly one bishop, one knight, nothing else) so it gets the colour-correct target
+    # instead of the generic edge bonus, which found a real bug here too: with only the
+    # generic bonus the search reliably herded the king to roughly the right area but then
+    # stalled into a repetition right before the final, precise mating sequence.
+    white_is_kbn = (
+        _popcount(bishops & white) == 1
+        and _popcount(knights & white) == 1
+        and (rooks | queens | pawns) & white == 0
+    )
+    black_is_kbn = (
+        _popcount(bishops & black) == 1
+        and _popcount(knights & black) == 1
+        and (rooks | queens | pawns) & black == 0
+    )
+    if (white_is_kbn and black_is_bare) or (black_is_kbn and white_is_bare):
+        white_king_sq = 0
+        black_king_sq = 0
+        bishop_sq = 0
+        for s in range(64):
+            bit = np.uint64(1) << np.uint64(s)
+            if kings & white & bit:
+                white_king_sq = s
+            if kings & black & bit:
+                black_king_sq = s
+            if bishops & bit:
+                bishop_sq = s
+        bishop_is_light = (bishop_sq % 8 + bishop_sq // 8) % 2 == 1
+        corner_a, corner_b = (56, 7) if bishop_is_light else (0, 63)
+        defender_sq = black_king_sq if black_is_bare else white_king_sq
+        df, dr = defender_sq % 8, defender_sq // 8
+        dist_a = max(abs(df - corner_a % 8), abs(dr - corner_a // 8))
+        dist_b = max(abs(df - corner_b % 8), abs(dr - corner_b // 8))
+        corner_bonus = params[P_MOPUP_CORNER] * (7 - min(dist_a, dist_b))
+        wf, wr = white_king_sq % 8, white_king_sq // 8
+        bf, br = black_king_sq % 8, black_king_sq // 8
+        king_dist = max(abs(wf - bf), abs(wr - br))
+        if black_is_bare:
+            eg += corner_bonus - params[P_MOPUP_KING_DIST] * king_dist
+        else:
+            eg -= corner_bonus - params[P_MOPUP_KING_DIST] * king_dist
+    elif (white_has_mating_material != 0 and black_is_bare) or (
         black_has_mating_material != 0 and white_is_bare
     ):
         white_king_sq = 0
