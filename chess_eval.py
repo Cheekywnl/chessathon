@@ -37,7 +37,8 @@ P_ROOK_SEMI_MG, P_ROOK_SEMI_EG = 19, 20
 P_KING_OPEN_PENALTY, P_KING_SEMI_PENALTY = 21, 22
 P_BISHOP_PAIR_MG, P_BISHOP_PAIR_EG = 23, 24
 P_CASTLING_MG = 25
-NUM_PARAMS = 26
+P_MOPUP_CORNER, P_MOPUP_KING_DIST = 26, 27
+NUM_PARAMS = 28
 
 DEFAULT_PARAMS = np.zeros(NUM_PARAMS, dtype=np.int32)
 _MG_MATERIAL_IDX = [P_PAWN_MG, P_KNIGHT_MG, P_BISHOP_MG, P_ROOK_MG, P_QUEEN_MG]
@@ -66,6 +67,17 @@ DEFAULT_PARAMS[P_KING_SEMI_PENALTY] = -18
 DEFAULT_PARAMS[P_BISHOP_PAIR_MG] = 48
 DEFAULT_PARAMS[P_BISHOP_PAIR_EG] = 46
 DEFAULT_PARAMS[P_CASTLING_MG] = 3
+# Mop-up: only active when the losing side has no material left at all (a bare king) --
+# found as a real, repeated bug in our own games (K+R vs K and 2Q vs Q, both with the losing
+# side down to a lone king, ending in a threefold-repetition draw instead of the forced mate a
+# beginner would find). Without any term rewarding *progress* toward mate, a position that's
+# already "winning by a rook" scores the same whether the winning side advances the plan or
+# just shuffles, so the search has no reason to prefer one over the other -- these two terms
+# give it one: corner the bare king, then bring your own king in to help finish it off. Not
+# hand-tuned by feel; both values are the standard magnitude used for this exact technique
+# (chessprogramming.org/Mop-up_Evaluation), and only apply in the endgame taper.
+DEFAULT_PARAMS[P_MOPUP_CORNER] = 10
+DEFAULT_PARAMS[P_MOPUP_KING_DIST] = 4
 
 # Tapered-eval phase weight per piece type; starting position sums to 24.
 PHASE_WEIGHT = np.array([0, 0, 1, 1, 2, 4, 0], dtype=np.int32)
@@ -285,6 +297,41 @@ def evaluate(
     # alone would charge it. Endgame-tapered away since the king wants to centralise there.
     mg += params[P_CASTLING_MG] * white_castling_rights
     mg -= params[P_CASTLING_MG] * black_castling_rights
+
+    # Only a rook or queen counts as "enough to mop up": the technique this term encodes
+    # (corner the bare king, bring your own king in) is specifically the rook/queen-vs-king
+    # technique. A pawn-only or minor-piece-only edge is a different kind of endgame (K+P vs K
+    # is opposition/key-squares, not cornering; K+B+N vs K needs a bishop-colour-specific
+    # corner) that this crude bonus would actively mislead rather than help -- confirmed as a
+    # real, not hypothetical, distinction: the initial version counted pawns as "material" too,
+    # which meant it fired on ordinary K+P vs K endgames and traded a modest strength cost
+    # there against the fix for the rook/queen mating bug.
+    major_pieces = rooks | queens
+    losing_side_bare = pawns | knights | bishops | major_pieces
+    white_has_mating_material = major_pieces & white
+    black_has_mating_material = major_pieces & black
+    white_is_bare = (losing_side_bare & white) == 0
+    black_is_bare = (losing_side_bare & black) == 0
+    if (white_has_mating_material != 0 and black_is_bare) or (
+        black_has_mating_material != 0 and white_is_bare
+    ):
+        white_king_sq = 0
+        black_king_sq = 0
+        for s in range(64):
+            bit = np.uint64(1) << np.uint64(s)
+            if kings & white & bit:
+                white_king_sq = s
+            if kings & black & bit:
+                black_king_sq = s
+        wf, wr = white_king_sq % 8, white_king_sq // 8
+        bf, br = black_king_sq % 8, black_king_sq // 8
+        w_edge_dist = min(wf, 7 - wf, wr, 7 - wr)
+        b_edge_dist = min(bf, 7 - bf, br, 7 - br)
+        king_dist = max(abs(wf - bf), abs(wr - br))
+        if black_is_bare:
+            eg += params[P_MOPUP_CORNER] * (3 - b_edge_dist) - params[P_MOPUP_KING_DIST] * king_dist
+        else:
+            eg -= params[P_MOPUP_CORNER] * (3 - w_edge_dist) - params[P_MOPUP_KING_DIST] * king_dist
 
     phase = min(phase, MAX_PHASE)
     tapered = (mg * phase + eg * (MAX_PHASE - phase)) // MAX_PHASE
