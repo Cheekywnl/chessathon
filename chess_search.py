@@ -1,5 +1,6 @@
 """Negamax alpha-beta search: iterative deepening, a persistent transposition table, quiescence,
-null-move pruning, late move reductions, and check extensions.
+null-move pruning, reverse and regular futility pruning, late move reductions, and check
+extensions.
 
 The search tree operates entirely on raw bitboard state (pawns, knights, ..., black, turn,
 castling_rights, ep_square, halfmove_clock) and packed-int moves (chess_state.pack_move) --
@@ -26,6 +27,7 @@ AGENTS.md). Everything else here -- killers, history heuristic, node count -- is
 A timeout unwinds through this file as a `TimeUp` exception raised deep in the recursion.
 """
 
+import math
 import threading
 import time
 
@@ -55,7 +57,22 @@ DELTA_MARGIN = 200
 LATE_MOVE_PRUNING_DEPTH = 2
 LATE_MOVE_PRUNING_BASE = 6
 LATE_MOVE_PRUNING_PER_DEPTH = 3
+FUTILITY_DEPTH = 3
+FUTILITY_MARGIN_PER_PLY = 150
 ASPIRATION_INITIAL_MARGIN = 25
+
+# Late move reduction table: reduction grows with both depth and move index (log-product, the
+# standard formula -- see chessprogramming.org/Late_Move_Reductions), replacing the previous
+# flat "reduce by 1" rule. A move that's both late *and* found at a deep search gets reduced
+# more than a merely-late move at a shallow one; the flat rule couldn't tell those apart.
+# Precomputed once at import, not per-node -- log() in the hot loop would cost more than the
+# search-tree savings this buys.
+_LMR_MAX_DEPTH = 64
+_LMR_MAX_MOVE_INDEX = 96
+LMR_TABLE = np.zeros((_LMR_MAX_DEPTH + 1, _LMR_MAX_MOVE_INDEX + 1), dtype=np.int32)
+for _d in range(1, _LMR_MAX_DEPTH + 1):
+    for _m in range(1, _LMR_MAX_MOVE_INDEX + 1):
+        LMR_TABLE[_d, _m] = int(0.5 + math.log(_d) * math.log(_m) / 2.0)
 
 # One flat tuple describes the game state everywhere in this file:
 # (pawns, knights, bishops, rooks, queens, kings, white, black,
@@ -248,6 +265,25 @@ def moving_type_i(
 def has_non_pawn_material(state: State) -> bool:
     own = state[6] if state[8] else state[7]
     return bool(own & ~state[0] & ~state[5])
+
+
+def is_bare_king_endgame(state: State) -> bool:
+    """True in exactly the situations chess_eval's mop-up term fires (kept in sync with it
+    deliberately -- see its comment for why only a rook/queen counts as mating material, not
+    a pawn or minor piece): one side has a rook or queen and the other has nothing but a king.
+    This is the scenario a real regression showed late move reductions and futility pruning can
+    break -- converting mate depends on a specific sequence of quiet king/rook moves that a
+    reduction or an outright skip can hide, precisely when there's no material left to make
+    captures or checks look tactically interesting instead."""
+    pawns, knights, bishops, rooks, queens = state[0], state[1], state[2], state[3], state[4]
+    white, black = state[6], state[7]
+    major = rooks | queens
+    losing_side_bare = pawns | knights | bishops | major
+    white_is_bare = (losing_side_bare & white) == 0
+    black_is_bare = (losing_side_bare & black) == 0
+    return bool((major & white) != 0 and black_is_bare) or bool(
+        (major & black) != 0 and white_is_bare
+    )
 
 
 def see(state: State, from_sq: int, to_sq: int) -> int:
@@ -470,11 +506,13 @@ class Search:
         if count == 0:
             return -(MATE - ply) if in_check else DRAW
 
-        if not in_check and depth <= REVERSE_FUTILITY_DEPTH and abs(beta) < MATE_THRESHOLD:
+        static_eval = None
+        if not in_check:
             static_eval = self.evaluate(state, count)
-            margin = REVERSE_FUTILITY_MARGIN_PER_PLY * depth
-            if static_eval - margin >= beta:
-                return static_eval - margin
+            if depth <= REVERSE_FUTILITY_DEPTH and abs(beta) < MATE_THRESHOLD:
+                margin = REVERSE_FUTILITY_MARGIN_PER_PLY * depth
+                if static_eval - margin >= beta:
+                    return static_eval - margin
 
         if allow_null and not in_check and depth >= 3 and has_non_pawn_material(state):
             null_state = apply_null(state)
@@ -491,6 +529,7 @@ class Search:
         best_move = NO_MOVE
         k_ply = min(ply, MAX_PLY - 1)
         mover = state[8]
+        prunable = not is_bare_king_endgame(state)
 
         for i, (packed, is_capture) in enumerate(ordered):
             f, t, p = cst.unpack_move(packed)
@@ -500,7 +539,8 @@ class Search:
             child = apply_move(state, f, t, p)
 
             if (
-                depth <= LATE_MOVE_PRUNING_DEPTH
+                prunable
+                and depth <= LATE_MOVE_PRUNING_DEPTH
                 and i >= LATE_MOVE_PRUNING_BASE + LATE_MOVE_PRUNING_PER_DEPTH * depth
                 and extension == 0
                 and not is_capture
@@ -511,16 +551,44 @@ class Search:
             ):
                 continue
 
+            # Futility pruning: near the leaf, a quiet move that can't even reach alpha once
+            # the position's current static assessment is padded by a generous margin is not
+            # going to be the move that saves this node -- skip searching it entirely, rather
+            # than reverse futility pruning's whole-node early return (which only fires when
+            # the *whole node* looks good enough to already beat beta before any move is
+            # tried). Requires i >= 1 so at least one move has gone through the full search
+            # first -- best_score must reflect a real searched move, never a bare static_eval
+            # guess, so a lopsided position doesn't get a fabricated score from pruning away
+            # literally everything. Gated off entirely in a bare-king endgame (see `prunable`)
+            # for the same reason LMR is below -- confirmed via a real regression, not a guess.
+            if (
+                prunable
+                and static_eval is not None
+                and i >= 1
+                and depth <= FUTILITY_DEPTH
+                and extension == 0
+                and not is_capture
+                and not p
+                and not is_killer
+                and abs(alpha) < MATE_THRESHOLD
+                and static_eval + FUTILITY_MARGIN_PER_PLY * depth <= alpha
+                and not is_in_check(child)
+            ):
+                continue
+
             reduce = 0
             if (
-                depth >= 3
+                prunable
+                and depth >= 3
                 and i >= 3
                 and extension == 0
                 and not is_capture
                 and not p
                 and not is_killer
             ):
-                reduce = 1
+                d_idx = depth if depth < _LMR_MAX_DEPTH else _LMR_MAX_DEPTH
+                m_idx = i if i < _LMR_MAX_MOVE_INDEX else _LMR_MAX_MOVE_INDEX
+                reduce = min(int(LMR_TABLE[d_idx, m_idx]), depth - 1)
 
             child_key = hash_of(child)
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
