@@ -59,10 +59,31 @@ _GAME_HISTORY: dict[int, int] = {}
 # from shipping another engine's move/eval opinions: this is exact, retrograde-solved
 # game-theoretic truth, not a heuristic. A position matching a 5-piece config not among the ones
 # actually downloaded just falls through to search -- get_wdl/get_dtz return None on a missing
-# table rather than raising, and _tablebase_move treats that the same as no coverage at all.
-# Directory may be absent in a stripped-down local checkout; fails open to plain search.
-_SYZYGY_DIR = Path(__file__).resolve().parent / "syzygy"
-_TABLEBASE = chess.syzygy.open_tablebase(str(_SYZYGY_DIR)) if _SYZYGY_DIR.is_dir() else None
+# table rather than raising, and _tablebase_move treats that the same as no coverage at all. A
+# *corrupted* table is a different failure mode get_wdl/get_dtz do NOT catch internally (they
+# only handle the missing-table KeyError, and a bad file raises OSError instead) -- confirmed
+# directly against a deliberately corrupted file, not assumed: _tablebase_move's own outer
+# exception handler is what actually saves that case, falling back to plain search rather than
+# crashing the game. Directory may be absent in a stripped-down local checkout; fails open too.
+#
+# Loading is wrapped, not called bare: this runs at import time, and the platform gives 90
+# seconds before the clock starts but an *exception* here, not a slow load, would fail the
+# import outright -- an agent that doesn't import loses every single game, not just the ones
+# that would have used the tablebase. A corrupted file in the zip transfer, an unexpected
+# filesystem quirk on the platform, or anything else improbable-but-not-impossible here should
+# cost this one feature, never the whole submission. Same reasoning applies to the book below.
+def _open_tablebase() -> "chess.syzygy.Tablebase | None":
+    directory = Path(__file__).resolve().parent / "syzygy"
+    if not directory.is_dir():
+        return None
+    try:
+        return chess.syzygy.open_tablebase(str(directory))
+    except Exception as exc:
+        print(f"tablebase load failed, continuing without it: {exc}", file=sys.stderr)
+        return None
+
+
+_TABLEBASE = _open_tablebase()
 MAX_TABLEBASE_PIECES = 5
 
 # Opening book (CodeKiddy Polyglot collection, ~16 MB, compiled from a large human-games
@@ -73,9 +94,21 @@ MAX_TABLEBASE_PIECES = 5
 # a hit requires this specific book to also cover that specific curated line -- measured directly
 # against those same 47 real positions before shipping, not assumed: 20/47 (42.6%) covered by
 # this book, the best of four candidates tried locally. Read-only lookup, no learning weights
-# written back, so thread-unsafe concerns around the ponder thread don't apply.
-_BOOK_PATH = Path(__file__).resolve().parent / "book" / "codekiddy.bin"
-_BOOK = chess.polyglot.open_reader(str(_BOOK_PATH)) if _BOOK_PATH.is_file() else None
+# written back, so thread-unsafe concerns around the ponder thread don't apply. Load is
+# wrapped for the same reason as the tablebase above: an exception here would fail the whole
+# import, not just this feature.
+def _open_book() -> "chess.polyglot.MemoryMappedReader | None":
+    path = Path(__file__).resolve().parent / "book" / "codekiddy.bin"
+    if not path.is_file():
+        return None
+    try:
+        return chess.polyglot.open_reader(str(path))
+    except Exception as exc:
+        print(f"book load failed, continuing without it: {exc}", file=sys.stderr)
+        return None
+
+
+_BOOK = _open_book()
 
 # Pondering: while the opponent thinks, the harness blocks on stdin and this core sits idle
 # unless we use it ourselves -- the rules explicitly allow this ("the process keeps its core
@@ -152,14 +185,23 @@ def _book_move(board: chess.Board) -> chess.Move | None:
     book keyed on human play may never have seen -- see the module-level comment). Weight is
     each move's frequency/success in the source games; taking the single best one rather than a
     weighted-random pick keeps this predictable and avoids preferring a rare, riskier try over
-    the well-established main line, which is the whole point of using a book as a safety net."""
+    the well-established main line, which is the whole point of using a book as a safety net.
+
+    Any exception here falls back to None (plain search), never propagates: a rare runtime read
+    failure on the memory-mapped book file should cost this one move's book lookup, not the
+    game -- an uncaught exception on the clock is an instant loss, worse by a wide margin than
+    the book simply not firing this once."""
     if _BOOK is None:
         return None
-    best_entry = None
-    for entry in _BOOK.find_all(board):
-        if best_entry is None or entry.weight > best_entry.weight:
-            best_entry = entry
-    return best_entry.move if best_entry is not None else None
+    try:
+        best_entry = None
+        for entry in _BOOK.find_all(board):
+            if best_entry is None or entry.weight > best_entry.weight:
+                best_entry = entry
+        return best_entry.move if best_entry is not None else None
+    except Exception as exc:
+        print(f"book probe failed, falling back to search: {exc}", file=sys.stderr)
+        return None
 
 
 def _tablebase_move(board: chess.Board) -> chess.Move | None:
@@ -172,7 +214,11 @@ def _tablebase_move(board: chess.Board) -> chess.Move | None:
     loss > loss, all from our side's perspective). Among moves tied on a real win, prefers
     smaller |dtz| on the resulting (opponent-to-move) position -- fewer plies for them to reach
     a zeroing move means faster progress for us; ties elsewhere don't matter game-theoretically,
-    so the first one found stands."""
+    so the first one found stands.
+
+    Any exception falls back to None (plain search): a rare runtime read failure should cost
+    this one lookup, not the game, and board.push/pop is wrapped in try/finally so a failure
+    mid-loop can never leave the caller's board object corrupted for whatever runs next."""
     if (
         _TABLEBASE is None
         or chess.popcount(board.occupied) > MAX_TABLEBASE_PIECES
@@ -180,22 +226,27 @@ def _tablebase_move(board: chess.Board) -> chess.Move | None:
     ):
         return None
 
-    best_move: chess.Move | None = None
-    best_wdl = -3
-    best_progress = 0
-    for move in board.legal_moves:
-        board.push(move)
-        wdl = _TABLEBASE.get_wdl(board)
-        if wdl is None:
-            board.pop()
-            return None
-        dtz = _TABLEBASE.get_dtz(board)
-        board.pop()
-        our_wdl = -wdl
-        progress = -abs(dtz) if (our_wdl > 0 and dtz is not None) else 0
-        if best_move is None or (our_wdl, progress) > (best_wdl, best_progress):
-            best_move, best_wdl, best_progress = move, our_wdl, progress
-    return best_move
+    try:
+        best_move: chess.Move | None = None
+        best_wdl = -3
+        best_progress = 0
+        for move in board.legal_moves:
+            board.push(move)
+            try:
+                wdl = _TABLEBASE.get_wdl(board)
+                dtz = _TABLEBASE.get_dtz(board)
+            finally:
+                board.pop()
+            if wdl is None:
+                return None
+            our_wdl = -wdl
+            progress = -abs(dtz) if (our_wdl > 0 and dtz is not None) else 0
+            if best_move is None or (our_wdl, progress) > (best_wdl, best_progress):
+                best_move, best_wdl, best_progress = move, our_wdl, progress
+        return best_move
+    except Exception as exc:
+        print(f"tablebase probe failed, falling back to search: {exc}", file=sys.stderr)
+        return None
 
 
 def _repeats_if_played(board: chess.Board, move: chess.Move) -> bool:
