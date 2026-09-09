@@ -164,9 +164,20 @@ def state_from_board(board: chess.Board) -> State:
 
 
 def hash_of(state: State) -> int:
-    return cst.hash_state(
-        int(state[0]), int(state[1]), int(state[2]), int(state[3]), int(state[4]), int(state[5]),
-        int(state[6]), int(state[7]), state[8], int(state[9]), state[10],
+    # Calls the jitted zobrist_hash directly rather than going through chess_state.hash_state:
+    # State's own fields are already np.uint64 (see chess_state.py's own docstring on this),
+    # exactly what zobrist_hash wants, so hash_state's int()/np.uint64() round trip on every one
+    # of them was pure conversion tax paid on the single hottest call in the whole search (one
+    # per node, plus one per move actually searched) for no behavioural difference -- confirmed
+    # by profiling before touching it: hash_state alone was ~18% of total search time on a
+    # representative position. hash_state itself is untouched and still used by its own
+    # warm_up() call, which is not hot enough for this to matter there.
+    return int(
+        cst.zobrist_hash(
+            state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7],
+            state[8], state[9], state[10],
+            cst.ZOBRIST_PIECE_SQUARE, cst.ZOBRIST_CASTLING, cst.ZOBRIST_EP_FILE, cst.ZOBRIST_TURN,
+        )
     )
 
 
@@ -448,11 +459,23 @@ class Search:
         pawns, knights, bishops, rooks, queens, white, black = int_fields(state)
         ep_square = state[10]
 
+        # is_capture is computed here, once per candidate, and carried alongside the move --
+        # the loop below used to recompute it a second time per move via the exact same
+        # is_capture_i call, found by profiling as a real, avoidable chunk of quiescence's
+        # (a very hot path) total cost.
         if in_check:
             if count == 0:
                 return -(MATE - ply)
             best = -MATE - 1
-            cand = [(int(from_arr[i]), int(to_arr[i]), int(promo_arr[i])) for i in range(count)]
+            cand = [
+                (
+                    int(from_arr[i]),
+                    int(to_arr[i]),
+                    int(promo_arr[i]),
+                    is_capture_i(white, black, pawns, ep_square, int(from_arr[i]), int(to_arr[i])),
+                )
+                for i in range(count)
+            ]
         else:
             stand_pat = self.evaluate(state, count)
             if stand_pat >= beta:
@@ -460,23 +483,22 @@ class Search:
             if stand_pat > alpha:
                 alpha = stand_pat
             best = stand_pat
-            cand = [
-                (int(from_arr[i]), int(to_arr[i]), int(promo_arr[i]))
-                for i in range(count)
-                if promo_arr[i]
-                or is_capture_i(white, black, pawns, ep_square, int(from_arr[i]), int(to_arr[i]))
-            ]
+            cand = []
+            for i in range(count):
+                f, t, p = int(from_arr[i]), int(to_arr[i]), int(promo_arr[i])
+                capture = is_capture_i(white, black, pawns, ep_square, f, t)
+                if p or capture:
+                    cand.append((f, t, p, capture))
 
-        def qscore(m: tuple[int, int, int]) -> int:
-            f, t, p = m
+        def qscore(m: tuple[int, int, int, bool]) -> int:
+            f, t, p, _ = m
             if p:
                 return 200_000
             victim = captured_type_i(pawns, knights, bishops, rooks, queens, ep_square, f, t)
             attacker = moving_type_i(pawns, knights, bishops, rooks, queens, f)
             return int(PIECE_VALUES[victim - 1]) * 10 - int(PIECE_VALUES[attacker - 1])
 
-        for f, t, p in sorted(cand, key=qscore, reverse=True):
-            is_capture = not p and is_capture_i(white, black, pawns, ep_square, f, t)
+        for f, t, p, is_capture in sorted(cand, key=qscore, reverse=True):
             if not in_check and is_capture:
                 victim = captured_type_i(pawns, knights, bishops, rooks, queens, ep_square, f, t)
                 if stand_pat + int(PIECE_VALUES[victim - 1]) + DELTA_MARGIN <= alpha:
