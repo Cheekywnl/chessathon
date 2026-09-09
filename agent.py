@@ -170,6 +170,23 @@ def _repeats_if_played(board: chess.Board, move: chess.Move) -> bool:
     return _GAME_HISTORY.get(key, 0) >= 2
 
 
+def _record_our_move(board: chess.Board, move: chess.Move) -> None:
+    """_GAME_HISTORY is only ever written from the fen the platform hands us -- always our own
+    turn to move, per the contract. hash_of_board folds in a turn bit (chess_state.py), so the
+    position immediately after we play `move` (opponent to move) hashes to something entirely
+    different and would never appear in that dict on its own. Real rated games showed exactly
+    this gap in practice: the position that actually recurred to draw three winning games was
+    the one right after our own repeated check, which nothing was ever recording. Called once
+    per real move we actually return (both here and from the tablebase path), this closes the
+    gap by recording that position too, so a real recurrence of it is visible to
+    `_repeats_if_played` on a later move -- and to the search's own contempt-driven avoidance,
+    which seeds `self.seen` from this same dict and had the identical blind spot."""
+    board.push(move)
+    key = cs.hash_of_board(board)
+    board.pop()
+    _GAME_HISTORY[key] = _GAME_HISTORY.get(key, 0) + 1
+
+
 def _avoid_needless_repetition(
     board: chess.Board, best_move: chess.Move, best_score: int, scored: list[tuple[chess.Move, int]]
 ) -> chess.Move:
@@ -224,6 +241,7 @@ def get_move(fen: str, time_left_ms: int) -> str:
     tablebase_move = _tablebase_move(board)
     if tablebase_move is not None:
         print(f"move={tablebase_move.uci()} source=tablebase", file=sys.stderr)
+        _record_our_move(board, tablebase_move)
         _start_pondering(board, tablebase_move)
         return tablebase_move.uci()
 
@@ -270,5 +288,6 @@ def get_move(fen: str, time_left_ms: int) -> str:
         file=sys.stderr,
     )
 
+    _record_our_move(board, best_move)
     _start_pondering(board, best_move)
     return best_move.uci()
