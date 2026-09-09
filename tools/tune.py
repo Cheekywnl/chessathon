@@ -50,12 +50,32 @@ def _sigmoid(x: float, k: float) -> float:
     return 1.0 / (1.0 + math.exp(-k * x / 400.0))
 
 
-def total_error(positions: list[Position], params: np.ndarray, k: float) -> float:
+def total_error(
+    positions: list[Position],
+    params: np.ndarray,
+    k: float,
+    l2_weight: float = 0.0,
+    prior: np.ndarray | None = None,
+) -> float:
+    """Mean squared error against real outcomes, plus an optional L2 term pulling params back
+    toward `prior` (DEFAULT_PARAMS as it stood before this tuning run, not zero -- an already
+    reasonably-tuned starting point is a much better anchor than "no knowledge"). Deviations are
+    normalised by 100 before squaring so the penalty applies comparably to a 900-point queen
+    value and a -5-point isolated-pawn penalty, rather than implicitly regularising small terms
+    far harder than large ones. Exists because unconstrained tuning on ~6k self-play positions
+    inverted the sign of several well-established terms (bishop pair, isolated-pawn endgame,
+    king safety) and lost a real 40-game A/B 16.2% (6.5/40) -- a collinearity/overfitting
+    signature, not a dataset-size one (more of the same shallow self-play wouldn't fix
+    parameters trading off against each other); anchoring to the prior is the direct fix."""
     total = 0.0
     for board, mobility, result in positions:
         predicted = _sigmoid(_white_eval(board, mobility, params), k)
         total += (result - predicted) ** 2
-    return total / len(positions)
+    mse = total / len(positions)
+    if l2_weight <= 0.0 or prior is None:
+        return mse
+    deviation = ((params.astype(np.float64) - prior.astype(np.float64)) / 100.0) ** 2
+    return mse + l2_weight * float(np.mean(deviation))
 
 
 def find_best_k(positions: list[Position], params: np.ndarray) -> float:
@@ -70,11 +90,17 @@ def find_best_k(positions: list[Position], params: np.ndarray) -> float:
 
 
 def tune(
-    positions: list[Position], params: np.ndarray, k: float, iterations: int, step: int
+    positions: list[Position],
+    params: np.ndarray,
+    k: float,
+    iterations: int,
+    step: int,
+    l2_weight: float = 0.0,
+    prior: np.ndarray | None = None,
 ) -> tuple[np.ndarray, float]:
     params = params.copy()
-    current_error = total_error(positions, params, k)
-    print(f"initial error: {current_error:.6f} (k={k:.2f})")
+    current_error = total_error(positions, params, k, l2_weight, prior)
+    print(f"initial error: {current_error:.6f} (k={k:.2f}, l2_weight={l2_weight})")
     for iteration in range(iterations):
         improved_this_iteration = False
         for idx in range(len(params)):
@@ -82,7 +108,7 @@ def tune(
             best_for_idx = original
             for delta in (step, -step):
                 params[idx] = original + delta
-                error = total_error(positions, params, k)
+                error = total_error(positions, params, k, l2_weight, prior)
                 if error < current_error:
                     current_error = error
                     best_for_idx = params[idx]
@@ -101,6 +127,15 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=Path("data/tune_positions.csv"))
     parser.add_argument("--iterations", type=int, default=6)
     parser.add_argument("--step", type=int, default=8)
+    parser.add_argument(
+        "--l2-weight",
+        type=float,
+        default=0.02,
+        help="Pull toward the current DEFAULT_PARAMS; 0 disables (the unregularised mode that "
+        "inverted several established terms' signs on this project's own dataset -- see "
+        "total_error's docstring).",
+    )
+    parser.add_argument("--save", type=Path, default=Path("data/tuned_params.npy"))
     arguments = parser.parse_args()
 
     positions = load_dataset(arguments.data)
@@ -111,18 +146,29 @@ def main() -> None:
     baseline_error = total_error(positions, baseline_params, k)
     print(f"baseline (current DEFAULT_PARAMS) error: {baseline_error:.6f}\n")
 
-    tuned_params, tuned_error = tune(
-        positions, baseline_params, k, arguments.iterations, arguments.step
+    tuned_params, tuned_error_with_l2 = tune(
+        positions,
+        baseline_params,
+        k,
+        arguments.iterations,
+        arguments.step,
+        arguments.l2_weight,
+        baseline_params,
     )
+    tuned_error = total_error(positions, tuned_params, k)
 
-    print(f"\nbaseline error: {baseline_error:.6f}")
-    print(f"tuned error:    {tuned_error:.6f}")
-    print(f"improvement:    {(baseline_error - tuned_error) / baseline_error:.2%}\n")
+    print(f"\nbaseline error (no L2):        {baseline_error:.6f}")
+    print(f"tuned error (no L2, for comparison): {tuned_error:.6f}")
+    print(f"tuned error (with L2, what was actually minimised): {tuned_error_with_l2:.6f}")
+    print(f"improvement (no-L2 basis):     {(baseline_error - tuned_error) / baseline_error:.2%}\n")
 
     print("candidate params (only apply after a real A/B validates it):")
     for name, old, new in zip(_param_names(), baseline_params, tuned_params, strict=True):
         marker = "  <-- changed" if old != new else ""
         print(f"  {name:28s} {int(old):6d} -> {int(new):6d}{marker}")
+
+    np.save(arguments.save, tuned_params)
+    print(f"\nsaved candidate params to {arguments.save}")
 
 
 def _param_names() -> list[str]:

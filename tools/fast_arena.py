@@ -30,6 +30,7 @@ import argparse
 import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import chess
 import numpy as np
@@ -189,17 +190,31 @@ def main() -> None:
         action="store_true",
         help="Ignore --zero; play DEFAULT_PARAMS against itself. Score should land near 50%.",
     )
+    parser.add_argument(
+        "--candidate-params-file",
+        type=Path,
+        default=None,
+        help="Load the candidate side's params from a .npy file (e.g. tools/tune.py's --save "
+        "output) instead of DEFAULT_PARAMS. Baseline stays DEFAULT_PARAMS; --zero is ignored "
+        "when this is set.",
+    )
     arguments = parser.parse_args()
 
     ce.warm_up()
     mg.warm_up()
     cst.warm_up()
 
-    candidate_params = ce.DEFAULT_PARAMS.copy()
     if arguments.selfcheck:
+        candidate_params = ce.DEFAULT_PARAMS.copy()
         baseline_params = ce.DEFAULT_PARAMS.copy()
         candidate_name, baseline_name = "self-a", "self-b"
+    elif arguments.candidate_params_file is not None:
+        candidate_params = np.load(arguments.candidate_params_file)
+        baseline_params = ce.DEFAULT_PARAMS.copy()
+        candidate_name = f"candidate ({arguments.candidate_params_file})"
+        baseline_name = "baseline (current DEFAULT_PARAMS)"
     else:
+        candidate_params = ce.DEFAULT_PARAMS.copy()
         baseline_params = ce.DEFAULT_PARAMS.copy()
         for name in arguments.zero:
             baseline_params[getattr(ce, name)] = 0
