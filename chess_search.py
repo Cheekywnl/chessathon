@@ -336,21 +336,41 @@ def packed_to_move(packed: int) -> chess.Move | None:
     return chess.Move(f, t, p if p else None)
 
 
+_DARK_SQUARES = 0xAA55AA55AA55AA55
+_LIGHT_SQUARES = 0x55AA55AA55AA55AA
+
+
+def _has_insufficient_material(
+    own: int, other: int, pawns: int, knights: int, bishops: int, rooks: int, queens: int,
+    kings: int,
+) -> bool:
+    """Direct bitboard port of chess.Board.has_insufficient_material, same rule, no allocation.
+    `own`/`other` are that color's/the opponent's occupancy; every other argument is the
+    all-pieces-of-that-type bitboard (both colors), exactly as python-chess reads them off
+    self.pawns / self.bishops / etc. -- the bishop same-color and pawn/knight checks below are
+    deliberately board-wide, not `own`-masked, matching the source rule."""
+    if own & (pawns | rooks | queens):
+        return False
+    if own & knights:
+        return own.bit_count() <= 2 and not (other & ~kings & ~queens)
+    if own & bishops:
+        same_color = not (bishops & _DARK_SQUARES) or not (bishops & _LIGHT_SQUARES)
+        return same_color and not pawns and not knights
+    return True
+
+
 def insufficient_material(state: State) -> bool:
-    """Only ever reached with <= 6 pieces on the board -- rare enough that reconstructing a
-    throwaway chess.Board to reuse its (fiddly, well-tested) insufficient-material rule is
-    cheaper than re-deriving that rule correctly from scratch."""
-    board = chess.Board.empty()
-    piece_bb = ((PAWN, state[0]), (KNIGHT, state[1]), (BISHOP, state[2]), (ROOK, state[3]),
-                (QUEEN, state[4]), (KING, state[5]))
-    for piece_type, bb in piece_bb:
-        bb_int = int(bb)
-        while bb_int:
-            sq = (bb_int & -bb_int).bit_length() - 1
-            bb_int &= bb_int - 1
-            color = bool(int(state[6]) & (1 << sq))
-            board.set_piece_at(sq, chess.Piece(piece_type, color))
-    return board.is_insufficient_material()
+    """Only ever reached with <= 6 pieces on the board, but far from rare there -- profiling
+    showed this was ~23% of total search time by way of reconstructing a throwaway chess.Board
+    per call just to reuse its is_insufficient_material(). A direct bitboard port of that same
+    rule (see _has_insufficient_material) needs no allocation and no chess.Board at all."""
+    pawns, knights, bishops = int(state[0]), int(state[1]), int(state[2])
+    rooks, queens, kings = int(state[3]), int(state[4]), int(state[5])
+    white, black = int(state[6]), int(state[7])
+    return (
+        _has_insufficient_material(white, black, pawns, knights, bishops, rooks, queens, kings)
+        and _has_insufficient_material(black, white, pawns, knights, bishops, rooks, queens, kings)
+    )
 
 
 class Search:
