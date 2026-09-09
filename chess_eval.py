@@ -38,8 +38,7 @@ P_KING_OPEN_PENALTY, P_KING_SEMI_PENALTY = 21, 22
 P_BISHOP_PAIR_MG, P_BISHOP_PAIR_EG = 23, 24
 P_CASTLING_MG = 25
 P_MOPUP_CORNER, P_MOPUP_KING_DIST = 26, 27
-P_ROOK_BEHIND_PASSED_MG, P_ROOK_BEHIND_PASSED_EG = 28, 29
-NUM_PARAMS = 30
+NUM_PARAMS = 28
 
 DEFAULT_PARAMS = np.zeros(NUM_PARAMS, dtype=np.int32)
 _MG_MATERIAL_IDX = [P_PAWN_MG, P_KNIGHT_MG, P_BISHOP_MG, P_ROOK_MG, P_QUEEN_MG]
@@ -80,16 +79,6 @@ DEFAULT_PARAMS[P_CASTLING_MG] = 11
 # (chessprogramming.org/Mop-up_Evaluation), and only apply in the endgame taper.
 DEFAULT_PARAMS[P_MOPUP_CORNER] = 10
 DEFAULT_PARAMS[P_MOPUP_KING_DIST] = 4
-
-# Tarrasch's rule: a rook belongs behind a passed pawn -- its own, to escort it forward, or the
-# opponent's, to pressure it from a square the pawn's own advance can never gain tempo against
-# (unlike a rook planted in front, which the pawn can eventually threaten). Applies to either
-# colour's rook relative to either side's passed pawn, not just "your own" -- a well-established
-# general rook-endgame principle we had no term for at all before this, distinct from the
-# scenario-specific mop-up/KBN endgame fixes. Endgame-weighted heavily since it matters most
-# once pieces are traded down to exactly the kind of rook ending this describes.
-DEFAULT_PARAMS[P_ROOK_BEHIND_PASSED_MG] = 6
-DEFAULT_PARAMS[P_ROOK_BEHIND_PASSED_EG] = 16
 
 # Tapered-eval phase weight per piece type; starting position sums to 24.
 PHASE_WEIGHT = np.array([0, 0, 1, 1, 2, 4, 0], dtype=np.int32)
@@ -232,17 +221,6 @@ def evaluate(
                         rank = square // 8
                         mg += params[P_PASSED_MG_PER_RANK] * rank
                         eg += params[P_PASSED_EG_PER_RANK] * rank
-                        # Tarrasch's rule: white pawn advances toward rank 8, so "behind" it is
-                        # the same file at a lower square index -- whichever colour's rook sits
-                        # there benefits, since the pawn's own advance can never gain tempo
-                        # against a rook it's moving away from.
-                        behind = file_mask[square % 8] & (mask - np.uint64(1))
-                        if rooks & white & behind:
-                            mg += params[P_ROOK_BEHIND_PASSED_MG]
-                            eg += params[P_ROOK_BEHIND_PASSED_EG]
-                        if rooks & black & behind:
-                            mg -= params[P_ROOK_BEHIND_PASSED_MG]
-                            eg -= params[P_ROOK_BEHIND_PASSED_EG]
                     if _popcount(pawns & white & file_mask[square % 8]) > 1:
                         mg += params[P_DOUBLED_MG]
                         eg += params[P_DOUBLED_EG]
@@ -281,15 +259,6 @@ def evaluate(
                         rank = 7 - (square // 8)
                         mg -= params[P_PASSED_MG_PER_RANK] * rank
                         eg -= params[P_PASSED_EG_PER_RANK] * rank
-                        # Black advances toward rank 1, so "behind" is the same file at a
-                        # higher square index -- mirror of the white pawn case above.
-                        behind = file_mask[square % 8] & ~(mask | (mask - np.uint64(1)))
-                        if rooks & black & behind:
-                            mg -= params[P_ROOK_BEHIND_PASSED_MG]
-                            eg -= params[P_ROOK_BEHIND_PASSED_EG]
-                        if rooks & white & behind:
-                            mg += params[P_ROOK_BEHIND_PASSED_MG]
-                            eg += params[P_ROOK_BEHIND_PASSED_EG]
                     if _popcount(pawns & black & file_mask[square % 8]) > 1:
                         mg -= params[P_DOUBLED_MG]
                         eg -= params[P_DOUBLED_EG]
