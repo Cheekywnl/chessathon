@@ -47,17 +47,23 @@ REPETITION_AVOIDANCE_MIN_SCORE = 50
 _TT = cs.TranspositionTable(size_power=21)
 _GAME_HISTORY: dict[int, int] = {}
 
-# Syzygy 3-4 piece endgame tables (K+R vs K, K+B+N vs K, K+Q+Q vs K, and every other 3-4 piece
-# ending): ~4 MB of WDL+DTZ data covering exactly the hard conversions this session's search
-# alone couldn't reliably close out -- the mop-up and KBN-corner-target eval terms are heuristic
+# Syzygy endgame tables: every 3-4 piece ending (K+R vs K, K+B+N vs K, K+Q+Q vs K, ...) plus a
+# handful of individually cherry-picked 5-piece endings common enough in real play to be worth
+# their size specifically (KRPvKR's 29 MB alone would eat most of the remaining budget for one
+# config, so it's deliberately not included -- the repetition backstop already resolves the
+# canonical Lucena/Philidor case that config would cover, see tools/endgame_regression.py).
+# ~26 MB of WDL+DTZ data covering exactly the hard conversions this session's search alone
+# couldn't reliably close out -- the mop-up and KBN-corner-target eval terms are heuristic
 # guesses at the same problem this solves exactly, by table lookup instead of search. Explicitly
 # permitted as shipped data (chess.syzygy ships in the base image for exactly this), distinct
 # from shipping another engine's move/eval opinions: this is exact, retrograde-solved
-# game-theoretic truth, not a heuristic. Directory may be absent in a stripped-down local
-# checkout; fails open to plain search rather than crashing the game.
+# game-theoretic truth, not a heuristic. A position matching a 5-piece config not among the ones
+# actually downloaded just falls through to search -- get_wdl/get_dtz return None on a missing
+# table rather than raising, and _tablebase_move treats that the same as no coverage at all.
+# Directory may be absent in a stripped-down local checkout; fails open to plain search.
 _SYZYGY_DIR = Path(__file__).resolve().parent / "syzygy"
 _TABLEBASE = chess.syzygy.open_tablebase(str(_SYZYGY_DIR)) if _SYZYGY_DIR.is_dir() else None
-MAX_TABLEBASE_PIECES = 4
+MAX_TABLEBASE_PIECES = 5
 
 # Opening book (CodeKiddy Polyglot collection, ~16 MB, compiled from a large human-games
 # database -- not another engine's move/eval opinions, same permitted-as-shipped-data category
