@@ -38,7 +38,8 @@ P_KING_OPEN_PENALTY, P_KING_SEMI_PENALTY = 21, 22
 P_BISHOP_PAIR_MG, P_BISHOP_PAIR_EG = 23, 24
 P_CASTLING_MG = 25
 P_MOPUP_CORNER, P_MOPUP_KING_DIST = 26, 27
-NUM_PARAMS = 28
+P_KNIGHT_OUTPOST_MG, P_KNIGHT_OUTPOST_EG = 28, 29
+NUM_PARAMS = 30
 
 DEFAULT_PARAMS = np.zeros(NUM_PARAMS, dtype=np.int32)
 _MG_MATERIAL_IDX = [P_PAWN_MG, P_KNIGHT_MG, P_BISHOP_MG, P_ROOK_MG, P_QUEEN_MG]
@@ -79,6 +80,17 @@ DEFAULT_PARAMS[P_CASTLING_MG] = 11
 # (chessprogramming.org/Mop-up_Evaluation), and only apply in the endgame taper.
 DEFAULT_PARAMS[P_MOPUP_CORNER] = 10
 DEFAULT_PARAMS[P_MOPUP_KING_DIST] = 4
+
+# Knight outpost: a knight on ranks 4-6 (from its own side), defended by a friendly pawn, that
+# no enemy pawn can ever advance to attack -- permanently safe from the one piece type that
+# would otherwise just chase it away. Distinct from the existing centralisation PST bonus, which
+# rewards the square alone regardless of whether the knight can actually be kicked off it.
+# Knights only, not bishops: a knight loses all mobility if driven back, a bishop mostly doesn't,
+# so the "permanently safe" property matters far more to a knight's value. Kept modest given
+# connected-passed-pawns (a similarly reasonable-looking term) tested clearly negative earlier
+# this session -- sound chess concept is not sufficient on its own, only a real A/B is.
+DEFAULT_PARAMS[P_KNIGHT_OUTPOST_MG] = 15
+DEFAULT_PARAMS[P_KNIGHT_OUTPOST_EG] = 10
 
 # Tapered-eval phase weight per piece type; starting position sums to 24.
 PHASE_WEIGHT = np.array([0, 0, 1, 1, 2, 4, 0], dtype=np.int32)
@@ -227,6 +239,22 @@ def evaluate(
                     if pawns & white & adjacent_file_mask[square % 8] == 0:
                         mg += params[P_ISOLATED_MG]
                         eg += params[P_ISOLATED_EG]
+                elif piece_type == KNIGHT:
+                    rank = square // 8
+                    if 3 <= rank <= 5 and pawns & passed_white[square] & black == 0:
+                        file = square % 8
+                        defended = False
+                        if file > 0 and pawns & white & (
+                            np.uint64(1) << np.uint64((rank - 1) * 8 + (file - 1))
+                        ):
+                            defended = True
+                        if file < 7 and pawns & white & (
+                            np.uint64(1) << np.uint64((rank - 1) * 8 + (file + 1))
+                        ):
+                            defended = True
+                        if defended:
+                            mg += params[P_KNIGHT_OUTPOST_MG]
+                            eg += params[P_KNIGHT_OUTPOST_EG]
                 elif piece_type == ROOK:
                     file_pawns = pawns & file_mask[square % 8]
                     if file_pawns == 0:
@@ -265,6 +293,25 @@ def evaluate(
                     if pawns & black & adjacent_file_mask[square % 8] == 0:
                         mg -= params[P_ISOLATED_MG]
                         eg -= params[P_ISOLATED_EG]
+                elif piece_type == KNIGHT:
+                    rank = square // 8
+                    # Mirror of the white case: black's "ranks 4-6 from its own side" is board
+                    # ranks 3-5 (0-indexed 2-4), and a defending black pawn sits one rank higher
+                    # (behind, from black's forward direction) rather than one rank lower.
+                    if 2 <= rank <= 4 and pawns & passed_black[square] & white == 0:
+                        file = square % 8
+                        defended = False
+                        if file > 0 and pawns & black & (
+                            np.uint64(1) << np.uint64((rank + 1) * 8 + (file - 1))
+                        ):
+                            defended = True
+                        if file < 7 and pawns & black & (
+                            np.uint64(1) << np.uint64((rank + 1) * 8 + (file + 1))
+                        ):
+                            defended = True
+                        if defended:
+                            mg -= params[P_KNIGHT_OUTPOST_MG]
+                            eg -= params[P_KNIGHT_OUTPOST_EG]
                 elif piece_type == ROOK:
                     file_pawns = pawns & file_mask[square % 8]
                     if file_pawns == 0:
