@@ -8,6 +8,7 @@ position history -- and the time budget that keeps a slow position from flagging
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 import chess
@@ -316,13 +317,45 @@ def get_move(fen: str, time_left_ms: int) -> str:
     """
     _stop_pondering()
 
+    # Trusting the platform's own contract here (a valid fen, a position with at least one
+    # legal move): if either of these two lines fails there is no legal-move list to fall back
+    # to anyway, so nothing downstream could save the game regardless of how defensively it's
+    # written -- the safety net below starts right after this, once a fallback move exists.
     board = chess.Board(fen)
+    legal_moves = list(board.legal_moves)
+
+    # Recorded unconditionally, even for a forced (single-legal-move) position -- this dict is
+    # the real game's position history, and a forced move is still a real position in that
+    # history. Splitting get_move into this wrapper and _choose_move once put this update on
+    # the wrong side of the single-move early return, silently dropping every forced position
+    # from _GAME_HISTORY -- caught by tools/endgame_regression.py regressing on exactly the
+    # kind of position (forced king/rook shuffles) most likely to depend on it.
     key = cs.hash_of_board(board)
     _GAME_HISTORY[key] = _GAME_HISTORY.get(key, 0) + 1
 
-    legal_moves = list(board.legal_moves)
     if len(legal_moves) == 1:
         return legal_moves[0].uci()
+
+    try:
+        return _choose_move(board, legal_moves, time_left_ms)
+    except Exception as exc:
+        # An uncaught exception here is an instant game loss (crash = loses that game, per the
+        # rules) for a bug that could be anywhere in a genuinely complex pipeline -- search,
+        # eval, the tablebase/book probes, time management. Every specific failure mode found
+        # this session got its own targeted fix (the tablebase/book wrapping above, the
+        # repetition-history fix, ...), but this is the backstop for whatever the *next* one
+        # turns out to be: fall back to the first legal move rather than lose the whole game
+        # over it. Full traceback to stderr for visibility in the validation log; the move
+        # itself is still always legal, just not necessarily good.
+        traceback.print_exc(file=sys.stderr)
+        print(f"get_move crashed ({exc}); falling back to first legal move", file=sys.stderr)
+        return legal_moves[0].uci()
+
+
+def _choose_move(board: chess.Board, legal_moves: list[chess.Move], time_left_ms: int) -> str:
+    # get_move already recorded this position in _GAME_HISTORY (unconditionally, before the
+    # single-legal-move early return) -- this key is only for the TT probe below.
+    key = cs.hash_of_board(board)
 
     book_move = _book_move(board)
     if book_move is not None:
