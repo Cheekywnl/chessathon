@@ -591,6 +591,14 @@ class Search:
             is_killer = packed == self.killers[k_ply][0] or packed == self.killers[k_ply][1]
 
             child = apply_move(state, f, t, p)
+            # Both pruning checks below end on `not is_in_check(child)`, and a move that
+            # survives the first (LATE_MOVE_PRUNING_DEPTH >= FUTILITY_DEPTH is possible, and
+            # both fire on largely overlapping conditions) proceeds straight into the second --
+            # is_in_check(child) was being computed twice for such moves even though `child` is
+            # immutable and the answer can't change in between. Computed lazily (only if some
+            # move actually reaches a point that needs it, exactly as before) and cached for
+            # the rest of this move's checks, not unconditionally per move.
+            child_in_check: bool | None = None
 
             if (
                 prunable
@@ -601,9 +609,11 @@ class Search:
                 and not p
                 and not is_killer
                 and best_score > -MATE_THRESHOLD
-                and not is_in_check(child)
             ):
-                continue
+                if child_in_check is None:
+                    child_in_check = is_in_check(child)
+                if not child_in_check:
+                    continue
 
             # Futility pruning: near the leaf, a quiet move that can't even reach alpha once
             # the position's current static assessment is padded by a generous margin is not
@@ -626,9 +636,11 @@ class Search:
                 and not is_killer
                 and abs(alpha) < MATE_THRESHOLD
                 and static_eval + FUTILITY_MARGIN_PER_PLY * depth <= alpha
-                and not is_in_check(child)
             ):
-                continue
+                if child_in_check is None:
+                    child_in_check = is_in_check(child)
+                if not child_in_check:
+                    continue
 
             reduce = 0
             if (
