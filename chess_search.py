@@ -43,6 +43,16 @@ MATE_THRESHOLD = MATE - 1_000
 DRAW = 0
 MAX_PLY = 128
 NO_MOVE = -1
+# Contempt: a draw isn't valued at a flat 0 -- it's scored as mildly bad for us specifically,
+# not neutral, so the search prefers a continuation that keeps winning chances alive over one
+# that settles for a repetition when the two look otherwise equal. Motivated by this project's
+# own observed behaviour, not abstract theory: multiple real bugs this session (K+R vs K, 2Q vs
+# K, a Lucena position) were the engine settling for a draw-by-repetition instead of continuing
+# to press a won position, because a draw and "still winning but not yet resolved" scored the
+# same at 0. Small and one-sided by construction (see _draw_score) -- it only ever nudges among
+# moves that already look roughly equal, it can't override a real material/tactical verdict, and
+# it never discourages accepting a draw when we're actually worse off, which would be irrational.
+CONTEMPT = 20
 
 FLAG_EXACT, FLAG_LOWER, FLAG_UPPER = 0, 1, 2
 
@@ -377,6 +387,17 @@ class Search:
             return insufficient_material(state)
         return False
 
+    @staticmethod
+    def _draw_score(ply: int) -> int:
+        """Mover-relative contempt score for a drawn position at this ply. search_root is
+        always called with our own position to move (ply 0), so parity alone says whose move
+        it is at any leaf -- even ply means it's our move here, odd means the opponent's --
+        without needing to track an explicit colour through the whole recursive tree. Verified
+        by construction, not just asserted: with an even number of plies between root and leaf,
+        negamax's repeated negation nets to zero flips, so "bad for whoever moves at an even
+        ply" is exactly "bad for us" once fully unwound back to the root, regardless of depth."""
+        return -CONTEMPT if ply % 2 == 0 else CONTEMPT
+
     def _order_moves(
         self,
         state: State,
@@ -420,7 +441,7 @@ class Search:
         self._time_check()
         key = hash_of(state)
         if self._is_draw(state, key):
-            return DRAW
+            return self._draw_score(ply)
 
         in_check = is_in_check(state)
         from_arr, to_arr, promo_arr, count = legal_moves(state)
@@ -492,7 +513,7 @@ class Search:
         self._time_check()
         key = hash_of(state)
         if self._is_draw(state, key):
-            return DRAW
+            return self._draw_score(ply)
 
         tt_score, tt_move = self.tt.probe(key, depth, alpha, beta, ply)
         if tt_score is not None:
@@ -504,7 +525,7 @@ class Search:
         in_check = is_in_check(state)
         from_arr, to_arr, promo_arr, count = legal_moves(state)
         if count == 0:
-            return -(MATE - ply) if in_check else DRAW
+            return -(MATE - ply) if in_check else self._draw_score(ply)
 
         static_eval = None
         if not in_check:
