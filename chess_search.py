@@ -499,7 +499,18 @@ class Search:
             return int(PIECE_VALUES[victim - 1]) * 10 - int(PIECE_VALUES[attacker - 1])
 
         for f, t, p, is_capture in sorted(cand, key=qscore, reverse=True):
-            if not in_check and is_capture:
+            # `and not p`: a capturing promotion's delta margin below only accounts for the
+            # captured piece's value, never the ~800cp the promotion itself gains -- pruning it
+            # on that alone would undervalue a move that's actually excellent. The pre-fix code
+            # achieved this exclusion as a side effect of computing is_capture via `not p and
+            # is_capture_i(...)`; is_capture here is the raw capture status (computed once, not
+            # re-derived per move), so the exclusion has to be spelled out explicitly at the one
+            # place it actually matters instead. Found by a second, independent review directly
+            # reproducing the divergence (a hand-built position where a capturing promotion was
+            # being wrongly pruned), not caught by this session's own move/score/node-count A/B
+            # since that didn't happen to include a capturing promotion in the narrow alpha
+            # window where it mattered.
+            if not in_check and is_capture and not p:
                 victim = captured_type_i(pawns, knights, bishops, rooks, queens, ep_square, f, t)
                 if stand_pat + int(PIECE_VALUES[victim - 1]) + DELTA_MARGIN <= alpha:
                     continue
