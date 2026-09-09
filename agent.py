@@ -8,8 +8,10 @@ position history -- and the time budget that keeps a slow position from flagging
 import sys
 import threading
 import time
+from pathlib import Path
 
 import chess
+import chess.syzygy
 
 import chess_eval as ce
 import chess_movegen as mg
@@ -22,6 +24,20 @@ MAX_SEARCH_DEPTH = 64
 PONDER_TIME_CAP_S = 300.0
 PONDER_JOIN_TIMEOUT_S = 1.0
 
+# Real rated games showed the search choosing to repeat a position it was clearly winning --
+# not a close call needing contempt's small nudge, but a rook or more ahead (round 76: +500cp
+# the entire final stretch; round 80: as much as -641cp in our favour) thrown away for a draw.
+# Contempt scores the repeat as mildly bad once the search sees it, but the search runs a fresh,
+# time-boxed iterative deepening every move and isn't guaranteed to explore far enough down a
+# specific repeating line to discover that consequence before its clock runs out -- especially
+# when giving check keeps looking locally good move after move. This is a deterministic backstop
+# instead of hoping deeper search finds it: after search_root already scored every legal move
+# once, if the chosen move would create our own third occurrence of a position while we're
+# clearly ahead, take the next-best move that doesn't, as long as it's still clearly winning.
+# Costs no extra search time -- every candidate's score already exists in `scored`.
+REPETITION_AVOIDANCE_THRESHOLD = 150
+REPETITION_AVOIDANCE_MIN_SCORE = 50
+
 # Import time runs once per game, inside a 60 second budget, before your clock starts.
 # size_power=21 measures at ~1.0 GB fully populated plus ~0.12 GB baseline (interpreter,
 # numpy/numba, python-chess) -- comfortably under the 2 GB cap with ~0.85 GB of margin left
@@ -29,6 +45,18 @@ PONDER_JOIN_TIMEOUT_S = 1.0
 # instant loss, so this was re-measured empirically before raising it, not guessed.
 _TT = cs.TranspositionTable(size_power=21)
 _GAME_HISTORY: dict[int, int] = {}
+
+# Syzygy 3-4 piece endgame tables (K+R vs K, K+B+N vs K, K+Q+Q vs K, and every other 3-4 piece
+# ending): ~4 MB of WDL+DTZ data covering exactly the hard conversions this session's search
+# alone couldn't reliably close out -- the mop-up and KBN-corner-target eval terms are heuristic
+# guesses at the same problem this solves exactly, by table lookup instead of search. Explicitly
+# permitted as shipped data (chess.syzygy ships in the base image for exactly this), distinct
+# from shipping another engine's move/eval opinions: this is exact, retrograde-solved
+# game-theoretic truth, not a heuristic. Directory may be absent in a stripped-down local
+# checkout; fails open to plain search rather than crashing the game.
+_SYZYGY_DIR = Path(__file__).resolve().parent / "syzygy"
+_TABLEBASE = chess.syzygy.open_tablebase(str(_SYZYGY_DIR)) if _SYZYGY_DIR.is_dir() else None
+MAX_TABLEBASE_PIECES = 4
 
 # Pondering: while the opponent thinks, the harness blocks on stdin and this core sits idle
 # unless we use it ourselves -- the rules explicitly allow this ("the process keeps its core
@@ -99,6 +127,62 @@ def _ponder(board_to_ponder: chess.Board, stop_event: threading.Event) -> None:
         depth += 1
 
 
+def _tablebase_move(board: chess.Board) -> chess.Move | None:
+    """The provably best move by Syzygy WDL/DTZ, or None if this position isn't covered (too
+    many pieces, castling rights still held -- Syzygy tables never contain those -- or a probe
+    came back unreadable). Never guesses from a partial read: if any candidate move's outcome
+    can't be read, the whole position is abandoned back to search rather than trusted halfway.
+
+    Picks the move giving the best reachable result category (win > cursed win > draw > blessed
+    loss > loss, all from our side's perspective). Among moves tied on a real win, prefers
+    smaller |dtz| on the resulting (opponent-to-move) position -- fewer plies for them to reach
+    a zeroing move means faster progress for us; ties elsewhere don't matter game-theoretically,
+    so the first one found stands."""
+    if (
+        _TABLEBASE is None
+        or chess.popcount(board.occupied) > MAX_TABLEBASE_PIECES
+        or board.castling_rights
+    ):
+        return None
+
+    best_move: chess.Move | None = None
+    best_wdl = -3
+    best_progress = 0
+    for move in board.legal_moves:
+        board.push(move)
+        wdl = _TABLEBASE.get_wdl(board)
+        if wdl is None:
+            board.pop()
+            return None
+        dtz = _TABLEBASE.get_dtz(board)
+        board.pop()
+        our_wdl = -wdl
+        progress = -abs(dtz) if (our_wdl > 0 and dtz is not None) else 0
+        if best_move is None or (our_wdl, progress) > (best_wdl, best_progress):
+            best_move, best_wdl, best_progress = move, our_wdl, progress
+    return best_move
+
+
+def _repeats_if_played(board: chess.Board, move: chess.Move) -> bool:
+    board.push(move)
+    key = cs.hash_of_board(board)
+    board.pop()
+    return _GAME_HISTORY.get(key, 0) >= 2
+
+
+def _avoid_needless_repetition(
+    board: chess.Board, best_move: chess.Move, best_score: int, scored: list[tuple[chess.Move, int]]
+) -> chess.Move:
+    if best_score < REPETITION_AVOIDANCE_THRESHOLD or not _repeats_if_played(board, best_move):
+        return best_move
+    for move, score in sorted(scored, key=lambda pair: -pair[1]):
+        if score < REPETITION_AVOIDANCE_MIN_SCORE:
+            break
+        if not _repeats_if_played(board, move):
+            return move
+    return best_move
+
+
 def _start_pondering(board: chess.Board, our_move: chess.Move) -> None:
     global _ponder_thread
     board_after_us = board.copy(stack=False)
@@ -137,6 +221,12 @@ def get_move(fen: str, time_left_ms: int) -> str:
     if len(legal_moves) == 1:
         return legal_moves[0].uci()
 
+    tablebase_move = _tablebase_move(board)
+    if tablebase_move is not None:
+        print(f"move={tablebase_move.uci()} source=tablebase", file=sys.stderr)
+        _start_pondering(board, tablebase_move)
+        return tablebase_move.uci()
+
     start = time.monotonic()
     soft_ms, hard_ms = _time_budget(float(time_left_ms), board.fullmove_number)
     deadline = start + hard_ms / 1000.0
@@ -150,18 +240,25 @@ def get_move(fen: str, time_left_ms: int) -> str:
     depth = 1
     completed_depth = 0
     last_score = 0
+    scored: list[tuple[chess.Move, int]] = []
     while depth <= MAX_SEARCH_DEPTH:
         prev_score = last_score if completed_depth > 0 else None
         try:
-            move, score, _ = search.search_root(board, depth, deadline, prev_score=prev_score)
+            move, score, root_scores = search.search_root(
+                board, depth, deadline, prev_score=prev_score
+            )
         except cs.TimeUp:
             break
         best_move = move
         completed_depth = depth
         last_score = score
+        scored = root_scores
         if abs(score) >= cs.MATE_THRESHOLD or time.monotonic() >= soft_deadline:
             break
         depth += 1
+
+    if completed_depth > 0:
+        best_move = _avoid_needless_repetition(board, best_move, last_score, scored)
 
     # Safe per the rules: stdout is redirected away from the protocol stream before this
     # module is even imported, so print() can never corrupt it. Discarded in rated games,
