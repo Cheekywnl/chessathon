@@ -8,7 +8,6 @@ import chess.pgn
 from harness.rules import INIT_BUDGET_S, PLY_CAP
 from harness.sandbox import Agent, AgentFailure
 
-PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
 RESULT_HEADERS = {"white": "1-0", "black": "0-1", "draw": "1/2-1/2", "void": "*"}
 FAILED_TERMINATIONS = frozenset({"crash", "illegal", "flag", "init", "both_failed"})
 
@@ -60,7 +59,7 @@ def _play(
         if finish is not None:
             return _outcome(board, _decide(finish), finish.termination.name.lower())
         if len(board.move_stack) >= ply_cap:
-            return _outcome(board, _adjudicate(board), "adjudication")
+            return _outcome(board, "draw", "ply_cap")
 
         mover = board.turn
         started_at = time.monotonic()
@@ -103,18 +102,6 @@ def _decide(finish: chess.Outcome) -> Decision:
     if finish.winner is None:
         return "draw"
     return "white" if finish.winner == chess.WHITE else "black"
-
-
-def _adjudicate(board: chess.Board) -> Decision:
-    balance = sum(
-        value * (len(board.pieces(piece, chess.WHITE)) - len(board.pieces(piece, chess.BLACK)))
-        for piece, value in PIECE_VALUES.items()
-    )
-    if balance > 0:
-        return "white"
-    if balance < 0:
-        return "black"
-    return "draw"
 
 
 def _outcome(board: chess.Board, result: Result, termination: str) -> Outcome:

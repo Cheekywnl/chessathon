@@ -39,7 +39,6 @@ import chess_eval as ce
 import chess_movegen as mg
 import chess_search as cs
 import chess_state as cst
-from harness.referee import PIECE_VALUES
 from harness.rules import PLY_CAP
 
 MAX_SEARCH_DEPTH = 64
@@ -95,14 +94,6 @@ def think(
     return best_move, elapsed_ms
 
 
-def _adjudicate(board: chess.Board) -> str:
-    balance = sum(
-        value * (len(board.pieces(piece, chess.WHITE)) - len(board.pieces(piece, chess.BLACK)))
-        for piece, value in PIECE_VALUES.items()
-    )
-    return "white" if balance > 0 else "black" if balance < 0 else "draw"
-
-
 def play_game(
     white: Engine, black: Engine, base_ms: float, increment_ms: float, ply_cap: int
 ) -> tuple[str, str]:
@@ -116,7 +107,7 @@ def play_game(
             result = "draw" if outcome.winner is None else ("white" if outcome.winner else "black")
             return result, outcome.termination.name.lower()
         if len(board.move_stack) >= ply_cap:
-            return _adjudicate(board), "adjudication"
+            return "draw", "ply_cap"
 
         mover = board.turn
         engine = engines[mover]
