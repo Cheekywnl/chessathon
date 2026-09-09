@@ -394,7 +394,10 @@ class Search:
         if self.seen.get(key, 0) >= 3:
             return True
         occupied = state[6] | state[7]
-        if bin(int(occupied)).count("1") <= 6:
+        # int.bit_count() (3.10+, the platform runs 3.12) does exactly what
+        # bin(x).count("1") does -- count set bits -- natively rather than via a string
+        # round-trip; same result, real cost difference at this call frequency (once per node).
+        if int(occupied).bit_count() <= 6:
             return insufficient_material(state)
         return False
 
