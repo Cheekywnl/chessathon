@@ -57,16 +57,37 @@ evaluation worth searching with.
 ## What's here
 
 ```
-agent.py             your submission
-baselines/           random, greedy, minimax, numba; each is a directory with an agent.py
-harness/runner.py    the process the platform runs your agent in
-harness/referee.py   the clock, legality, draw and adjudication rules
-harness/rules.py     the event constants the harness enforces
-harness/sandbox.py   the one process, spoken to as the platform speaks to a container
-harness/play.py      one game between two agent directories
-harness/arena.py     many games, with a score
-harness/package.py   builds submission.zip with agent.py at the root
-docs/IDEAS.md        where the strength actually comes from
+agent.py                        submission entrypoint: time management, book/tablebase
+                                 lookup, the repetition backstop, and a crash safety net
+                                 around move selection
+chess_search.py                 negamax/PVS search: TT, null-move, LMR, futility,
+                                 aspiration windows
+chess_eval.py                   tapered material + PST + structure eval, tunable PARAMS
+chess_movegen.py                from-scratch numba-jitted bitboard move generator
+chess_state.py                  raw bitboard game state, Zobrist hashing, SEE
+syzygy/                         Syzygy endgame tablebases (3-4 piece, plus a few common
+                                 5-piece endings): provably perfect play once few enough
+                                 pieces remain, shipped data (see AGENTS.md)
+book/                           a Polyglot opening book, shipped data, an early-blunder
+                                 safety net rather than a strength source (see AGENTS.md)
+baselines/                      random, greedy, minimax, numba; each a directory with
+                                 its own agent.py
+harness/runner.py               the process the platform runs your agent in
+harness/referee.py              the clock, legality, draw and adjudication rules
+harness/rules.py                the event constants the harness enforces
+harness/sandbox.py              the one process, spoken to as the platform speaks to it
+harness/play.py                 one game between two agent directories
+harness/arena.py                many games, with a score
+harness/package.py              builds submission.zip; `make zip` passes --include for
+                                 syzygy/ and book/ so they end up in it too
+tools/fast_arena.py             in-process A/B arena for eval/param changes -- no
+                                 subprocess spawn or JIT re-warm per game
+tools/wac_test.py, wac.epd      the Win At Chess tactical regression suite
+tools/endgame_regression.py     known-hard technical endgames played through the real
+                                 get_move, not a bypassed direct-search shortcut
+tools/generate_training_data.py,
+tools/tune.py                   Texel tuning pipeline (see tune.py's own docstring)
+docs/IDEAS.md                   where the strength actually comes from
 ```
 
 Local games start from the normal position unless you pass `--fen`. Rated games start from
