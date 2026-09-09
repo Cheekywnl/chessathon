@@ -471,9 +471,17 @@ class Search:
         indexed.sort(key=lambda x: x[0], reverse=True)
         return [(packed, is_capture) for _, packed, is_capture in indexed]
 
-    def quiescence(self, state: State, alpha: int, beta: int, ply: int) -> int:
+    def quiescence(
+        self, state: State, alpha: int, beta: int, ply: int, key: int | None = None
+    ) -> int:
         self._time_check()
-        key = hash_of(state)
+        # `key` lets a caller that already hashed this exact state (negamax falling through to
+        # quiescence at depth<=0, or quiescence's own move loop just below) pass it straight
+        # through -- hash_of is a hot, non-free call (a jitted Zobrist fold over every field),
+        # and re-hashing a position the caller just hashed a line earlier was a measured,
+        # avoidable chunk of total search time.
+        if key is None:
+            key = hash_of(state)
         if self._is_draw(state, key):
             return self._draw_score(ply)
 
@@ -544,7 +552,7 @@ class Search:
             child_key = hash_of(child)
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
-                score = -self.quiescence(child, -beta, -alpha, ply + 1)
+                score = -self.quiescence(child, -beta, -alpha, ply + 1, child_key)
             finally:
                 self.seen[child_key] -= 1
 
@@ -565,9 +573,13 @@ class Search:
         beta: int,
         ply: int,
         allow_null: bool = True,
+        key: int | None = None,
     ) -> int:
         self._time_check()
-        key = hash_of(state)
+        # See quiescence's matching `key` parameter: a caller that already hashed this exact
+        # state (the move loop below, or _search_root_pass) can pass it straight through.
+        if key is None:
+            key = hash_of(state)
         if self._is_draw(state, key):
             return self._draw_score(ply)
 
@@ -576,7 +588,7 @@ class Search:
             return tt_score
 
         if depth <= 0:
-            return self.quiescence(state, alpha, beta, ply)
+            return self.quiescence(state, alpha, beta, ply, key)
 
         in_check = is_in_check(state)
         from_arr, to_arr, promo_arr, count = legal_moves(state)
@@ -683,13 +695,18 @@ class Search:
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
                 if i == 0:
-                    score = -self.negamax(child, depth - 1 + extension, -beta, -alpha, ply + 1)
+                    score = -self.negamax(
+                        child, depth - 1 + extension, -beta, -alpha, ply + 1, key=child_key
+                    )
                 else:
                     score = -self.negamax(
-                        child, depth - 1 + extension - reduce, -alpha - 1, -alpha, ply + 1
+                        child, depth - 1 + extension - reduce, -alpha - 1, -alpha, ply + 1,
+                        key=child_key,
                     )
                     if score > alpha:
-                        score = -self.negamax(child, depth - 1 + extension, -beta, -alpha, ply + 1)
+                        score = -self.negamax(
+                            child, depth - 1 + extension, -beta, -alpha, ply + 1, key=child_key
+                        )
             finally:
                 self.seen[child_key] -= 1
 
@@ -740,11 +757,17 @@ class Search:
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
                 if i == 0:
-                    score = -self.negamax(child, depth - 1, -beta, -window_alpha, 1)
+                    score = -self.negamax(
+                        child, depth - 1, -beta, -window_alpha, 1, key=child_key
+                    )
                 else:
-                    score = -self.negamax(child, depth - 1, -window_alpha - 1, -window_alpha, 1)
+                    score = -self.negamax(
+                        child, depth - 1, -window_alpha - 1, -window_alpha, 1, key=child_key
+                    )
                     if score > window_alpha:
-                        score = -self.negamax(child, depth - 1, -beta, -window_alpha, 1)
+                        score = -self.negamax(
+                            child, depth - 1, -beta, -window_alpha, 1, key=child_key
+                        )
             finally:
                 self.seen[child_key] -= 1
 
