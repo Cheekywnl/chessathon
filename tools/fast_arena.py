@@ -43,7 +43,13 @@ from harness.referee import PIECE_VALUES
 from harness.rules import PLY_CAP
 
 MAX_SEARCH_DEPTH = 64
-TT_SIZE_POWER = 21
+# agent.py uses size_power=21 (~1 GB fully populated) because it gets the real 2 GB sandbox to
+# itself for a single game. Here, two engines' TTs are alive at once, freshly allocated every
+# game, on a dev machine shared with whatever else is running -- 21 measurably drove this
+# machine into swap during real use (a 40-game run stalled to ~1 game/90min under heavy system
+# memory pressure). 17 is what actually got validated locally before that was diagnosed; nodes
+# at a 20s-per-side budget don't come close to filling even that, so this costs no real fidelity.
+TT_SIZE_POWER = 17
 FAILED_TERMINATIONS = frozenset({"illegal", "flag"})
 
 
