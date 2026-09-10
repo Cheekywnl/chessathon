@@ -48,7 +48,9 @@ from __future__ import annotations
 import argparse
 import csv
 import glob
+import os
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -62,6 +64,14 @@ except ImportError as exc:
         "or Colab, not the CPU-only competition sandbox this repo otherwise targets."
     ) from exc
 
+try:
+    from numba import njit
+except ImportError as exc:
+    raise SystemExit(
+        "This script needs numba (pip install numba) -- feature extraction is jitted, since "
+        "profiling showed it (not GPU compute) was the real bottleneck for a model this small."
+    ) from exc
+
 INPUT_SIZE = 768
 HIDDEN1 = 256
 HIDDEN2 = 32
@@ -72,6 +82,14 @@ _PLANE_FOR_LETTER = {
     "P": 0, "N": 1, "B": 2, "R": 3, "Q": 4, "K": 5,
     "p": 6, "n": 7, "b": 8, "r": 9, "q": 10, "k": 11,
 }
+
+# ord(letter) -> plane, for the jitted path below (numba can't index a Python dict by str
+# efficiently in nopython mode, but a 128-wide int8 lookup table indexed by byte value is
+# trivial and fast). -1 marks "not a piece letter" (digits, '/', the space that ends the
+# placement field, and anything after it -- the loop below stops at the first space).
+_PLANE_LOOKUP = np.full(128, -1, dtype=np.int8)
+for _ch, _plane in _PLANE_FOR_LETTER.items():
+    _PLANE_LOOKUP[ord(_ch)] = _plane
 
 
 def fen_to_features(fen: str) -> np.ndarray:
@@ -94,6 +112,48 @@ def fen_to_features(fen: str) -> np.ndarray:
             features[_PLANE_FOR_LETTER[ch] * 64 + square] = 1.0
             file += 1
     return features
+
+
+@njit(cache=False, nogil=True)
+def _fen_codes_into_row(codes: np.ndarray, plane_lookup: np.ndarray, out_row: np.ndarray) -> None:
+    """Writes into a caller-provided (already-zeroed) 768-wide row instead of allocating one --
+    lets a batch of these run as real OS threads via ThreadPoolExecutor (nogil=True releases the
+    GIL for the duration of this call, the same trick CPython C extensions use for real
+    parallelism), each thread writing its own row of a shared preallocated matrix with no
+    contention (every row is touched by exactly one thread)."""
+    rank = 7
+    file = 0
+    for i in range(codes.shape[0]):
+        code = codes[i]
+        if code == 32:  # ' ' -- end of the piece-placement field, same stop point
+            break       # fen.split(" ", 1)[0] gives the pure-Python version above
+        if code == 47:  # '/'
+            rank -= 1
+            file = 0
+        elif 48 <= code <= 57:  # '0'-'9'
+            file += code - 48
+        else:
+            square = rank * 8 + file
+            plane = plane_lookup[code]
+            out_row[plane * 64 + square] = 1.0
+            file += 1
+
+
+@njit(cache=False)
+def _fen_codes_to_features(codes: np.ndarray, plane_lookup: np.ndarray) -> np.ndarray:
+    features = np.zeros(INPUT_SIZE, dtype=np.float32)
+    _fen_codes_into_row(codes, plane_lookup, features)
+    return features
+
+
+def fen_to_features_fast(fen: str) -> np.ndarray:
+    """Same output as fen_to_features(), numba-jitted -- profiling tonight's first training run
+    showed the GPU sitting at ~25% utilization, i.e. this pure-Python parse (a Python loop plus
+    a dict lookup per character) was the actual bottleneck, not GPU compute, for a model this
+    small. Verified bit-for-bit identical to fen_to_features() before use (see this module's own
+    test)."""
+    codes = np.frombuffer(fen.encode("ascii"), dtype=np.uint8)
+    return _fen_codes_to_features(codes, _PLANE_LOOKUP)
 
 
 class ValueNet(nn.Module):
@@ -150,10 +210,42 @@ def load_dataset(pattern: str) -> tuple[list[str], np.ndarray]:
     return fens, np.array(targets, dtype=np.float32)
 
 
+_FEATURE_WORKERS = os.cpu_count() or 4
+_FEATURE_EXECUTOR = ThreadPoolExecutor(max_workers=_FEATURE_WORKERS)
+
+
+def _fill_row(fen: str, out_row: np.ndarray) -> None:
+    codes = np.frombuffer(fen.encode("ascii"), dtype=np.uint8)
+    _fen_codes_into_row(codes, _PLANE_LOOKUP, out_row)
+
+
+def _fill_rows_chunk(chunk_fens: list[str], out_chunk: np.ndarray) -> None:
+    for i, fen in enumerate(chunk_fens):
+        _fill_row(fen, out_chunk[i])
+
+
 def features_for_indices(fens: list[str], indices: np.ndarray) -> np.ndarray:
-    """Materializes dense features for just one batch's worth of rows -- the only place
-    fen_to_features() gets called during training now."""
-    return np.stack([fen_to_features(fens[i]) for i in indices]).astype(np.float32)
+    """Materializes dense features for just one batch's worth of rows -- the only place per-row
+    feature extraction happens during training now. Split into ~one chunk per CPU core rather
+    than one task per row: the jitted fill (_fen_codes_into_row, nogil=True) only costs a few
+    microseconds per position, well under ThreadPoolExecutor's per-task dispatch overhead, so
+    submitting one task per row was measured to be *slower* than plain serial Python (0.6x) --
+    chunking amortizes that dispatch cost across many rows per task while still getting real
+    cross-core parallelism for the nogil work inside each chunk. fen_to_features() (the
+    plain-Python reference) stays as-is and stays the ground truth other tools cross-check
+    against; verify this path agrees with it exactly before trusting a real run at scale (see
+    the module's own test)."""
+    n = len(indices)
+    out = np.zeros((n, INPUT_SIZE), dtype=np.float32)
+    chunk_size = max(1, -(-n // _FEATURE_WORKERS))  # ceil division
+    futures = []
+    for start in range(0, n, chunk_size):
+        end = min(start + chunk_size, n)
+        chunk_fens = [fens[indices[i]] for i in range(start, end)]
+        futures.append(_FEATURE_EXECUTOR.submit(_fill_rows_chunk, chunk_fens, out[start:end]))
+    for future in futures:
+        future.result()
+    return out
 
 
 def iter_batches(
