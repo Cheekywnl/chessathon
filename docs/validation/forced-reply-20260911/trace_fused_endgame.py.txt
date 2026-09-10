@@ -1,0 +1,65 @@
+"""Read-only Lucena trace with an offline oracle, never exposed to the playing agent."""
+import json
+import sys
+import threading
+from pathlib import Path
+import psutil
+import chess
+import chess.syzygy
+
+work=Path(__file__).resolve().parent
+root=work/'draw-fused'
+psutil.Process().cpu_affinity([4])
+sys.path.insert(0,str(root))
+import agent
+import chess_search as cs
+from tools import endgame_regression as regression
+
+oracle=chess.syzygy.open_tablebase(str(root/'syzygy'))
+oracle.add_directory(str(work/'endgame-oracle'))
+original_search=cs.Search.search_root
+original_agent=agent.get_move
+original_opponent=regression._opponent_move
+records=[]
+last_search={}
+def search(self, board, depth, deadline, prev_score=None):
+    global last_search
+    result=original_search(self,board,depth,deadline,prev_score)
+    if threading.current_thread() is threading.main_thread() and self.tt is agent._TT:
+        last_search={'depth':depth,'score':result[1],
+                     'ranked':[[m.uci(),s] for m,s in result[2]],
+                     'claims':self.root_draw_claims,'history':dict(agent._GAME_HISTORY)}
+    return result
+def oracle_moves(board):
+    results=[]
+    for m in list(board.legal_moves):
+        zero=board.is_zeroing(m)
+        board.push(m)
+        wdl=oracle.get_wdl(board)
+        dtz=oracle.get_dtz(board)
+        board.pop()
+        results.append({'move':m.uci(),'wdl':-wdl if wdl is not None else None,
+                        'dtz':1 if zero else abs(dtz)+1 if dtz is not None else None})
+    return results
+def move(fen, ms):
+    global last_search
+    last_search={}
+    result=original_agent(fen,ms)
+    board=chess.Board(fen)
+    records.append({'fen':fen,'move':result,'candidate':True,'search':last_search,
+                    'wdl':oracle.get_wdl(board),'dtz':oracle.get_dtz(board),
+                    'oracle_moves':oracle_moves(board)})
+    return result
+def opponent(board,tt,history):
+    result=original_opponent(board,tt,history)
+    records.append({'fen':board.fen(),'move':result.uci(),'candidate':False,
+                    'wdl':oracle.get_wdl(board),'dtz':oracle.get_dtz(board)})
+    return result
+cs.Search.search_root=search
+agent.get_move=move
+regression._opponent_move=opponent
+passed=regression.play(*regression.POSITIONS[0])
+agent._stop_pondering()
+out=root/'data/runs/fused-oracle-trace.json'
+out.write_text(json.dumps({'passed':passed,'moves':records},indent=2))
+print(json.dumps({'passed':passed,'plies':len(records),'out':str(out)}))

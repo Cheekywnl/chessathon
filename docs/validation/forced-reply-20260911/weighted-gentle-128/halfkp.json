@@ -1,0 +1,16 @@
+{
+  "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fused\\data\\runs\\weighted-gentle-128\\best_float.npz",
+  "source_sha256": "4a43820781eb8c8fca122d87144ca750d47dae22bc46c608e80fc5057b3964f3",
+  "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fused\\data\\runs\\weighted-gentle-128\\halfkp.npz",
+  "sha256": "598b8ec012b0339c73848c471e0279064d2aea784dbc34868e522b67a2df2779",
+  "file_bytes": 6942202,
+  "int16_accumulator_absolute_bound": 15191,
+  "weight_scales": [
+    161.0,
+    148.0,
+    0.2057307087170039
+  ],
+  "width": 128,
+  "dense_scaling": "fullrange",
+  "playing_strength_validated": false
+}

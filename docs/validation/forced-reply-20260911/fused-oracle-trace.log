@@ -1,0 +1,13 @@
+move=c1d1 depth=7 score=225 nodes=19845 ms=359 time_left_ms=20000
+move=b8c7 depth=11 score=225 nodes=34816 ms=703 time_left_ms=20000
+move=c7b6 depth=14 score=225 nodes=23047 ms=453 time_left_ms=20000
+move=b6a7 depth=14 score=225 nodes=34816 ms=734 time_left_ms=20000
+move=a7b6 depth=16 score=225 nodes=35840 ms=734 time_left_ms=20000
+move=b6c7 depth=16 score=225 nodes=22663 ms=438 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c7b8 depth=15 score=222 nodes=37888 ms=766 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=b8c8 depth=11 score=222 nodes=38912 ms=781 time_left_ms=20000
+Lucena position: FAIL (threefold_repetition)
+  The contempt commit (e73bfb9) explicitly flagged this as unfixed: 'needs the actual bridge technique, not a small scoring nudge.' Confirmed independently before this file existed: plain search (no agent.py) draws by repetition at ply 13 every time. The repetition backstop (471a3fb, fixed in bbfc5bb) resolves it as a side effect -- not because the engine knows the bridge technique by name, but because it refuses the draw and keeps trying alternatives until one actually wins.
+{"passed": false, "plies": 17, "out": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fused\\data\\runs\\fused-oracle-trace.json"}

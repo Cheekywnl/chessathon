@@ -85,6 +85,14 @@ def _move_claim(state: cs.State, f: int, t: int, p: int, repeated: np.ndarray) -
             continue
         if _claim(reply, repeated):
             return OPPONENT_CAN_DRAW
+        # A checking reply can force our next move into a position where the
+        # opponent claims by intended move. The ordinary three-ply scan misses
+        # that fourth ply. Extend only a forced reply, keeping the scan bounded.
+        ff, ft, fp, forced_count = _legal(reply)
+        if forced_count == 1:
+            forced = _after(reply, int(ff[0]), int(ft[0]), int(fp[0]))
+            if forced[11] != 0 and _claim(forced, repeated):
+                return OPPONENT_CAN_DRAW
     return 0
 
 
@@ -128,14 +136,15 @@ def root_claims(
 ) -> tuple[dict[int, int], bool]:
     """Classify exact claims and opponent draw options; keep proven partial results.
 
-    Scan at most our move, their reply and a claim by intended next move. Root
+    Scan our move, their reply and a claim by intended next move; extend one
+    forced response to catch a claim by the opponent's following move. Root
     move ordering comes from the caller. The time limit leaves time for search;
     an unexamined move has no claimed bound, rather than an invented result.
     """
-    if board.halfmove_clock < 97 and not any(count >= 2 for count in history.values()):
+    if board.halfmove_clock < 96 and not any(count >= 2 for count in history.values()):
         return {}, True
-    # No legal chess position can recur after only two plies. Therefore none of
-    # these three hypothetical plies can revisit a new path position twice:
+    # A legal chess position needs at least four plies to recur. Therefore none
+    # of these four hypothetical plies can revisit a new path position twice:
     # every possible third occurrence must target a position already seen twice
     # in the real game. A sorted array makes that fixed set cheap to probe in JIT.
     repeated = np.array(sorted(key for key, count in history.items() if count >= 2),

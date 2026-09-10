@@ -1,0 +1,36 @@
+import datetime
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'draw-fused'
+sys.path.insert(0,str(repo))
+from tools.match_evidence import build_manifest
+
+opening_file=work/'halfkp-trial/data/runs/openings-final-20260914.json'
+plan={
+    'prepared_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    'candidate':build_manifest(repo),
+    'opponent':build_manifest(work/'halfkp-release'),
+    'opening_file':str(opening_file),
+    'opening_file_sha256':hashlib.sha256(opening_file.read_bytes()).hexdigest(),
+    'opening_indices':list(range(142,152)),
+    'games':20,'colour_pairs':10,'base_ms':20000,'increment_ms':300,
+    'worker_cpus':[2,4,6,12,14],
+    'goal':'At least 90% actual wins against released neural engine; draws separate.',
+    'short_screen_only':True,
+    'promising_gate':{'minimum_score':0.70,'minimum_actual_win_fraction':0.60},
+    'decision':'Complete all 20 games unless a runtime failure or user interruption. '
+               'Retain every result. A marginal score does not trigger a long tournament. '
+               'The promising gate only warrants further work; it is not the 90% goal or release proof.',
+    'requirements':['fresh subprocess for each game','opponent-time suspension',
+                    'one physical core per independent worker','zero illegal/crash/flag outcomes',
+                    'complete pairs','legal PGN replay','unchanged runtime fingerprints'],
+}
+path=repo/'data/runs/forced-validation-plan.json'
+if path.exists(): raise SystemExit('Plan already exists')
+path.write_text(json.dumps(plan,indent=2))
+print(json.dumps({k:plan[k] for k in ['prepared_utc','opening_indices','games','promising_gate']}))
+print('candidate',plan['candidate']['runtime_sha256'])

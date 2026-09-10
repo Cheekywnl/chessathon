@@ -1,0 +1,126 @@
+{
+  "command": [
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\cuda-env\\Scripts\\python.exe",
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fused\\tools\\train_halfkp_weighted.py",
+    "--prepared",
+    "..\\halfkp-trial\\data\\full-cache",
+    "--resume",
+    "..\\halfkp-trial\\data\\runs\\full-128-anneal\\best_checkpoint.pt",
+    "--out",
+    "data\\runs\\weighted-full-128",
+    "--epochs",
+    "2"
+  ],
+  "start_unix": 1789083909.1002476,
+  "seed": 20260910,
+  "random_initialization": false,
+  "lineage_random_initialization": true,
+  "published_network_used": false,
+  "source_manifest": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\full-cache\\manifest.json",
+  "source_manifest_sha256": "6d63c217336798ec31b4b881f938d4d274eecc587678fad202b3b48e58df22b3",
+  "parent_run": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\runs\\full-128-anneal\\run.json",
+  "parent_checkpoint_sha256": "85fe3648e14711f989b85bc590499cbe6b12e5a8aa39262ac0c81cf877234e0a",
+  "width": 128,
+  "factorization": true,
+  "phase_weights": {
+    "2-7": 1.0,
+    "8-12": 4.0,
+    "13-20": 2.0,
+    "21-32": 1.0
+  },
+  "selection": "weighted held-out MSE, overall MSE <= 1.02 times parent",
+  "training_code_sha256": "e590d732da585b298ddc2d0ed9848554a6eed2c0b03de1a054a3fd0733735fe0",
+  "resources": {
+    "ram_available_gb": 9.099841536,
+    "system_ram_used_gb": 7.992774656,
+    "process_rss_gb": 0.40861696,
+    "cuda_allocated_gb": 0.0,
+    "cuda_reserved_gb": 0.0,
+    "nvidia_smi_util_used_total": "0, 628, 8192"
+  },
+  "torch": "2.5.1+cu121",
+  "numpy": "2.5.2",
+  "rows_trained": 50023145,
+  "selected_rows": 0,
+  "baseline": {
+    "mse": 0.010657461725329397,
+    "weighted_mse": 0.013099469338340934,
+    "validation_rows": 1498177,
+    "phases": {
+      "2-7": {
+        "rows": 67205,
+        "mse": 0.020700733743641803
+      },
+      "8-12": {
+        "rows": 152328,
+        "mse": 0.020070750495282227
+      },
+      "13-20": {
+        "rows": 385930,
+        "mse": 0.014324550807558484
+      },
+      "21-32": {
+        "rows": 892714,
+        "mse": 0.0067098309754534775
+      }
+    }
+  },
+  "selected": {
+    "mse": 0.010657461725329397,
+    "weighted_mse": 0.013099469338340934,
+    "validation_rows": 1498177,
+    "phases": {
+      "2-7": {
+        "rows": 67205,
+        "mse": 0.020700733743641803
+      },
+      "8-12": {
+        "rows": 152328,
+        "mse": 0.020070750495282227
+      },
+      "13-20": {
+        "rows": 385930,
+        "mse": 0.014324550807558484
+      },
+      "21-32": {
+        "rows": 892714,
+        "mse": 0.0067098309754534775
+      }
+    }
+  },
+  "final": {
+    "mse": 0.010710619733051537,
+    "weighted_mse": 0.013122605900938531,
+    "validation_rows": 1498177,
+    "phases": {
+      "2-7": {
+        "rows": 67205,
+        "mse": 0.02080863138551359
+      },
+      "8-12": {
+        "rows": 152328,
+        "mse": 0.019989314434850438
+      },
+      "13-20": {
+        "rows": 385930,
+        "mse": 0.014354969978323643
+      },
+      "21-32": {
+        "rows": 892714,
+        "mse": 0.006791664760017397
+      }
+    }
+  },
+  "training_seconds": 79.79084090000106,
+  "checkpoint_sha256": "f368b3f1ab8ea54c2b507780c2d62f20d48b07a14e0d56726ca4e20f51e38857",
+  "float_weights_sha256": "045f8db4f39e92dc1f146d3caf5f42c96d7845a2fdcafb9320e5d420ecd1565e",
+  "resources_final": {
+    "ram_available_gb": 8.63481856,
+    "system_ram_used_gb": 8.457797632,
+    "process_rss_gb": 1.011249152,
+    "cuda_allocated_gb": 0.105199104,
+    "cuda_reserved_gb": 0.197132288,
+    "nvidia_smi_util_used_total": "0, 1033, 8192"
+  },
+  "playing_strength_validated": false
+}

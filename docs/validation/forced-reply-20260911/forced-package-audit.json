@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fused\\submission.zip",
+  "sha256": "cfaa3c58ba191a4585372f10d0c3c73b19bcdcafddb8b5c722e60cc8e29c57b2",
+  "unzipped_bytes": 49472715,
+  "file_count": 107,
+  "integer_network": true,
+  "init_seconds": 11.228059200002463,
+  "peak_rss_bytes": 230256640,
+  "cpu_affinity": [
+    2
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.0006869999997434206
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c3a4",
+      "seconds": 0.15090050000071642
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.034142799999244744
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

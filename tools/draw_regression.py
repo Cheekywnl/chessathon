@@ -56,6 +56,16 @@ def reference_claims(board: chess.Board) -> dict[int, int]:
                     if reference(board):
                         claims[packed(move)] = cd.OPPONENT_CAN_DRAW
                         break
+                    forced = list(board.legal_moves)
+                    if len(forced) == 1 and not board.is_zeroing(forced[0]):
+                        board.push(forced[0])
+                        try:
+                            forced_draw = reference(board)
+                        finally:
+                            board.pop()
+                        if forced_draw:
+                            claims[packed(move)] = cd.OPPONENT_CAN_DRAW
+                            break
                 finally:
                     board.pop()
         finally:
@@ -130,7 +140,7 @@ def main() -> None:
         checked += 1
 
     fifty_move_roots = 0
-    for clock in (97, 98):
+    for clock in (96, 97, 98):
         for fen in (
             "6k1/8/8/8/8/8/3q4/6K1 w - - 0 50",
             "7k/5Q2/6K1/8/8/8/8/8 w - - 0 50",
@@ -144,6 +154,32 @@ def main() -> None:
             )
             assert complete and claims == reference_claims(board)
             fifty_move_roots += 1
+
+    # Recorded Lucena failure: Kc8 allows ...Rc2+, forcing Kb8, after which
+    # ...Ra2 can be claimed as the third occurrence. This needs four plies.
+    prefix = ["c1d1", "d8e7", "b8c7", "a2c2", "c7b6", "c2b2", "b6a7", "b2a2",
+              "a7b6", "a2b2", "b6c7", "b2c2", "c7b8", "c2a2"]
+    forced_reply_roots = 0
+    for mirror_files in (False, True):
+        for mirror_colors in (False, True):
+            board = chess.Board("1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1")
+            if mirror_files:
+                board = board.transform(chess.flip_horizontal)
+            if mirror_colors:
+                board = board.mirror()
+            square_xor = (7 if mirror_files else 0) ^ (56 if mirror_colors else 0)
+            for uci in prefix:
+                move = chess.Move.from_uci(uci)
+                board.push(chess.Move(move.from_square ^ square_xor,
+                                      move.to_square ^ square_xor))
+                assert board.is_valid() and not reference(board)
+            claims, complete = cd.root_claims(
+                board, history(board), list(board.legal_moves), time.monotonic() + 60,
+            )
+            trap = chess.Move(chess.B8 ^ square_xor, chess.C8 ^ square_xor)
+            assert complete and claims == reference_claims(board)
+            assert claims[packed(trap)] == cd.OPPONENT_CAN_DRAW
+            forced_reply_roots += 1
 
     # A queen-down side must keep a guaranteed draw; an opponent's optional
     # repetition cannot rescue its score when that opponent can instead win.
@@ -235,6 +271,7 @@ def main() -> None:
 
     result = {"referee_comparisons": checked, "recorded_draws_detected": len(captured),
               "fifty_move_root_comparisons": fifty_move_roots,
+              "forced_reply_root_comparisons": forced_reply_roots,
               "scan_ms_max": max(scan_ms), "scan_ms_mean": sum(scan_ms)/len(scan_ms),
               "defensive_search_move": defensive_choice,
               "opponent_optional_draw_score": optional_score,
