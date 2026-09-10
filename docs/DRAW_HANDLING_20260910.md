@@ -78,8 +78,12 @@ The quick screen finished **+5 =11 -4, 52.5%**, with all 20 PGNs replaying
 legally, unchanged runtime fingerprints and zero failed outcomes or runtime
 error/fallback markers from either engine. Maximum recorded init was 14.797
 seconds and peak working set was 245,858,304 bytes. This is a small positive
-screen, not convincing evidence of a strength gain. The predeclared 40-game
-tournament-clock comparison is running.
+screen, not convincing evidence of a strength gain. The user requested further
+optimization before the long comparison. That comparison was stopped after
+three completed games (+1 =2 -0); the other games were interrupted. The partial
+sample has no complete opening pairs and is not promotion evidence. All
+completed records and the interruption record are retained. The 40-game test
+plan is superseded; a future candidate will need a fresh short screen first.
 
 All 11 quick draws ended by repetition. Eight last search decisions were scored
 as a draw, one retained a negative score while the opponent allowed a draw, and
