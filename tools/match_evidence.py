@@ -12,7 +12,7 @@ from pathlib import Path
 
 import chess.pgn
 
-from harness.referee import FAILED_TERMINATIONS
+from harness.referee import FAILED_TERMINATIONS, RESULT_HEADERS
 from tools.halfkp_data import file_hash
 
 ERROR_MARKERS = ("traceback", "load failed", "probe failed", "get_move crashed",
@@ -31,8 +31,11 @@ def build_manifest(root: Path) -> dict[str, object]:
 def known_terminal_opponent_ponder(row: dict[str, object], log: str) -> bool:
     """Recognize the reproduced baseline diagnostic after its last move before mate.
 
-    This never permits a candidate error, failed outcome, earlier error, or a full
-    traceback whose cause has not been established. Keep the diagnostic in reports.
+    This never permits a candidate error, failed outcome or earlier error. The
+    opponent has already chosen its final legal move and the game then ends in
+    mate, so a subsequent worker diagnostic cannot change that completed outcome.
+    Tracebacks can be truncated when the referee kills the finished process;
+    retain the entire diagnostic without claiming every truncated cause is proved.
     """
     marker = "Exception in thread"
     if log.count(marker) != 1 or row["termination"] != "checkmate":
@@ -42,7 +45,7 @@ def known_terminal_opponent_ponder(row: dict[str, object], log: str) -> bool:
     before, tail = log.split(marker)
     if any(word in before.lower() for word in ERROR_MARKERS):
         return False
-    if re.fullmatch(r" Thread-\d+ \(_ponder\):\s*", tail) is None:
+    if re.match(r" Thread-\d+ \(_ponder\):", tail) is None or "move=" in tail:
         return False
     game = chess.pgn.read_game(io.StringIO(str(row["pgn"])))
     if game is None:
@@ -61,7 +64,7 @@ def audit_runtime_logs(row: dict[str, object]) -> list[str]:
             continue
         is_candidate = (side == "white_log") == row["agent_white"]
         if not is_candidate and known_terminal_opponent_ponder(row, log):
-            diagnostics.append("baseline terminal-prediction ponder exception after final move")
+            diagnostics.append("baseline ponder exception after its final move before checkmate")
         else:
             raise ValueError(f"unexplained runtime error in {side}: {log[-2500:]}")
     return diagnostics
@@ -74,6 +77,17 @@ def main() -> None:
     args = parser.parse_args()
     records = [json.loads(line) for path in args.logs
                for line in path.read_text(encoding="utf8").splitlines() if line]
+    fingerprints = set()
+    fingerprinted_logs = 0
+    for path in args.logs:
+        sidecar = path.with_suffix(".builds.json")
+        if sidecar.exists():
+            metadata = json.loads(sidecar.read_text(encoding="utf8"))
+            builds = metadata.get("builds", metadata)
+            fingerprints.add((builds["agent"]["runtime_sha256"],
+                              builds["opponent"]["runtime_sha256"]))
+            fingerprinted_logs += 1
+    assert len(fingerprints) <= 1, "do not aggregate different runtime builds"
     keys = set()
     scores = []
     terminations: Counter[str] = Counter()
@@ -90,11 +104,14 @@ def main() -> None:
                                 "notes": notes})
         game = chess.pgn.read_game(io.StringIO(row["pgn"]))
         assert game is not None and not game.errors
+        assert game.headers["Result"] == RESULT_HEADERS[row["result"]]
         board = game.end().board()
         outcome = board.outcome(claim_draw=True)
         if row["termination"] != "ply_cap":
             assert outcome is not None and outcome.termination.name.lower() == row["termination"]
             assert outcome.result() == game.headers["Result"]
+        else:
+            assert board.ply() == row.get("ply_cap_total", 600)
         score = (0.5 if row["result"] == "draw" else
                  float((row["result"] == "white") == row["agent_white"]))
         scores.append(score)
@@ -108,6 +125,14 @@ def main() -> None:
               "score": sum(scores) / len(scores), "terminations": dict(terminations),
               "pair_score_counts": dict(Counter(str(sum(pair)) for pair in paired.values())),
               "log_sha256": {str(path): file_hash(path) for path in args.logs},
+              "fingerprinted_logs": fingerprinted_logs,
+              "runtime_fingerprints": [list(pair) for pair in fingerprints],
+              "maximum_recorded_peak_rss_bytes": max(
+                  (row.get(key) or 0 for row in records
+                   for key in ("white_peak_rss", "black_peak_rss")), default=0),
+              "maximum_recorded_init_seconds": max(
+                  (row.get(key) or 0 for row in records
+                   for key in ("white_init_seconds", "black_init_seconds")), default=0),
               "legal_pgn_replay": True, "candidate_failure_or_fallback_markers": 0,
               "baseline_diagnostics": diagnostics,
               "platform_elo_established": False}

@@ -103,6 +103,8 @@ def main() -> None:
     parser.add_argument("--opening-file", type=Path, help="Preselected generated opening suite")
     parser.add_argument("--opening-start", type=int, default=0)
     parser.add_argument("--opening-count", type=int)
+    parser.add_argument("--skip-first-white", action="store_true",
+                        help="Resume after an already recorded first White game")
     parser.add_argument(
         "--openings",
         nargs="+",
@@ -136,11 +138,15 @@ def main() -> None:
         )
     wins = draws = losses = 0
     terminations: dict[str, int] = {}
-    games = len(openings) * 2
+    games = len(openings) * 2 - int(arguments.skip_first_white)
 
     game_num = 0
+    skip_white = arguments.skip_first_white
     for name, fen in openings:
         for agent_plays_white in (True, False):
+            if skip_white:
+                skip_white = False
+                continue
             game_num += 1
             white, black = (agent, opponent) if agent_plays_white else (opponent, agent)
             white_process, black_process = factory(white), factory(black)
@@ -161,6 +167,7 @@ def main() -> None:
                                           "agent_white": agent_plays_white,
                                           "base_ms": arguments.base_ms,
                                           "increment_ms": arguments.increment_ms,
+                                          "ply_cap_total": arguments.ply_cap,
                                           "result": outcome.result,
                                           "termination": outcome.termination, "pgn": outcome.pgn,
                                           "white_log": white_process.stderr_tail,

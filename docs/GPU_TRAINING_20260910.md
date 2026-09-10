@@ -204,9 +204,13 @@ still do. This is a bounded guard, not the rejected broad removal of pondering.
 Match evidence now records exact root-source/book/Syzygy/network hashes, refuses
 existing log paths, checks that builds remain unchanged, measures subprocess peak
 working sets, replays PGNs, rejects failed outcomes and runtime fallback markers,
-and requires unique completed opening/colour pairs. Only the narrowly reproduced
-baseline terminal-prediction diagnostic is retained with an explicit qualification;
-candidate exceptions and unexplained opponent errors remain disqualifying.
+and requires unique completed opening/colour pairs. A baseline ponder exception
+after its final returned legal move, immediately before the opponent's actual
+checkmate, is retained with an explicit qualification. Such post-move diagnostics
+cannot change the completed game's result. Tracebacks may be truncated by the
+referee stopping the finished process, so not every truncated cause is asserted
+to be proven. Candidate errors, earlier errors, subsequent moves and failed
+outcomes are explicitly rejected by the tested classification rule.
 
 An additional 100-opening pool was selected before seeing its match outcomes,
 using seed 20260910, square-root-weight sampling from the original existing book,
@@ -283,3 +287,53 @@ The tools now subtract the starting FEN's existing plies from the live total cap
 without changing `harness/`. Earlier runs used the harness's cap of 600 additional
 plies; no completed screen game reached that cap. This distinction has no effect
 on their recorded checkmates and repetitions and remains documented explicitly.
+
+## Completed selection screens and final training continuation
+
+The 128-wide annealed model finished its 20-game screen at **+14 =5 -1 (82.5%)**,
+with 15 checkmates and five repetitions. The 64-wide model finished **+13 =3 -4
+(72.5%)**, with 17 checkmates and three repetitions. Both used 20s+0.3s, all ten
+built-in openings, paired colours, one CPU and actual process suspension. Both
+passed full PGN/result replay, fixed-build fingerprint, init/memory and runtime-log
+audits, with zero candidate error/fallback markers and no baseline diagnostics.
+These small selection screens are not pooled into the final sequential test.
+
+The original 128-wide candidate's 120s+0.5s batch A paused after six completed games
+because its baseline traceback contained more text than the first observed example.
+The final legal move and immediately following mate were verified; the diagnostic
+was preserved. Resume begins at pool entry 3, with no replayed or dropped result,
+in `first75-ltc-a-resume.jsonl`. The first six results stay in `first75-ltc-a.jsonl`.
+Batch B continues independently. Source and asset fingerprints remain unchanged.
+
+A second 128-wide continuation used the same own-training lineage, LR 0.00008,
+two full epochs, batch 8192 and seed 20260910. It completed 297,094,242 additional
+presentations in 627.767 seconds; best full held-out MSE 0.01058514020.
+Checkpoint SHA-256: `3b8fabc0acfe7aa978f8011f66575da8b32d3bdd23c44bf4eaf1b855cdeb61c1`.
+Float SHA-256: `70da243032175cb7abbb6c0b703d45176b26df9d07217bd760ef4934c9c6888a`.
+Full-range integer asset: 6,936,983 bytes, SHA-256
+`dbdf991eff2d615712698e8631bbe40e4801069f7a5723976928ea1721603190`.
+On 20,000 held-out positions it had zero reference/board mismatches, MAE 7.991 cp,
+p99 20.206 cp and maximum 40.041 cp. Its isolated `halfkp-refine-128` candidate
+uses blend 100 in normal middlegames, retaining the classical low-material and
+bare-king routes. It passed gate, Lucena, integration, package smoke and WAC
+(232/300), and is now in its own 20-game quick screen. It is not promoted.
+The package is 49,457,018 bytes unzipped, SHA-256
+`a8ae0bf68b04ca7b4270e8ed85bc0f1716bfe9315b586a88db887dc0436b7f25`.
+
+Across the full-data runs, 128-wide training presented 774,270,314 rows and
+64-wide training presented 594,188,484 rows: **1,368,458,798 presentations** in total,
+including repeat passes over the same training split, not that many unique data
+positions. Full-data GPU training consumed about 44.8 minutes; preparation took
+about 28.3 minutes. All training is complete pending any evidence that a further
+revision is needed; remaining selection is based on actual games.
+
+The final pool uses seed 20260914, 200 distinct FENs and 200 distinct deterministic
+book exits, excluding all earlier pool positions/book exits and the ten built-in
+screening lines' book exits. This prevents two different starting positions that
+converge through book play from being counted as distinct final trials. Command:
+`python -m tools.make_opening_suite --baseline ../baseline-05046b2
+--out data/runs/openings-final-20260914.json --count 200 --seed 20260914 --cpu 14
+--distinct-book-exits --exclude-file data/runs/openings-20260910.json`.
+Pool SHA-256: `a41142b1dc37d3a5cfbbee4ae0b7e6e0a41ffb1e76a819a25db775c324e3925d`.
+Initial book coverage on these positions: original/all-key book 53/200, capped
+book 51/200. Selection was completed before observing any game from this pool.

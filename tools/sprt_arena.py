@@ -50,6 +50,7 @@ def play_pair(job: dict[str, Any]) -> list[dict[str, Any]]:
         row: dict[str, Any] = {"opening": job["name"], "pair_index": job["index"],
                "agent_white": agent_white, "base_ms": job["base_ms"],
                "increment_ms": job["increment_ms"], "result": outcome.result,
+               "ply_cap_total": job["ply_cap"],
                "termination": outcome.termination, "pgn": outcome.pgn,
                "white_log": wp.stderr_tail, "black_log": bp.stderr_tail,
                "white_peak_rss": getattr(wp, "peak_rss_bytes", None),
