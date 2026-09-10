@@ -99,3 +99,10 @@ Local Windows testing does not establish a platform Elo or substitute for the
 platform's Linux upload validation. The final release report identifies the
 completed game evidence and any remaining limitations. The clean original
 `05046b2` opponent and the user's existing checkout remain preserved.
+
+The subsequent 76-game draw investigation found that the existing repetition
+safeguard can act too late for automatic draw claims and that tablebase move
+selection can shuffle instead of making a winning pawn advance. These conversion
+defects remain in the released runtime. See `docs/DRAW_ANALYSIS.md` for the
+reproductions and phase-specific held-out error measurements. Training data alone
+cannot correct a repetition-history or tablebase-selection defect.

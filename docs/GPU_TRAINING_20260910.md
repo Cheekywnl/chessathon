@@ -449,3 +449,23 @@ The release adds only the selected validated integer weight and capped book as
 runtime assets. The original baseline, all original Syzygy tables and all trial
 worktrees remain preserved. The finished archive will be handed to the user for
 manual upload without waiting for the supplementary run to end.
+
+## Requested draw and training-data investigation
+
+Reviewed the first 76 final-test games (+45 =26 -5; 76.32% score), a descriptive
+local logistic gain of +203 Elo. All 26 draws were claimable repetitions before
+an actual third occurrence, beyond the timing of the current direct safeguard.
+Eighteen of the 25 last search moves still reported at least +150 cp. One separate
+tablebase draw reproducibly selected a king shuffle over a winning pawn advance
+because immediate zeroing progress is not represented in its DTZ tie-break.
+These are remaining conversion limitations, not a change to the positive
+match record or the released runtime. The full SPRT continues unchanged.
+
+Sampled 601,000 training rows and 120,200 held-out rows across every prepared
+shard. The 8–12-piece subgroup comprised about 10.13% of training rows and had
+held-out neural sigmoid-value MSE 0.02012, versus 0.00681 with 21–32 pieces.
+This suggests a targeted reweighting experiment before another broad download;
+it does not prove data scarcity or any prospective Elo gain. Detailed findings,
+uncertainty, reproduction records and proposed priorities are in
+`docs/DRAW_ANALYSIS.md` and `docs/validation/{draw-analysis,draw-mechanics,training-profile}.json`.
+No weights or engine code changed during this investigation.
