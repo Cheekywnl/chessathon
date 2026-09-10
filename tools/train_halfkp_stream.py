@@ -2,7 +2,8 @@
 
 The optional 640-feature factor is training-only: export adds it into each of the
 64 king buckets exactly. Output is in logits; exported output-layer values are
-scaled to centipawns. No existing checkpoint or published network is accepted.
+scaled to centipawns. Resume accepts only a checkpoint whose adjacent provenance
+record verifies this team's random-initialization lineage and exact source hash.
 """
 
 from __future__ import annotations
@@ -170,6 +171,8 @@ def main() -> None:
     parser.add_argument("--validate-every", type=int, default=10_000_000)
     parser.add_argument("--patience", type=int, default=4)
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
+    parser.add_argument("--resume", type=Path,
+                        help="Resume this team's checkpoint with matching run.json and SHA-256")
     args = parser.parse_args()
     if args.out.exists():
         raise SystemExit(f"Refusing to overwrite run: {args.out}")
@@ -188,6 +191,24 @@ def main() -> None:
     args.out.mkdir(parents=True)
     model = HalfKPTrainNet(args.width, not args.no_factorization).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    parent_note: dict[str, Any] | None = None
+    if args.resume is not None:
+        parent_note = json.loads((args.resume.parent / "run.json").read_text())
+        lineage = parent_note.get("lineage_random_initialization",
+                                  parent_note.get("random_initialization", False))
+        if (not lineage or parent_note.get("published_network_used") is not False
+                or parent_note["checkpoint_sha256"] != file_hash(args.resume)
+                or parent_note["source_manifest_sha256"]
+                != file_hash(args.prepared / "manifest.json")
+                or parent_note["seed"] != args.seed):
+            raise SystemExit("Checkpoint does not match this team's recorded training lineage")
+        checkpoint = torch.load(args.resume, map_location="cpu", weights_only=True)
+        model.load_state_dict(checkpoint["state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        for group in optimizer.param_groups:
+            group["lr"] = args.lr
+            group["initial_lr"] = args.lr
+        del checkpoint
     total_steps = args.epochs * sum(math.ceil(s["rows"] / args.batch_size)
                                    for s in manifest["train"])
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -195,7 +216,8 @@ def main() -> None:
     )
     note = {
         "command": [sys.executable, *sys.argv], "seed": args.seed,
-        "random_initialization": True, "published_network_used": False,
+        "random_initialization": args.resume is None, "lineage_random_initialization": True,
+        "published_network_used": False,
         "factorization": not args.no_factorization, "width": args.width,
         "architecture": "40960 shared FT, clipped dual perspective -> 32 -> 32 -> 1",
         "source_manifest": str((args.prepared / "manifest.json").resolve()),
@@ -204,6 +226,9 @@ def main() -> None:
         "device": str(device), "batch_size": args.batch_size,
         "start_unix": time.time(), "resources": resource_snapshot(),
     }
+    if parent_note is not None:
+        note["parent_run"] = str((args.resume.parent / "run.json").resolve())
+        note["parent_checkpoint_sha256"] = parent_note["checkpoint_sha256"]
     (args.out / "run.json").write_text(json.dumps(note, indent=2), encoding="utf8")
     log = (args.out / "metrics.jsonl").open("a", encoding="utf8", buffering=1)
 
@@ -223,6 +248,15 @@ def main() -> None:
     interval_rows = 0
     last_report = started
     report({"event": "start", **note})
+    if args.resume is not None:
+        best, initial_validation_rows = validate(model, args.prepared, manifest["validation"],
+                                                 args.batch_size, device)
+        report({"event": "resume_validation", "validation_mse": best,
+                "validation_rows": initial_validation_rows})
+        np.savez(args.out / "best_float.npz", allow_pickle=False, **model.export_arrays())
+        torch.save({"state_dict": model.state_dict(), "optimizer": optimizer.state_dict(),
+                    "scheduler": scheduler.state_dict(), "rows": 0, "seed": args.seed},
+                   args.out / "best_checkpoint.pt")
     for epoch in range(1, args.epochs + 1):
         rng = np.random.default_rng(args.seed + epoch)
         epoch_rows = 0

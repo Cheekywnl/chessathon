@@ -109,5 +109,80 @@ loss, with early stopping after four consecutive non-improving validation checks
 
 All data, float exports, optimizer checkpoints and CUDA files remain ignored local
 artifacts. Pilot loss is not strength evidence. No network has been promoted.
-Classical `05046b2` remains the safe submission until integer inference, package,
-correctness and real subprocess match checks succeed.
+Classical `05046b2` remains the rollback opponent until integer inference, package,
+correctness and real subprocess match checks succeed. Fresh rule inspection also
+found that its book lookup is not restricted to move 20: the submission candidate
+now explicitly declines book lookups at move 21 and later.
+
+## Completed full preparation and first run
+
+Every one of the 150,000,000 labelled CSV rows and 56,927 self-play rows was read.
+11,629 labelled rows were rejected for more than 30 non-king pieces. Accepted total:
+150,045,298, split into 148,547,121 train and 1,498,177 validation positions.
+Preparation took 1,699.771 seconds. All source/shard accounting checks passed.
+Main CSV SHA-256: `6ce1108f70e3d14213fc1d0b41b024b5c3768a64e98247ab406562ba9d9650ec`.
+Prepared manifest SHA-256: `6d63c217336798ec31b4b881f938d4d274eecc587678fad202b3b48e58df22b3`.
+
+The first run presented 180,081,830 training rows (one complete epoch and a partial
+second), stopping after held-out loss stopped improving. Duration: 375.845 seconds;
+22,556 optimizer steps; best probability MSE 0.01148086245. Checkpoint SHA-256:
+`9b6f9f3c23e4a9b37b85595c8320422a8aa998031be5a87b6906edf97da96c57`.
+Best float export SHA-256: `2772c8656405de51e9ca89f2fcc3a874b46d3405769e1bf66e4b938a40e03d84`.
+
+The first integer asset is 6,949,254 bytes, with int16 transformer/accumulators and
+int8 downstream weights. Its conservative accumulator bound is 15,140, below 32,767.
+SHA-256: `cd2c6c5ea9c14f6fb85512e373a2f2b1f2348e49118f96f710d911ec45db0768`.
+On 10,000 held-out positions: zero integer-reference and bitboard-inference
+mismatches; mean absolute float/quantized error 4.794 cp, p99 14.898 cp, maximum
+27.214 cp. Probability MSE on that subset: float 0.01046756, integer 0.01051172.
+
+## First packaged candidate — still unpromoted
+
+The 75% neural blend preserves the classical evaluator for seven or fewer pieces
+and bare-king conversions, and adds `mop_up_bonus` to the neural route. Extracting
+that helper gave 12,000 exact evaluation matches and ten exact depth-5 move/score/node
+matches against `05046b2`. Skipping unused classical work at a 100% neural blend
+was separately checked on 30 exact move/score/node comparisons at blends 0/75/100.
+
+The book was reduced from 16,484,048 to 12,500,000 bytes: first keep the deterministic
+best entry per key, then drop the lowest-weight keys. There are 781,250 retained
+keys and 139,850 dropped keys. Every retained key's maximum was checked. Among
+100,010 position probes, all retained responses matched; coverage decreased by 692
+of 13,699 original hits. This coverage trade remains subject to real match results.
+All original Syzygy files are retained. Capped book SHA-256:
+`16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b`.
+
+The resulting zip was 49,468,870 bytes unzipped; SHA-256:
+`02f397a1ff2c6dfc7eacd9c0c4cb05619460df86d95ffdb291711dfe3d2289ce`.
+Source/asset audit passed. The extracted zip imported in 10.297 seconds on one
+core, reached a measured 207,736,832-byte peak working set in the import/move smoke,
+and returned legal opening, middlegame and endgame moves. This is not a full-game
+peak-memory claim. Full gate passed; Lucena passed; WAC scored 232/300 at 1s per
+position. These are screening results, not strength evidence.
+
+The first real 20s+0.3s, twenty-game screen uses `tools.version_arena`, split into
+two independent ten-game batches on cores 2 and 4. Each pair alternates colours;
+together they cover all ten built-in openings. Both agent interpreters use the
+unchanged pinned CPU environment. The controller suspends the actual Python child
+as well as its Windows venv launcher between turns. A busy-counter test proved
+that suspending only the launcher is insufficient; the corrected process-tree
+controller stopped both counter and CPU-time progress outside turns.
+
+`data/runs/first75-a.jsonl` and `first75-b.jsonl` contain complete game/PGN/log records.
+Failed or void games now abort version/SPRT scoring instead of being counted as
+draws. Results are pending; no network has been promoted or committed as an asset.
+
+## Continued training and rejected bounded experiment
+
+`--resume` accepts a team checkpoint only after its SHA-256, source-manifest hash,
+seed and random-initialization lineage match the adjacent run record. A resumed
+pilot reproduced the parent's held-out MSE exactly before taking another step.
+This continues our own training; no published network is involved. The lower-rate
+continuation uses `--out data/runs/full-128-anneal --epochs 2 --lr 0.0002 --patience 8
+--resume data/runs/full-128/best_checkpoint.pt` with the same prepared data and batch
+size. It writes separate checkpoints and does not change the candidate under test.
+
+The isolated `no-ponder-trial` passed its gate but failed the Lucena regression by
+threefold repetition. It was rejected at that screen. Its patch remains isolated;
+the original baseline is untouched. No claim is made that disabling pondering is
+safe simply because the live platform suspends opponent-time work.
