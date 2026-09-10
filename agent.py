@@ -40,7 +40,7 @@ PONDER_JOIN_TIMEOUT_S = 1.0
 REPETITION_AVOIDANCE_THRESHOLD = 150
 REPETITION_AVOIDANCE_MIN_SCORE = 50
 
-# Import time runs once per game, inside a 60 second budget, before your clock starts.
+# Import time runs once per game, inside a 90 second budget, before your clock starts.
 # size_power=21 measures at ~1.0 GB fully populated plus ~0.12 GB baseline (interpreter,
 # numpy/numba, python-chess) -- comfortably under the 2 GB cap with ~0.85 GB of margin left
 # for board copies, recursion, and the ponder thread's own local state. An OOM kill is an
@@ -111,13 +111,10 @@ def _open_book() -> "chess.polyglot.MemoryMappedReader | None":
 
 _BOOK = _open_book()
 
-# Pondering: while the opponent thinks, the harness blocks on stdin and this core sits idle
-# unless we use it ourselves -- the rules explicitly allow this ("the process keeps its core
-# while the opponent thinks"). A ponder thread keeps deepening on our predicted reply to our
-# own move and banks results into the shared transposition table. It is always stopped and
-# joined at the top of the *next* get_move, before any new work starts, so the ponder thread
-# and the real search thread never touch shared state at the same time -- no true concurrent
-# access to guard, just a clean handoff.
+# The live platform suspends this process outside our turn, so this legacy worker
+# cannot gain opponent-time nodes there. Disabling it failed the existing Lucena
+# regression locally; retain the baseline behavior pending a validated replacement.
+# The next get_move requests cancellation before beginning its foreground search.
 _ponder_thread: threading.Thread | None = None
 _ponder_stop = threading.Event()
 
@@ -192,7 +189,7 @@ def _book_move(board: chess.Board) -> chess.Move | None:
     failure on the memory-mapped book file should cost this one move's book lookup, not the
     game -- an uncaught exception on the clock is an instant loss, worse by a wide margin than
     the book simply not firing this once."""
-    if _BOOK is None:
+    if _BOOK is None or board.fullmove_number > 20:
         return None
     try:
         best_entry = None
@@ -298,6 +295,10 @@ def _start_pondering(board: chess.Board, our_move: chess.Move) -> None:
         return
     board_to_ponder = board_after_us
     board_to_ponder.push(ponder_move)
+    # The predicted opponent reply can itself end the game. search_root requires
+    # a legal root move; starting it on a predicted mate raises in the worker.
+    if board_to_ponder.is_game_over(claim_draw=False):
+        return
     _ponder_stop.clear()
     _ponder_thread = threading.Thread(
         target=_ponder, args=(board_to_ponder, _ponder_stop), daemon=True

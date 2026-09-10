@@ -31,8 +31,8 @@ and they change, so fetch them before you rely on a number.
 - Ten uploads per team per day, and the latest one that passed validation is the one that plays.
 - Rated games start from curated opening positions, not the standard start. The set is not
   published.
-- The process keeps its core while the opponent thinks, so pondering on their time is allowed.
-  Two of your games can run at once, in separate containers.
+- The process is suspended while the opponent thinks, so background work cannot gain
+  opponent-time nodes. Two of your games can run at once, in separate containers.
 
 ## Deadline
 

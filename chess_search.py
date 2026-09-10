@@ -28,13 +28,16 @@ A timeout unwinds through this file as a `TimeUp` exception raised deep in the r
 """
 
 import math
+import sys
 import threading
 import time
+from pathlib import Path
 
 import chess
 import numpy as np
 
 import chess_eval as ce
+import chess_halfkp_int as halfkp
 import chess_movegen as mg
 import chess_state as cst
 
@@ -53,6 +56,20 @@ NO_MOVE = -1
 # moves that already look roughly equal, it can't override a real material/tactical verdict, and
 # it never discourages accepting a draw when we're actually worse off, which would be irrational.
 CONTEMPT = 20
+
+# Candidate blend, promoted only with a validated weight asset and real A/B evidence.
+# An absent or malformed asset retains the classical evaluator exactly.
+HALFKP_BLEND = 75
+HALFKP_MIN_PIECES = 8
+HALFKP_WEIGHTS: halfkp.QuantizedWeights | None = None
+_halfkp_path = Path(__file__).resolve().parent / "weights" / "halfkp.npz"
+if _halfkp_path.is_file():
+    try:
+        HALFKP_WEIGHTS = halfkp.load_weights(_halfkp_path)
+        halfkp.warm_up(HALFKP_WEIGHTS)
+    except Exception as _halfkp_error:
+        HALFKP_WEIGHTS = None
+        print(f"HalfKP load failed; using classical evaluation: {_halfkp_error}", file=sys.stderr)
 
 FLAG_EXACT, FLAG_LOWER, FLAG_UPPER = 0, 1, 2
 
@@ -390,7 +407,7 @@ class Search:
         self.deadline = 0.0
         self.stop_event = stop_event
 
-    def evaluate(self, state: State, mobility: int) -> int:
+    def classical_evaluate(self, state: State, mobility: int) -> int:
         white_count, black_count = _castling_rights_counts(state)
         positional = ce.evaluate(
             state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7],
@@ -399,6 +416,28 @@ class Search:
         )
         mover_relative = int(positional) if state[8] else -int(positional)
         return mover_relative + int(self.params[ce.P_MOBILITY]) * mobility
+
+    def evaluate(self, state: State, mobility: int) -> int:
+        weights = HALFKP_WEIGHTS
+        if weights is None or HALFKP_BLEND <= 0:
+            return self.classical_evaluate(state, mobility)
+        occupied = int(state[6] | state[7])
+        non_kings = int(state[0] | state[1] | state[2] | state[3] | state[4])
+        if (occupied.bit_count() < HALFKP_MIN_PIECES
+                or not (non_kings & int(state[6])) or not (non_kings & int(state[7]))):
+            # Preserve all established low-material and bare-king technique exactly.
+            return self.classical_evaluate(state, mobility)
+        neural = halfkp.evaluate(
+            state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7],
+            state[8], weights.w1, weights.b1, weights.w2, weights.b2, weights.w3, weights.b3,
+            weights.w4, weights.b4, weights.scale2, weights.scale3, weights.output_divisor,
+        )
+        bonus = int(ce.mop_up_bonus(*state[:8], self.params))
+        neural = max(-20_000, min(20_000, neural)) + (bonus if state[8] else -bonus)
+        if HALFKP_BLEND >= 100:
+            return neural
+        classical = self.classical_evaluate(state, mobility)
+        return round((classical * (100 - HALFKP_BLEND) + neural * HALFKP_BLEND) / 100)
 
     def _time_check(self) -> None:
         self.nodes += 1
