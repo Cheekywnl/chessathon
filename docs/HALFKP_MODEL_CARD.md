@@ -106,3 +106,8 @@ selection can shuffle instead of making a winning pawn advance. These conversion
 defects remain in the released runtime. See `docs/DRAW_ANALYSIS.md` for the
 reproductions and phase-specific held-out error measurements. Training data alone
 cannot correct a repetition-history or tablebase-selection defect.
+
+The completed independent test accepted H1 after 53 paired openings. Including
+the remaining in-flight games, this unchanged build scored +62 =43 -7 in 112
+games at 120s+0.5s against `05046b2`, with zero failed outcomes or runtime error
+markers. This supports a local improvement; no platform rating is established.

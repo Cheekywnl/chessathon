@@ -469,3 +469,19 @@ it does not prove data scarcity or any prospective Elo gain. Detailed findings,
 uncertainty, reproduction records and proposed priorities are in
 `docs/DRAW_ANALYSIS.md` and `docs/validation/{draw-analysis,draw-mechanics,training-profile}.json`.
 No weights or engine code changed during this investigation.
+
+## Completed independent SPRT for the released neural build
+
+The frozen anneal128 blend75 test accepted H1 at pair 53 / 106 games, with LLR
+2.9632037226823087 exceeding the predeclared 2.944438979 boundary. All three
+remaining in-flight pairs finished and were retained: **112 games / 56 pairs,
++62 =43 -7, 74.5536%**, at 120s+0.5s. Final LLR including those games is
+3.1309339350488905. Every game replayed legally, all runtime fingerprints
+remained fixed, and there were no failed outcomes, candidate error/fallback
+markers or baseline diagnostics. Maximum recorded peak working set was
+266,694,656 bytes and maximum init was 13.297 seconds.
+
+This formally supports the already-released neural build against classical
+`05046b2`. It does not validate the subsequent draw-handling candidate, which
+requires its own comparison against this released neural build. Full result,
+configuration, game records and audit are under `docs/validation/final-anneal75-sprt*`.

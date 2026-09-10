@@ -1,0 +1,38 @@
+{
+  "games": 112,
+  "openings": 56,
+  "clock_ms": [
+    120000,
+    500
+  ],
+  "wins": 62,
+  "draws": 43,
+  "losses": 7,
+  "score": 0.7455357142857143,
+  "terminations": {
+    "threefold_repetition": 43,
+    "checkmate": 69
+  },
+  "pair_score_counts": {
+    "0.5": 2,
+    "1.5": 29,
+    "2.0": 14,
+    "1.0": 11
+  },
+  "log_sha256": {
+    "data\\runs\\final-anneal75-sprt.jsonl": "ed4e31199d87c451e7e6900b8a5a3a88a9a1d4d9da2eaaf702e92d9a82290278"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c",
+      "2e507f40e8da1c8b08a89d6c49367460c0ed6ef47fad34a1c688e4fdacd4c5ff"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 266694656,
+  "maximum_recorded_init_seconds": 13.29700000000048,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}
