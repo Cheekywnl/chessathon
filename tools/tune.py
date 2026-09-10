@@ -8,19 +8,35 @@ size, then halve the step and continue. Purely a fitting procedure over already-
 self-played positions and their eventual outcomes -- no search or judgment call involved beyond
 choosing the dataset, unlike hand-picking a magnitude and hoping a real A/B validates it.
 
+Accepts two CSV formats transparently, same auto-detection tools/train_nnue.py uses (and freely
+mixable in one --data glob):
+
+- tools/generate_training_data.py's output ("fen,mobility,result"): self-play/real games, a hard
+  0/0.5/1 outcome, mobility already computed.
+- tools/prepare_lichess_eval.py's output ("fen,depth,cp"): real Stockfish evaluations -- the
+  target becomes sigmoid(cp/400) (same K/400 convention as tools/train_nnue.py's _cp_to_target),
+  a soft "how good is this position" label instead of a hard game outcome, and mobility gets
+  computed from the FEN since this format doesn't carry it. Explicitly the "training on positions
+  an existing engine labelled" the competition rules allow -- this only ever prints a candidate
+  params array for chess_eval.py, the same engine code this project already ships, refit against
+  more data than the two previous attempts had (4,283 and ~6-23k positions -- both of which
+  document collinearity/overfitting symptoms this dataset's real size should resolve).
+
 Only ever prints a candidate params array. Nothing in chess_eval.py changes unless that candidate
 is copied in by hand after clearing the same bar as every other change this session: gate, WAC,
 the endgame regression suite, and a real A/B against the values it would replace.
 
 Usage:
-    uv run python -m tools.generate_training_data --games 150   # build the dataset first
+    uv run python -m tools.generate_training_data --games 150   # build a self-play dataset
     uv run python -m tools.tune --data data/tune_positions.csv --iterations 6
+    uv run python -m tools.tune --data data/lichess_sample.csv --limit 300000 --iterations 6
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import math
 from pathlib import Path
 
@@ -28,16 +44,45 @@ import chess
 import numpy as np
 
 import chess_eval as ce
+from tools.train_nnue import _cp_to_target
 
 Position = tuple[chess.Board, int, float]
 
 
-def load_dataset(path: Path) -> list[Position]:
+def load_dataset(pattern: str, limit: int | None = None) -> list[Position]:
+    """--limit caps rows taken from EACH matched file (not the combined total) -- this is a
+    coordinate-ascent local search, not a lazy/batched training loop, so the whole dataset lives
+    in memory as chess.Board objects throughout; capping it is how this stays tractable against a
+    20M-row source file (each total_error() pass costs one chess_eval.evaluate_board() call per
+    position, and tune() calls total_error() roughly 2 * NUM_PARAMS * iterations times, so this
+    is deliberately a sample, not a full pass over everything tools/prepare_lichess_eval.py
+    produced -- see the module docstring for what that dataset actually is)."""
+    paths: list[str] = []
+    for part in pattern.split(","):
+        paths.extend(sorted(glob.glob(part.strip())))
+    if not paths:
+        raise SystemExit(f"no files matched {pattern!r}")
+
     positions: list[Position] = []
-    with open(path, newline="") as f:
-        for row in csv.DictReader(f):
-            board = chess.Board(row["fen"])
-            positions.append((board, int(row["mobility"]), float(row["result"])))
+    for path in paths:
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f)
+            assert reader.fieldnames is not None
+            is_cp_format = list(reader.fieldnames) == ["fen", "depth", "cp"]
+            n_before = len(positions)
+            for row in reader:
+                if limit is not None and len(positions) - n_before >= limit:
+                    break
+                board = chess.Board(row["fen"])
+                if is_cp_format:
+                    mobility = len(list(board.legal_moves))
+                    target = _cp_to_target(float(row["cp"]))
+                else:
+                    mobility = int(row["mobility"])
+                    target = float(row["result"])
+                positions.append((board, mobility, target))
+            print(f"  {path}: {len(positions) - n_before} positions "
+                  f"({'cp' if is_cp_format else 'wdl'})")
     return positions
 
 
@@ -124,7 +169,14 @@ def tune(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Texel-tune chess_eval.py's DEFAULT_PARAMS.")
-    parser.add_argument("--data", type=Path, default=Path("data/tune_positions.csv"))
+    parser.add_argument(
+        "--data", type=str, default="data/tune_positions.csv",
+        help="Glob pattern (or comma-separated patterns) matching CSV files.",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None,
+        help="Cap rows taken from each matched file -- see load_dataset's docstring.",
+    )
     parser.add_argument("--iterations", type=int, default=6)
     parser.add_argument("--step", type=int, default=8)
     parser.add_argument(
@@ -138,7 +190,7 @@ def main() -> None:
     parser.add_argument("--save", type=Path, default=Path("data/tuned_params.npy"))
     arguments = parser.parse_args()
 
-    positions = load_dataset(arguments.data)
+    positions = load_dataset(arguments.data, arguments.limit)
     print(f"loaded {len(positions)} positions from {arguments.data}")
 
     baseline_params = ce.DEFAULT_PARAMS.copy()
