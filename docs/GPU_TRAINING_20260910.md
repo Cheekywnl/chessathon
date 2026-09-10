@@ -425,3 +425,27 @@ fallback markers and zero crash/illegal/flag/void outcomes. One baseline diagnos
 after its final move before mate is retained explicitly. Peak observed working set
 was 259,158,016 bytes and maximum init 12.875s. This first model is distinct from
 the selected annealed model; its games are not pooled into the final SPRT.
+
+## Practical release on completed A/B evidence; SPRT continues
+
+The user reviewed the strongly positive results and questioned delaying the
+submission for the remaining formal statistical test. The execution decision is
+to release the already-tested candidate now, while allowing the frozen SPRT to
+continue as a supplementary check. This changes the release timing; it does not
+change the model, openings, clocks, test bounds or the interpretation of SPRT.
+**No completed-SPRT pass is claimed for this release decision.**
+
+The fixed release snapshot contains the first **60 completed games / 30 paired
+openings**, +35 =21 -4 (75.833%), at 120s+0.5s. There are 39 checkmates and 21
+repetitions, zero failed/void outcomes, zero candidate error/fallback markers and
+no baseline diagnostics. Every PGN was replayed and source/asset fingerprints
+were checked again against both frozen builds. Maximum recorded interpreter peak
+was 266,694,656 bytes and maximum init 10.844s. The predeclared SPRT likelihood at
+this snapshot is 1.677295, below its positive boundary 2.944439; the test is still
+running. Snapshot time: 2026-09-10 21:16:51 UTC.
+
+The snapshot and audit are preserved under `docs/validation/release-ab-snapshot*`.
+The release adds only the selected validated integer weight and capped book as
+runtime assets. The original baseline, all original Syzygy tables and all trial
+worktrees remain preserved. The finished archive will be handed to the user for
+manual upload without waiting for the supplementary run to end.

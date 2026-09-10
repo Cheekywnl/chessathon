@@ -312,6 +312,7 @@
     "pilot_limit": null
   },
   "runtime_sha256": "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c",
-  "status": "selected; independent promotion test running",
-  "platform_elo_established": false
+  "status": "released on 60 completed 120s+0.5s A/B games (+35 =21 -4); full SPRT still running, no completed-SPRT claim",
+  "platform_elo_established": false,
+  "release_evidence": "validation/release-ab-snapshot-summary.json"
 }

@@ -1,8 +1,10 @@
 # HalfKP model and submission provenance
 
-This document describes the selected `full-128-anneal` network. Its independent
-promotion test is still running; selection is not a claim of a platform rating.
-The final release report records the completed decision and submission hash.
+This document describes the selected `full-128-anneal` network. It is released on
+the practical evidence of 60 completed independent 120s+0.5s games: 35 wins,
+21 draws and four losses. The full SPRT continues as a supplementary check and
+has not yet passed. This is not a claim of a platform rating. The release report
+records the decision basis and submission hash.
 
 ## Training origin
 

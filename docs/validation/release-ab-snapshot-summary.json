@@ -1,0 +1,38 @@
+{
+  "games": 60,
+  "openings": 30,
+  "clock_ms": [
+    120000,
+    500
+  ],
+  "wins": 35,
+  "draws": 21,
+  "losses": 4,
+  "score": 0.7583333333333333,
+  "terminations": {
+    "threefold_repetition": 21,
+    "checkmate": 39
+  },
+  "pair_score_counts": {
+    "0.5": 2,
+    "1.5": 15,
+    "2.0": 9,
+    "1.0": 4
+  },
+  "log_sha256": {
+    "data\\runs\\release-ab-snapshot.jsonl": "329cb2a150fe432690fcdda15a5308339458f6606812b685b1281e2db4577ac3"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c",
+      "2e507f40e8da1c8b08a89d6c49367460c0ed6ef47fad34a1c688e4fdacd4c5ff"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 266694656,
+  "maximum_recorded_init_seconds": 10.843999999999141,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

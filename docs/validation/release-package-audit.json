@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-release\\submission.zip",
+  "sha256": "055cb466b0e31425e38667f7298f346cf79496e87e7bbda2a569e55e4377c4f9",
+  "unzipped_bytes": 49462799,
+  "file_count": 106,
+  "integer_network": true,
+  "init_seconds": 9.55149209999945,
+  "peak_rss_bytes": 207826944,
+  "cpu_affinity": [
+    6
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.0006584000002476387
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c3a4",
+      "seconds": 0.16247040000052948
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.04441229999974894
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}
