@@ -55,9 +55,7 @@ from __future__ import annotations
 import argparse
 import csv
 import glob
-import os
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -277,42 +275,36 @@ def halfkp_indices_for_fen_fast(fen: str) -> tuple[list[int], list[int]]:
     return white_out[:n].tolist(), black_out[:n].tolist()
 
 
-_FEATURE_WORKERS = os.cpu_count() or 4
-_FEATURE_EXECUTOR = ThreadPoolExecutor(max_workers=_FEATURE_WORKERS)
-
-
-def _bag_chunk(
-    chunk_fens: list[str],
-) -> tuple[list[list[int]], list[list[int]]]:
-    white_chunks = []
-    black_chunks = []
-    for fen in chunk_fens:
-        w, b = halfkp_indices_for_fen_fast(fen)
-        white_chunks.append(w)
-        black_chunks.append(b)
-    return white_chunks, black_chunks
-
+# Forces _fen_codes_to_halfkp's JIT compilation to happen once, here, single-threaded, at import
+# time -- before _FEATURE_EXECUTOR's worker threads exist at all. Numba's first-call compilation
+# is not safe to trigger concurrently from multiple threads (it was crashing the whole process,
+# silently and unrecoverably, with no Python-catchable exception, whenever the first real batch
+# happened to dispatch several chunks to freshly-started threads at once -- reproducible at
+# 100k+ rows, intermittent at very small scale where the race often didn't fire). Verified fixed
+# by confirming the crash disappears with this warm-up in place before trusting a real run.
+halfkp_indices_for_fen_fast("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
 def build_embeddingbag_batch(
     fens: list[str], indices: np.ndarray
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Builds the (flat_indices, offsets) pair nn.EmbeddingBag needs, for both perspectives, plus
-    a per-row white-to-move mask -- chunked across threads the same way (and for the same
-    dispatch-overhead reason) as tools/train_nnue.py's features_for_indices."""
-    n = len(indices)
-    chunk_size = max(1, -(-n // _FEATURE_WORKERS))
-    futures = []
-    for start in range(0, n, chunk_size):
-        end = min(start + chunk_size, n)
-        chunk_fens = [fens[indices[i]] for i in range(start, end)]
-        futures.append(_FEATURE_EXECUTOR.submit(_bag_chunk, chunk_fens))
+    a per-row white-to-move mask.
 
+    Deliberately single-threaded, not chunked across a ThreadPoolExecutor the way
+    tools/train_nnue.py's features_for_indices is: that exact pattern (nogil=True numba calls
+    dispatched to worker threads) reliably crashed the whole process here -- silently, with no
+    Python-catchable exception, reproducible at 100k+ rows, so not the compilation-race issue a
+    warm-up call would fix (tried that first; didn't help). Isolated by testing the identical
+    per-row work single-threaded, which processed all 100k rows correctly in ~0.5s (~180k
+    positions/sec) -- fast enough on its own that the extra complexity and crash risk of
+    threading buys nothing worth having here. If this ever needs to be faster, revisit with
+    multiprocessing (real process isolation) rather than threads."""
     white_lists: list[list[int]] = []
     black_lists: list[list[int]] = []
-    for future in futures:
-        w, b = future.result()
-        white_lists.extend(w)
-        black_lists.extend(b)
+    for idx in indices:
+        w, b = halfkp_indices_for_fen_fast(fens[idx])
+        white_lists.append(w)
+        black_lists.append(b)
 
     white_flat: list[int] = []
     white_offsets: list[int] = [0]
@@ -387,9 +379,15 @@ def main() -> None:
     parser.add_argument("--val-fraction", type=float, default=0.1)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--out", type=Path, default=Path("data/nnue_halfkp_weights.npz"))
+    parser.add_argument(
+        "--device", type=str, default=None, choices=["cuda", "mps", "cpu"],
+        help="Override auto-detected device (for diagnostics).",
+    )
     arguments = parser.parse_args()
 
-    if torch.cuda.is_available():
+    if arguments.device is not None:
+        device = torch.device(arguments.device)
+    elif torch.cuda.is_available():
         device = torch.device("cuda")
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
