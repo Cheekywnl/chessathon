@@ -1,0 +1,10 @@
+game 1/6 [20260914_103_sicilian_najdorf, agent=white]: white by checkmate
+game 2/6 [20260914_103_sicilian_najdorf, agent=black]: draw by threefold_repetition
+game 3/6 [20260914_104_french, agent=white]: white by checkmate
+game 4/6 [20260914_104_french, agent=black]: black by checkmate
+game 5/6 [20260914_105_caro_kann, agent=white]: white by checkmate
+game 6/6 [20260914_105_caro_kann, agent=black]: draw by threefold_repetition
+
+. vs ..\halfkp-release over 6 games, 3 openings
++4 =2 -0, score 83.3%
+terminations: checkmate 4, threefold_repetition 2

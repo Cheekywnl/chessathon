@@ -60,6 +60,10 @@ candidate keeps the established search cache and adds the earlier root
 preference for progress. Both its earlier standard run and the final standard
 run converted Lucena by checkmate.
 
+The final candidate scored 231/300 (77.0%) on the full WAC tactical screen at
+one second per position. The previous neural release scored 228/300. This is a
+tactical screen, not evidence of an Elo gain.
+
 ## Match validation
 
 The runtime is frozen at
@@ -70,7 +74,19 @@ The released control is
 opening indices 100–109, followed by 40 games at 120s+0.5s on unused indices
 110–129 if the quick screen is positive and clean. Every opening is played
 with reversed colours, through suspended one-core real subprocess agents.
-Results are pending; this document does not claim a playing-strength gain.
+The quick screen finished **+5 =11 -4, 52.5%**, with all 20 PGNs replaying
+legally, unchanged runtime fingerprints and zero failed outcomes or runtime
+error/fallback markers from either engine. Maximum recorded init was 14.797
+seconds and peak working set was 245,858,304 bytes. This is a small positive
+screen, not convincing evidence of a strength gain. The predeclared 40-game
+tournament-clock comparison is running.
+
+All 11 quick draws ended by repetition. Eight last search decisions were scored
+as a draw, one retained a negative score while the opponent allowed a draw, and
+two came from tablebases. None of the last search decisions still claimed a
+large positive score. All 25 logged claim scans completed; the maximum logged
+scan was 16 ms. These are decision diagnostics. Draw rates against this neural
+opponent cannot be compared directly with the older classical-opponent study.
 
 The predecessor's separate 112-game positive SPRT against classical `05046b2`
 is retained as prior evidence. It is not evidence for this patch's incremental

@@ -1,0 +1,8 @@
+game 1/4 [20260914_106_queens_gambit_declined, agent=white]: draw by threefold_repetition
+game 2/4 [20260914_106_queens_gambit_declined, agent=black]: draw by threefold_repetition
+game 3/4 [20260914_107_kings_indian, agent=white]: draw by threefold_repetition
+game 4/4 [20260914_107_kings_indian, agent=black]: draw by threefold_repetition
+
+. vs ..\halfkp-release over 4 games, 2 openings
++0 =4 -0, score 50.0%
+terminations: threefold_repetition 4

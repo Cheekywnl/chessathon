@@ -1,10 +1,12 @@
 # HalfKP model and submission provenance
 
-This document describes the selected `full-128-anneal` network. It is released on
-the practical evidence of 60 completed independent 120s+0.5s games: 35 wins,
-21 draws and four losses. The full SPRT continues as a supplementary check and
-has not yet passed. This is not a claim of a platform rating. The release report
-records the decision basis and submission hash.
+This document describes the selected `full-128-anneal` network. The released
+anneal128 blend75 engine passed its independent SPRT against classical `05046b2`:
+62 wins, 43 draws and seven losses in 112 games at 120s+0.5s, including all
+in-flight games after the positive boundary. The subsequent draw-handling
+candidate uses the same model and requires its own comparison against that
+neural release. See `DRAW_HANDLING_20260910.md` for its current status.
+These local results do not establish a platform rating.
 
 ## Training origin
 
@@ -79,7 +81,7 @@ Selected checkpoint SHA-256:
 `85fe3648e14711f989b85bc590499cbe6b12e5a8aa39262ac0c81cf877234e0a`.
 Selected float export SHA-256:
 `045f8db4f39e92dc1f146d3caf5f42c96d7845a2fdcafb9320e5d420ecd1565e`.
-Runtime source-and-assets fingerprint:
+Released neural predecessor's runtime source-and-assets fingerprint:
 `d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c`.
 
 ## Scope of validation
@@ -112,6 +114,8 @@ same model, blend, book and tablebases. See `docs/DRAW_HANDLING_20260910.md` for
 the behavior, correctness evidence and independent comparison status.
 
 The completed independent test accepted H1 after 53 paired openings. Including
-the remaining in-flight games, this unchanged build scored +62 =43 -7 in 112
-games at 120s+0.5s against `05046b2`, with zero failed outcomes or runtime error
-markers. This supports a local improvement; no platform rating is established.
+the remaining in-flight games, the neural predecessor with runtime fingerprint
+`d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c`
+scored +62 =43 -7 in 112 games at 120s+0.5s against `05046b2`, with zero failed
+outcomes or runtime error markers. This supports the predecessor's local
+improvement; it is not an incremental strength result for the draw patch.
