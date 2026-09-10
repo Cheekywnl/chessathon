@@ -58,6 +58,9 @@ def play_pair(job: dict[str, Any]) -> list[dict[str, Any]]:
                "white_init_seconds": getattr(wp, "init_seconds", None),
                "black_init_seconds": getattr(bp, "init_seconds", None), "cpu": job["cpu"]}
         rows.append(row)
+        side = "white" if agent_white else "black"
+        print(f"game finished: pair {job['index'] + 1} {job['name']} agent={side}: "
+              f"{outcome.result} by {outcome.termination}", flush=True)
         if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
             break
         try:

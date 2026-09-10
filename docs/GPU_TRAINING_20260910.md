@@ -337,3 +337,32 @@ converge through book play from being counted as distinct final trials. Command:
 Pool SHA-256: `a41142b1dc37d3a5cfbbee4ae0b7e6e0a41ffb1e76a819a25db775c324e3925d`.
 Initial book coverage on these positions: original/all-key book 53/200, capped
 book 51/200. Selection was completed before observing any game from this pool.
+
+## Final candidate selected before fresh sequential games
+
+The refined 128-wide blend-100 screen completed at +8 =10 -2 (65%), with clean
+candidate logs and legal games. The four completed twenty-game selection scores
+were: first128 blend75 65%, anneal128 blend75 **82.5%**, width64 blend75 72.5%, and
+refine128 blend100 65%. Select **anneal128 blend75** for the independent final test;
+no further parameter or asset changes are made in that worktree. Its short
+tournament-clock check has started with a win and a draw; the remaining pair
+continues separately, and those selection/check games are not pooled into SPRT.
+
+Selected runtime fingerprint:
+`d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c`.
+Baseline runtime fingerprint:
+`2e507f40e8da1c8b08a89d6c49367460c0ed6ef47fad34a1c688e4fdacd4c5ff`.
+The baseline is still original `05046b2`; the candidate uses engine source
+`2596a86`, the documented annealed integer asset and 12.5 MB capped book.
+
+Predeclared final command (controller uses the isolated CUDA environment only for
+its psutil dependency; every agent runs the unchanged competition CPU interpreter):
+`python -u -m tools.sprt_arena --agent ../halfkp-anneal-128
+--opponent ../baseline-05046b2 --base-ms 120000 --increment-ms 500
+--workers 8 10 12 14 --engine-python <halfkp-trial>/.venv/Scripts/python.exe
+--opening-file data/runs/openings-final-20260914.json --max-games 200
+--min-pairs 20 --elo0 0 --elo1 20 --alpha 0.05 --beta 0.05
+--jsonl data/runs/final-anneal75-sprt.jsonl`.
+The first 100 fresh opening pairs are eligible; boundaries are ±2.944438979.
+Completed pairs are evaluated in their preselected order. No promotion occurs
+until this evidence and the final artifact audit support it.
