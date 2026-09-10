@@ -112,6 +112,36 @@
   .commit-date { color: var(--muted); font-size: 12px; }
   .commit-subject { font-weight: 600; margin: 4px 0; }
   .commit-body { color: var(--muted); font-size: 12px; white-space: pre-wrap; line-height: 1.5; }
+  /* training tab */
+  #training-view { overflow: auto; }
+  .task-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .task-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .task-label { font-weight: 600; font-size: 13px; }
+  .task-status {
+    font-size: 10px; text-transform: uppercase; font-weight: 700;
+    padding: 1px 6px; border-radius: 4px;
+  }
+  .task-status.running { background: rgba(79,157,255,0.15); color: var(--accent); }
+  .task-status.done { background: rgba(62,207,122,0.15); color: var(--good); }
+  .task-status.starting { background: rgba(138,144,160,0.15); color: var(--muted); }
+  .task-status.error { background: rgba(239,91,91,0.2); color: var(--bad); }
+  .task-meta { margin-left: auto; font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+  .progress-track {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    height: 10px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent); transition: width 0.5s ease;
+  }
+  .progress-fill.done { background: var(--good); }
+  .progress-fill.error { background: var(--bad); }
+  .task-detail { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: ui-monospace, monospace; }
 </style>
 </head>
 <body>
@@ -120,6 +150,7 @@
   <div class="tabs">
     <button class="tab active" data-view="live">Live game</button>
     <button class="tab" data-view="real-games">Real games</button>
+    <button class="tab" data-view="training">Training</button>
     <button class="tab" data-view="changelog">Changelog</button>
     <button class="tab" data-view="activity">Activity</button>
   </div>
@@ -191,6 +222,8 @@
   </div>
 </div>
 
+<div class="view panel" id="training-view"></div>
+
 <div class="view panel" id="changelog-view"></div>
 
 <div class="view panel" id="activity-view"></div>
@@ -207,6 +240,7 @@ document.querySelectorAll('.tab').forEach(btn => {
     btn.classList.add('active');
     document.getElementById(btn.dataset.view + '-view').classList.add('active');
     if (btn.dataset.view === 'real-games') loadRealGames();
+    if (btn.dataset.view === 'training') loadTraining();
     if (btn.dataset.view === 'changelog') loadChangelog();
     if (btn.dataset.view === 'activity') loadActivity();
   });
@@ -389,6 +423,56 @@ document.getElementById('replay-end').addEventListener('click', () => { if (curr
 document.getElementById('replay-prev').addEventListener('click', () => { if (replayPly > 0) { replayPly--; renderReplay(); } });
 document.getElementById('replay-next').addEventListener('click', () => { if (currentReplay && replayPly < currentReplay.moves.length) { replayPly++; renderReplay(); } });
 
+// ================= TRAINING TAB =================
+function fmtNum(n) {
+  if (n === null || n === undefined) return '?';
+  return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n.toLocaleString();
+}
+
+function taskDetail(t) {
+  if (t.kind === 'training') {
+    const loss = (t.train_loss !== null && t.train_loss !== undefined)
+      ? `train_loss=${t.train_loss.toFixed(5)} val_loss=${t.val_loss.toFixed(5)}` : 'loading data...';
+    return `epoch ${t.epoch}/${t.total_epochs || '?'} &middot; ${loss}${t.device ? ' &middot; ' + t.device : ''}`;
+  }
+  if (t.kind === 'sprt') {
+    if (!t.games) return 'starting...';
+    const bounds = t.bounds ? `[${t.bounds[0].toFixed(2)}, ${t.bounds[1].toFixed(2)}]` : '?';
+    const verdict = t.verdict ? ` &middot; <b>${t.verdict}</b>` : '';
+    return `game ${t.games} &middot; score ${t.score_pct}% &middot; llr=${t.llr.toFixed(3)} (bounds ${bounds})${verdict}`;
+  }
+  if (t.kind === 'download') {
+    return `${fmtNum(t.written)} / ${fmtNum(t.limit)} positions`;
+  }
+  return '';
+}
+
+async function loadTraining() {
+  try {
+    const res = await fetch('/api/training');
+    const tasks = await res.json();
+    const view = document.getElementById('training-view');
+    if (!tasks.length) {
+      view.innerHTML = '<h2>Training &amp; background tasks</h2><p style="color:var(--muted)">No task logs found in data/logs/ yet.</p>';
+      return;
+    }
+    view.innerHTML = '<h2>Training &amp; background tasks</h2>' + tasks.map(t => {
+      const status = t.has_error ? 'error' : t.status;
+      const fillClass = t.has_error ? 'error' : (status === 'done' ? 'done' : '');
+      return `
+      <div class="task-card">
+        <div class="task-head">
+          <span class="task-label">${t.label}</span>
+          <span class="task-status ${status}">${status}</span>
+          <span class="task-meta">${t.progress_pct}%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${t.progress_pct}%"></div></div>
+        <div class="task-detail">${taskDetail(t)}</div>
+      </div>`;
+    }).join('');
+  } catch (e) { /* server not up yet */ }
+}
+
 // ================= CHANGELOG TAB =================
 let changelogLoaded = false;
 async function loadChangelog() {
@@ -413,6 +497,7 @@ pollLive();
 loadSummary();
 setInterval(loadSummary, 5000);
 setInterval(() => { if (document.getElementById('activity-view').classList.contains('active')) loadActivity(); }, 4000);
+setInterval(() => { if (document.getElementById('training-view').classList.contains('active')) loadTraining(); }, 2000);
 </script>
 </body>
 </html>

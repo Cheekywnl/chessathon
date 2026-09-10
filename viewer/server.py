@@ -37,6 +37,7 @@ PORT = 8765
 OUR_TT_SIZE_POWER = 21
 REAL_GAMES_DIR = ROOT / "games" / "real"
 OUR_NAME = "Cheeky"
+LOGS_DIR = ROOT / "data" / "logs"
 
 OPPONENTS = {
     "random": ROOT / "baselines" / "random",
@@ -219,6 +220,130 @@ def get_activity_log(limit: int = 100) -> list[dict]:
     return list(reversed(entries[-limit:]))
 
 
+# ---- background task progress (training runs, SPRT arenas, data downloads) ----
+# Self-describing: reads whatever's in data/logs/*.out.log and infers everything (epoch counts,
+# SPRT bounds, download limits) from the log content itself, so a new run started later tonight
+# shows up automatically -- no registry to edit here each time a new job gets launched.
+
+_EPOCH_RE = re.compile(r"epoch (\d+)/(\d+): train_loss=([\d.]+) val_loss=([\d.]+)")
+_SPRT_GAME_RE = re.compile(r"^game (\d+) .*?score ([\d.]+)%, llr=(-?[\d.]+)")
+_SPRT_BOUNDS_RE = re.compile(r"bounds=\[(-?[\d.]+), (-?[\d.]+)\]")
+_SPRT_VERDICT_RE = re.compile(r"(H0 ACCEPTED|H1 ACCEPTED|INCONCLUSIVE)")
+_DOWNLOAD_RE = re.compile(r"written (\d+)/(\d+)")
+
+
+def _tail_lines(path: Path, max_bytes: int = 131072) -> list[str]:
+    if not path.exists():
+        return []
+    size = path.stat().st_size
+    with open(path, "rb") as f:
+        if size > max_bytes:
+            f.seek(size - max_bytes)
+        data = f.read()
+    return data.decode(errors="ignore").splitlines()
+
+
+def _humanize_log_name(name: str) -> str:
+    stem = name
+    for suffix in (".out.log", ".log"):
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    return stem.replace("_", " ")
+
+
+def _has_error(log_path: Path) -> bool:
+    err_path = log_path.with_suffix("").with_suffix(".err.log")
+    lines = _tail_lines(err_path, max_bytes=8192)
+    return any("Traceback" in line or "Error" in line for line in lines)
+
+
+def _parse_training(path: Path) -> dict[str, object]:
+    epoch = total_epochs = 0
+    train_loss = val_loss = None
+    device = None
+    saved = False
+    for line in _tail_lines(path):
+        match = _EPOCH_RE.search(line)
+        if match:
+            epoch, total_epochs = int(match.group(1)), int(match.group(2))
+            train_loss, val_loss = float(match.group(3)), float(match.group(4))
+        if line.startswith("device:"):
+            device = line.split(":", 1)[1].strip()
+        if "saved weights" in line:
+            saved = True
+    status = "done" if saved else ("running" if (epoch or device) else "starting")
+    pct = (epoch / total_epochs * 100) if total_epochs else 0.0
+    return {
+        "status": status, "progress_pct": round(pct, 1),
+        "epoch": epoch, "total_epochs": total_epochs,
+        "train_loss": train_loss, "val_loss": val_loss, "device": device,
+    }
+
+
+def _parse_sprt(path: Path) -> dict[str, object]:
+    bounds: tuple[float, float] | None = None
+    last_game = last_score = last_llr = None
+    verdict = None
+    for line in _tail_lines(path):
+        match = _SPRT_BOUNDS_RE.search(line)
+        if match:
+            bounds = (float(match.group(1)), float(match.group(2)))
+        match = _SPRT_GAME_RE.search(line)
+        if match:
+            last_game = int(match.group(1))
+            last_score = float(match.group(2))
+            last_llr = float(match.group(3))
+        match = _SPRT_VERDICT_RE.search(line)
+        if match:
+            verdict = match.group(1)
+    status = "done" if verdict else ("running" if last_game else "starting")
+    pct = 100.0 if verdict else 0.0
+    if not verdict and bounds and last_llr is not None:
+        lower, upper = bounds
+        pct = max(0.0, min(100.0, (last_llr - lower) / (upper - lower) * 100))
+    return {
+        "status": status, "progress_pct": round(pct, 1),
+        "games": last_game, "score_pct": last_score, "llr": last_llr,
+        "bounds": list(bounds) if bounds else None, "verdict": verdict,
+    }
+
+
+def _parse_download(path: Path) -> dict[str, object]:
+    written = limit = 0
+    done = False
+    for line in _tail_lines(path):
+        match = _DOWNLOAD_RE.search(line)
+        if match:
+            written, limit = int(match.group(1)), int(match.group(2))
+        if "reached limit" in line or "stream ended" in line:
+            done = True
+    status = "done" if done else ("running" if written else "starting")
+    pct = min(100.0, written / limit * 100) if limit else 0.0
+    return {"status": status, "progress_pct": round(pct, 1), "written": written, "limit": limit}
+
+
+def get_training_tasks() -> list[dict[str, object]]:
+    if not LOGS_DIR.is_dir():
+        return []
+    results = []
+    for path in sorted(LOGS_DIR.glob("*.out.log")):
+        name = path.name
+        if name.startswith("train_"):
+            kind, info = "training", _parse_training(path)
+        elif name.startswith("sprt_"):
+            kind, info = "sprt", _parse_sprt(path)
+        elif name.startswith("lichess_prep"):
+            kind, info = "download", _parse_download(path)
+        else:
+            continue
+        results.append({
+            "id": path.stem, "label": _humanize_log_name(name), "kind": kind,
+            "has_error": _has_error(path), **info,
+        })
+    return results
+
+
 def _reset_our_agent_state() -> None:
     """Simulate what a fresh process gives the real submission for free: a game's worth of
     state (TT, position history, any live ponder thread) never survives to the next game."""
@@ -398,6 +523,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(get_changelog())
         elif path == "/api/activity":
             self._send_json(get_activity_log())
+        elif path == "/api/training":
+            self._send_json(get_training_tasks())
         elif path.startswith("/api/real_games/") and path.endswith("/board.svg"):
             round_no = int(path.split("/")[3])
             ply = int(query.get("ply", ["0"])[0])
