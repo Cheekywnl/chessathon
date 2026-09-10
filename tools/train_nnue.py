@@ -1,9 +1,19 @@
-"""Trains a small value network on (fen, result) pairs from tools/generate_training_data.py's
-CSV output, meant to run on a GPU (this machine's own self-play data generation runs on CPU in
-parallel, in the background -- see data/selfplay_shards/). This is a training script only: it
-does NOT touch agent.py, chess_search.py, or chess_eval.py, and produces nothing that ships
-until a separate, later integration step is written and validated (see the module docstring's
-last paragraph). Safe to develop and run without any risk to the current, working submission.
+"""Trains a small value network on labeled positions, meant to run on a GPU. Accepts two CSV
+formats transparently (detected from each file's header, and freely mixable in one --data glob):
+
+- tools/generate_training_data.py's output ("fen,mobility,result"): self-play games between
+  this engine and itself, labeled with the eventual game outcome. Runs on CPU, in the
+  background on this repo's own dev machine -- see data/selfplay_shards/.
+- tools/prepare_lichess_eval.py's output ("fen,depth,cp"): real Stockfish search evaluations
+  from the Lichess open database (CC0-licensed, 409M+ positions) -- explicitly the kind of
+  "positions an existing engine labelled" the competition rules say is fine to train on, as
+  long as the network itself is trained from a random initialization, never starting from or
+  fine-tuning a published network (that counts as shipping it, which is not allowed).
+
+This is a training script only: it does NOT touch agent.py, chess_search.py, or chess_eval.py,
+and produces nothing that ships until a separate, later integration step is written and
+validated (see the module docstring's last paragraph). Safe to develop and run without any risk
+to the current, working submission.
 
 Architecture: deliberately small and simple for a first attempt, not Serendipity-scale --
 768 binary input features (12 piece-planes x 64 squares, White's perspective, no board
@@ -36,6 +46,7 @@ considered for chess_eval.py or agent.py. Nothing here ships on its own.
 from __future__ import annotations
 
 import argparse
+import csv
 import glob
 from pathlib import Path
 
@@ -85,6 +96,14 @@ class ValueNet(nn.Module):
         return output
 
 
+def _cp_to_target(cp: float) -> float:
+    """Same sigmoid(x / 400) convention tools/tune.py uses -- puts a raw centipawn eval on the
+    same [0, 1] win-probability scale as a game's W/D/L result, so rows from
+    tools/generate_training_data.py (self-play, WDL outcome) and tools/prepare_lichess_eval.py
+    (real Stockfish search, centipawns) can be mixed in one training run's loss."""
+    return float(1.0 / (1.0 + np.exp(-cp / 400.0)))
+
+
 def load_dataset(pattern: str) -> tuple[np.ndarray, np.ndarray]:
     paths: list[str] = []
     for part in pattern.split(","):
@@ -93,22 +112,25 @@ def load_dataset(pattern: str) -> tuple[np.ndarray, np.ndarray]:
         raise SystemExit(f"no files matched {pattern!r}")
 
     fens: list[str] = []
-    results: list[float] = []
+    targets: list[float] = []
     for path in paths:
-        with open(path) as f:
-            next(f)  # header
-            for line in f:
-                parts = line.rstrip("\n").rsplit(",", 2)
-                if len(parts) != 3:
+        with open(path, newline="") as f:
+            reader = csv.reader(f)
+            header = next(reader)
+            is_cp_format = header == ["fen", "depth", "cp"]
+            n_before = len(fens)
+            for row in reader:
+                if len(row) != 3:
                     continue
-                fen, _mobility, result = parts
+                fen, _second, third = row
                 fens.append(fen)
-                results.append(float(result))
+                targets.append(_cp_to_target(float(third)) if is_cp_format else float(third))
+            print(f"  {path}: {len(fens) - n_before} positions ({'cp' if is_cp_format else 'wdl'})")
     print(f"loaded {len(fens)} positions from {len(paths)} file(s)")
 
     print("extracting features...")
     x = np.stack([fen_to_features(fen) for fen in fens]).astype(np.float32)
-    y = np.array(results, dtype=np.float32)
+    y = np.array(targets, dtype=np.float32)
     return x, y
 
 
