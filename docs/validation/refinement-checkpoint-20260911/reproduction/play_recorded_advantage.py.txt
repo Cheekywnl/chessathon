@@ -1,0 +1,74 @@
+"""Play out an already diagnosed advantage; development regression, never rating evidence."""
+import argparse
+import io
+import json
+import sys
+import time
+from collections import Counter
+from pathlib import Path
+
+import chess.pgn
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--root', type=Path, required=True)
+parser.add_argument('--pair', type=int, required=True)
+parser.add_argument('--out', type=Path, required=True)
+args = parser.parse_args()
+sys.path.insert(0, str(args.root.resolve()))
+import agent
+import chess_search as cs
+from tools import endgame_regression as regression
+
+work = Path(__file__).parent
+cases = json.loads((work/'draw-fix-fast/data/runs/draw-choice-probe.json').read_text())['records']
+case = next(r for r in cases if r['pair'] == args.pair and r['white'])
+draws = json.loads((args.root/'docs/validation/draw-analysis.json').read_text())['draws']
+row = next(r for r in draws if r['pair_index'] == args.pair and r['candidate_white'])
+game = chess.pgn.read_game(io.StringIO(row['pgn']))
+board = game.board()
+history = Counter({cs.hash_of_board(board): 1})
+for move in list(game.mainline_moves())[:case['ply']]:
+    board.push(move)
+    history[cs.hash_of_board(board)] += 1
+assert board.fen() == case['fen'] and board.turn == chess.WHITE
+agent._TT = cs.TranspositionTable()
+agent._GAME_HISTORY = dict(history)
+current = cs.hash_of_board(board)
+agent._GAME_HISTORY[current] -= 1
+if not agent._GAME_HISTORY[current]:
+    del agent._GAME_HISTORY[current]
+agent._start_pondering = lambda board, move: None
+opponent_tt = cs.TranspositionTable()
+opponent_history = dict(history)
+regression.THINK_SECONDS = .8
+blend = cs.HALFKP_BLEND
+started = time.monotonic()
+moves = []
+outcome = board.outcome(claim_draw=True)
+for _ in range(160):
+    if outcome is not None or time.monotonic() - started > 300:
+        break
+    if board.turn == chess.WHITE:
+        cs.HALFKP_BLEND = blend
+        move = chess.Move.from_uci(agent.get_move(board.fen(), 20_000))
+    else:
+        cs.HALFKP_BLEND = 0
+        move = regression._opponent_move(board, opponent_tt, opponent_history)
+    assert move in board.legal_moves
+    moves.append(move.uci())
+    board.push(move)
+    outcome = board.outcome(claim_draw=True)
+result = {'root': str(args.root.resolve()), 'pair': args.pair,
+          'start_fen': case['fen'], 'prior_history_plies': case['ply'],
+          'new_plies': len(moves), 'moves': moves,
+          'result': outcome.result() if outcome else '*',
+          'termination': outcome.termination.name if outcome else 'diagnostic_budget',
+          'seconds': time.monotonic() - started, 'final_fen': board.fen(),
+          'pgn_including_prior_history': str(chess.pgn.Game.from_board(board)),
+          'limitations': 'Known development cases selected from earlier draw diagnosis. '
+              'Fresh caches, preserved full game history, background activity disabled, '
+              'plain classical search opponent at 0.8 s/move and candidate get_move with '
+              'a fixed 20000 ms input. These are conversion diagnostics, not fair-clock '
+              'A/B games, independent validation, or Elo evidence.'}
+args.out.write_text(json.dumps(result, indent=2))
+print(json.dumps({k:v for k,v in result.items() if k not in ('moves','pgn_including_prior_history')}))

@@ -1,0 +1,104 @@
+"""Prototype fused child state/hash/check outside the frozen engine runtime."""
+import json
+import random
+import sys
+import time
+from pathlib import Path
+
+import chess
+import numpy as np
+from numba import njit
+
+work = Path(__file__).parent
+sys.path.insert(0, str(work/'draw-fix-fast'))
+import agent
+import chess_search as cs
+import chess_state as cst
+import chess_movegen as mg
+
+
+@njit(cache=False)
+def fused(state, parent_key, f, t, p):
+    child = cst.make_move(state[0],state[1],state[2],state[3],state[4],state[5],
+                          state[6],state[7],state[8],state[9],state[10],state[11],f,t,p)
+    # XOR the changed piece squares, rights and en-passant file against the
+    # parent's existing key; every special move follows from the actual states.
+    key = parent_key ^ cst.ZOBRIST_TURN
+    pieces_before = (state[0],state[1],state[2],state[3],state[4],state[5])
+    pieces_after = (child[0],child[1],child[2],child[3],child[4],child[5])
+    for piece in range(6):
+        for color in range(2):
+            occupied_before = state[6] if color == 0 else state[7]
+            occupied_after = child[6] if color == 0 else child[7]
+            delta = (pieces_before[piece] & occupied_before) ^ (pieces_after[piece] & occupied_after)
+            while delta:
+                square = cst._lsb_index(delta)
+                key ^= cst.ZOBRIST_PIECE_SQUARE[color,piece,square]
+                delta &= delta - np.uint64(1)
+    rights = state[9] ^ child[9]
+    while rights:
+        square = cst._lsb_index(rights)
+        key ^= cst.ZOBRIST_CASTLING[square]
+        rights &= rights - np.uint64(1)
+    if state[10] >= 0:
+        key ^= cst.ZOBRIST_EP_FILE[state[10] % 8]
+    if child[10] >= 0:
+        key ^= cst.ZOBRIST_EP_FILE[child[10] % 8]
+    own = child[6] if child[8] else child[7]
+    king = cst._lsb_index(child[5] & own)
+    check = mg.is_square_attacked(king,not child[8],child[0],child[1],child[2],
+                                  child[3],child[4],child[5],child[6],child[7])
+    return child, key, check
+
+
+def convert(result):
+    return (np.uint64(result[0]),np.uint64(result[1]),np.uint64(result[2]),
+            np.uint64(result[3]),np.uint64(result[4]),np.uint64(result[5]),
+            np.uint64(result[6]),np.uint64(result[7]),bool(result[8]),
+            np.uint64(result[9]),int(result[10]),int(result[11]))
+
+
+def before(state,key,f,t,p):
+    child=cs.apply_move(state,f,t,p)
+    return child,cs.hash_of(child),cs.is_in_check(child)
+
+
+def after(state,key,f,t,p):
+    child,h,check=fused(state,np.uint64(key),f,t,p)
+    return convert(child),int(h),bool(check)
+
+
+rng=random.Random(20260911)
+positions=[chess.Board(fen) for fen in (
+    chess.STARTING_FEN,
+    'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1',
+    '4k3/P6p/8/8/8/8/p6P/4K3 w - - 0 1',
+    '4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1',
+    '4r1k1/8/8/3pP3/8/8/8/4K3 w - d6 0 1')]
+board=chess.Board()
+for index in range(1200):
+    if board.is_game_over(): board=chess.Board()
+    board.push(rng.choice(list(board.legal_moves)))
+    positions.append(board.copy())
+cases=[]
+for board in positions:
+    state=cs.state_from_board(board)
+    key=cs.hash_of(state)
+    for move in board.legal_moves:
+        args=(state,key,move.from_square,move.to_square,move.promotion or 0)
+        a=before(*args)
+        b=after(*args)
+        assert a==b,(board.fen(),move,a,b)
+        cases.append(args)
+times={'separate':[],'fused':[]}
+for order in ((before,after),(after,before),(before,after)):
+    for function in order:
+        started=time.perf_counter()
+        for _ in range(3):
+            for args in cases: function(*args)
+        times['separate' if function==before else 'fused'].append(time.perf_counter()-started)
+result={'legal_children_compared':len(cases),'times':times,
+        'median_ratio_separate_over_fused':float(np.median(times['separate'])/np.median(times['fused'])),
+        'note':'Prototype only; includes actual move updates, incremental/full hash, check and Python state boxing. Not integrated or playing-strength evidence.'}
+(work/'move-fusion-probe.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result,indent=2))

@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fix\\submission.zip",
+  "sha256": "4e4cf44432e3a0ebff6faafca2d9da31885b0e1422749d3bab8c1b37e7f61670",
+  "unzipped_bytes": 49469255,
+  "file_count": 107,
+  "integer_network": true,
+  "init_seconds": 10.901926900001854,
+  "peak_rss_bytes": 228548608,
+  "cpu_affinity": [
+    4
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.0006369000002450775
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c3a4",
+      "seconds": 0.17707399999926565
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.034660400000575464
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

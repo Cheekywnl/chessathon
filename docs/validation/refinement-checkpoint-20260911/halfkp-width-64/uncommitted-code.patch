@@ -1,0 +1,58 @@
+diff --git a/tools/halfkp_integration_check.py b/tools/halfkp_integration_check.py
+index 329d02a..bffdf39 100644
+--- a/tools/halfkp_integration_check.py
++++ b/tools/halfkp_integration_check.py
+@@ -25,12 +25,13 @@ def main() -> None:
+     parser.add_argument("--weights", type=Path, required=True)
+     parser.add_argument("--out", type=Path, required=True)
+     parser.add_argument("--depth", type=int, default=5)
++    parser.add_argument("--cpu", type=int, default=4)
+     parser.add_argument("--compare-search", type=Path,
+                         help="Prior search module for exact move/score/node equivalence")
+     args = parser.parse_args()
+     import psutil  # type: ignore[import-untyped]
+ 
+-    psutil.Process().cpu_affinity([4])
++    psutil.Process().cpu_affinity([args.cpu])
+     weights = qi.load_weights(args.weights)
+     qi.warm_up(weights)
+     search = cs.Search(cs.TranspositionTable(16), {})
+@@ -97,7 +98,7 @@ def main() -> None:
+                         "seconds": elapsed, "nodes_per_second": nodes / elapsed})
+     output = {"endgame_fallback_comparisons": len(endgames) * 4,
+               "zero_blend_matches_classical": len(boards), "book_move_20_21_boundary": True,
+-              "cpu_affinity": [4], "depth": args.depth, "search": results,
++              "cpu_affinity": [args.cpu], "depth": args.depth, "search": results,
+               "prior_move_score_node_comparisons": 30 if before is not None else 0,
+               "weights": str(args.weights), "playing_strength_validated": False}
+     args.out.write_text(json.dumps(output, indent=2), encoding="utf8")
+diff --git a/tools/submission_audit.py b/tools/submission_audit.py
+index 2529d6d..df68fc8 100644
+--- a/tools/submission_audit.py
++++ b/tools/submission_audit.py
+@@ -22,6 +22,7 @@ def main() -> None:
+     parser.add_argument("--zip", dest="archive", type=Path, required=True)
+     parser.add_argument("--engine-python", required=True)
+     parser.add_argument("--out", type=Path, required=True)
++    parser.add_argument("--cpu", type=int, default=2)
+     args = parser.parse_args()
+     with zipfile.ZipFile(args.archive) as archive:
+         entries = archive.infolist()
+@@ -52,7 +53,7 @@ def main() -> None:
+         with tempfile.TemporaryDirectory(prefix="chess-zip-audit-") as temp:
+             root = Path(temp)
+             archive.extractall(root)
+-            process = local(root, cpu=2, python=args.engine_python)
++            process = local(root, cpu=args.cpu, python=args.engine_python)
+             assert isinstance(process, SuspendedAgent)
+             try:
+                 started = time.perf_counter()
+@@ -81,7 +82,7 @@ def main() -> None:
+     result = {"zip": str(args.archive.resolve()), "sha256": file_hash(args.archive),
+               "unzipped_bytes": total, "file_count": len(names),
+               "integer_network": integer_network, "init_seconds": init_seconds,
+-              "peak_rss_bytes": peak_rss, "cpu_affinity": [2], "smoke_moves": moves,
++              "peak_rss_bytes": peak_rss, "cpu_affinity": [args.cpu], "smoke_moves": moves,
+               "source_and_permitted_assets_only": True, "playing_strength_validated": False}
+     args.out.write_text(json.dumps(result, indent=2), encoding="utf8")
+     print(json.dumps(result, indent=2))

@@ -1,0 +1,33 @@
+"""Freeze the draw candidate and unused A/B opening slices before any matches."""
+import hashlib
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+root = Path(__file__).parent
+sys.path.insert(0, str(root / 'halfkp-trial'))
+from tools.match_evidence import build_manifest
+
+openings = root / 'halfkp-trial/data/runs/openings-final-20260914.json'
+record = {
+    'prepared_utc': datetime.now(timezone.utc).isoformat(),
+    'candidate': build_manifest(root / 'draw-fix-fast'),
+    'control': build_manifest(root / 'halfkp-release'),
+    'comparison': 'Draw fixes versus the previously released anneal128 blend75; identical weights/book/tablebases.',
+    'opening_pool': str(openings),
+    'opening_sha256': hashlib.sha256(openings.read_bytes()).hexdigest(),
+    'quick': {'base_ms':20000,'increment_ms':300,'games':20,
+              'slices':[{'start':100,'count':3,'cpu':8},{'start':103,'count':3,'cpu':10},
+                        {'start':106,'count':2,'cpu':12},{'start':108,'count':2,'cpu':14}]},
+    'long': {'base_ms':120000,'increment_ms':500,'games':40,
+             'slices':[{'start':110,'count':5,'cpu':8},{'start':115,'count':5,'cpu':10},
+                       {'start':120,'count':5,'cpu':12},{'start':125,'count':5,'cpu':14}]},
+    'selection_policy': 'Proceed to the longer clock only after correctness gates and a positive clean quick screen; retain the released neural build if playing strength regresses. Report fixed-sample A/B without claiming a new SPRT pass.',
+    'scope': 'The 112-game SPRT established the control against classical 05046b2, not this patch. These opening slices were not used in that test or the recorded draw diagnosis.'
+}
+out = root / 'draw-fix-fast/data/runs/draw-validation-plan.json'
+assert not out.exists()
+out.write_text(json.dumps(record,indent=2))
+print(json.dumps({'candidate':record['candidate']['runtime_sha256'],
+                  'control':record['control']['runtime_sha256'],'quick_games':20,'long_games':40},indent=2))

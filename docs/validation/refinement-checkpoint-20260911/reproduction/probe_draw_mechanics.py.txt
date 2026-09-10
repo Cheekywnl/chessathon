@@ -1,0 +1,74 @@
+"""Reproduce draw-claim and tablebase decisions using the frozen build."""
+import io
+import json
+import sys
+from pathlib import Path
+
+root = Path(__file__).parent
+sys.path.insert(0, str(root / 'halfkp-anneal-128'))
+import chess
+import chess.pgn
+import agent
+import chess_search as cs
+
+data = json.loads((root / 'draw-analysis.json').read_text())
+records = []
+for draw in data['draws']:
+    game = chess.pgn.read_game(io.StringIO(draw['pgn']))
+    board = game.board()
+    moves = list(game.mainline_moves())
+    last_our_index = max(i for i, m in enumerate(draw['moves']) if m['candidate_turn'])
+    history = {}
+    for index, move in enumerate(moves):
+        if board.turn == draw['candidate_white']:
+            key = cs.hash_of_board(board)
+            history[key] = history.get(key, 0) + 1
+            agent._GAME_HISTORY = dict(history)
+            if index == last_our_index:
+                direct_guard = agent._repeats_if_played(board, move)
+                ours = draw['moves'][index]
+                full = board.copy()
+                full.push(move)
+                claim_after_ours = full.can_claim_threefold_repetition()
+                opponent_replies = []
+                for reply in list(full.legal_moves):
+                    full.push(reply)
+                    if full.can_claim_threefold_repetition():
+                        opponent_replies.append(reply.uci())
+                    full.pop()
+                rec = {'pair': draw['pair_index'] + 1, 'candidate_white': draw['candidate_white'],
+                       'last_candidate_san': ours['san'], 'last_move_score_cp': ours['score_candidate_cp'],
+                       'source': ours['source'], 'current_direct_guard_detects': direct_guard,
+                       'claim_after_candidate': claim_after_ours,
+                       'opponent_replies_allowing_referee_claim': opponent_replies,
+                       'last_move_number': board.fullmove_number}
+                if ours['source'] == 'tablebase':
+                    rec['tablebase_position_wdl'] = agent._TABLEBASE.get_wdl(board)
+                    rec['tablebase_position_dtz'] = agent._TABLEBASE.get_dtz(board)
+                    rec['current_tablebase_choice'] = agent._tablebase_move(board).uci()
+                    table = []
+                    for legal in list(board.legal_moves):
+                        san = board.san(legal)
+                        zero = board.is_zeroing(legal)
+                        board.push(legal)
+                        wdl = agent._TABLEBASE.get_wdl(board)
+                        dtz = agent._TABLEBASE.get_dtz(board)
+                        board.pop()
+                        table.append({'move': legal.uci(), 'san': san, 'zeroing': zero,
+                                      'wdl_candidate': -wdl, 'child_dtz': dtz,
+                                      'current_progress_rank': -abs(dtz) if -wdl > 0 else 0})
+                    rec['tablebase_moves'] = table
+                records.append(rec)
+            if board.legal_moves.count() > 1:
+                board.push(move)
+                key = cs.hash_of_board(board)
+                history[key] = history.get(key, 0) + 1
+                board.pop()
+        board.push(move)
+result = {'games': data['games'], 'draw_count': len(records),
+          'guard_detects_last_candidate_move': sum(r['current_direct_guard_detects'] for r in records),
+          'claim_after_candidate': sum(r['claim_after_candidate'] for r in records),
+          'claim_after_opponent_reply': sum(bool(r['opponent_replies_allowing_referee_claim']) for r in records),
+          'draws': records}
+(root / 'draw-mechanics.json').write_text(json.dumps(result, indent=2))
+print(json.dumps(result, indent=2))

@@ -1,0 +1,29 @@
+move=c1d1 depth=6 score=216 nodes=16963 ms=344 time_left_ms=20000
+move=b8c7 depth=9 score=227 nodes=29696 ms=703 time_left_ms=20000
+move=c7b6 depth=12 score=227 nodes=28672 ms=703 time_left_ms=20000
+move=b6a7 depth=14 score=227 nodes=32768 ms=734 time_left_ms=20000
+move=a7b6 depth=16 score=227 nodes=32768 ms=734 time_left_ms=20000
+move=b6c6 depth=6 score=226 nodes=21625 ms=578 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c6b5 depth=7 score=217 nodes=27745 ms=750 time_left_ms=20000
+move=b5a6 depth=6 score=218 nodes=19231 ms=500 time_left_ms=20000
+move=d1a1 depth=5 score=522 nodes=30323 ms=782 time_left_ms=20000
+move=a6a7 depth=6 score=564 nodes=22470 ms=625 time_left_ms=20000
+move=a1a4 depth=7 score=589 nodes=24735 ms=531 time_left_ms=20000
+move=a4a5 depth=7 score=591 nodes=31620 ms=657 time_left_ms=20000
+move=b7b8q depth=8 score=598 nodes=30546 ms=641 time_left_ms=20000
+move=a7b8 source=tablebase
+move=a5a7 source=tablebase
+move=a7d7 source=tablebase
+move=b8c8 source=tablebase
+move=c8b7 source=tablebase
+move=d7c7 source=tablebase
+move=c7c6 source=tablebase
+move=b7b6 source=tablebase
+move=b6b5 source=tablebase
+move=b5b4 source=tablebase
+move=c6c2 source=tablebase
+move=b4b3 source=tablebase
+move=c2c1 source=tablebase
+Lucena position: PASS (checkmate)
+{"passed": true, "plies": 51, "path": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-fix\\data\\runs\\draw-endgame-trace.json"}

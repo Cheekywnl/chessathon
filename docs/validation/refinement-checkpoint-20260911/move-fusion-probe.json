@@ -1,0 +1,17 @@
+{
+  "legal_children_compared": 25774,
+  "times": {
+    "separate": [
+      0.5992914999987988,
+      0.577921600000991,
+      0.5815905000017665
+    ],
+    "fused": [
+      0.4003378999987035,
+      0.4044227000013052,
+      0.403906100000313
+    ]
+  },
+  "median_ratio_separate_over_fused": 1.4399151188885628,
+  "note": "Prototype only; includes actual move updates, incremental/full hash, check and Python state boxing. Not integrated or playing-strength evidence."
+}

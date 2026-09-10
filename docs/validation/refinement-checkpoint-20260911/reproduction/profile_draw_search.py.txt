@@ -1,0 +1,36 @@
+"""Profile the tested source read-only on a free physical core."""
+import cProfile
+import io
+import json
+import pstats
+import sys
+import time
+from pathlib import Path
+
+import chess
+
+work = Path(__file__).parent
+sys.path.insert(0, str(work/'draw-neural100'))
+import agent
+import chess_search as cs
+from tools.version_arena import OPENING_LINES, _fen_for
+
+positions = [_fen_for(moves) for moves in list(OPENING_LINES.values())[:4]]
+cases = json.loads((work/'draw-fix-fast/data/runs/draw-choice-probe.json').read_text())['records']
+positions.extend(cases[index]['fen'] for index in (0, 2, 3, 6))
+profile = cProfile.Profile()
+rows = []
+for fen in positions:
+    search = cs.Search(cs.TranspositionTable(16), {})
+    started = time.perf_counter()
+    profile.enable()
+    move, score, _ = search.search_root(chess.Board(fen), 6, time.monotonic()+120)
+    profile.disable()
+    rows.append({'fen':fen, 'move':move.uci(), 'score':score, 'nodes':search.nodes,
+                 'seconds_profiled':time.perf_counter()-started})
+profile.dump_stats(str(work/'draw-neural100/data/runs/search-profile.prof'))
+output = io.StringIO()
+pstats.Stats(profile, stream=output).strip_dirs().sort_stats('tottime').print_stats(45)
+(work/'draw-neural100/data/runs/search-profile.txt').write_text(output.getvalue())
+(work/'draw-neural100/data/runs/search-profile.json').write_text(json.dumps(rows,indent=2))
+print(output.getvalue())

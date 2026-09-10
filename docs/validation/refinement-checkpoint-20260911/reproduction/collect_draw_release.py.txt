@@ -1,0 +1,237 @@
+"""Assemble a reviewed draw-fix handoff after the frozen A/B comparison completes."""
+import argparse
+import hashlib
+import io
+import json
+import shutil
+import subprocess
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+import chess.pgn
+import numpy as np
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--candidate', type=Path, required=True)
+parser.add_argument('--out', type=Path, required=True)
+parser.add_argument('--promote', action='store_true')
+args = parser.parse_args()
+root, out = args.candidate.resolve(), args.out.resolve()
+run = root / 'data/runs'
+plan = json.loads((run / 'draw-validation-plan.json').read_text())
+audits = {name: json.loads((run / f'draw-{name}-summary.json').read_text())
+          for name in ('quick', 'ltc')}
+diagnoses = {name: json.loads((run / f'draw-{name}-diagnosis.json').read_text())
+             for name in audits}
+package = json.loads((run / 'draw-package-audit.json').read_text())
+expected = [plan['candidate']['runtime_sha256'], plan['control']['runtime_sha256']]
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def git(*arguments):
+    return subprocess.check_output(['git', '-C', str(root), *arguments], text=True).strip()
+
+
+commit = git('rev-parse', 'HEAD')
+assert not git('status', '--porcelain'), 'Commit the review record first'
+assert git('remote', 'get-url', '--push', 'origin') == 'https://github.com/Cheekywnl/chess-codex-isolated-20260910.git'
+for name, games, clock in (('quick', 20, [20000, 300]), ('ltc', 40, [120000, 500])):
+    audit = audits[name]
+    assert audit['games'] == games and audit['clock_ms'] == clock
+    assert audit['runtime_fingerprints'] == [expected]
+    assert audit['legal_pgn_replay'] and audit['candidate_failure_or_fallback_markers'] == 0
+    assert audit['baseline_diagnostics'] == []
+    assert diagnoses[name]['games'] == games
+    for path, digest in audit['log_sha256'].items():
+        assert sha(root / path) == digest
+assert audits['quick']['score'] > .5
+if args.promote:
+    assert audits['ltc']['score'] > .5, 'Do not automatically promote a nonpositive result'
+
+with zipfile.ZipFile(root / 'submission.zip') as archive:
+    assert archive.testzip() is None
+    files = {m.filename.replace('\\', '/'): hashlib.sha256(archive.read(m)).hexdigest()
+             for m in archive.infolist()}
+    assert files == plan['candidate']['files'], 'Archive differs from frozen match runtime'
+    assert sum(m.file_size for m in archive.infolist()) == package['unzipped_bytes']
+    assert len(files) == package['file_count']
+for relative, digest in plan['candidate']['files'].items():
+    assert sha(root / relative) == digest
+archive_hash = sha(root / 'submission.zip')
+
+records = {}
+intervals = {}
+for name in audits:
+    rows = [json.loads(line) for suffix in 'abcd'
+            for line in (run / f'draw-{name}-{suffix}.jsonl').read_text().splitlines() if line]
+    records[name] = rows
+    pairs = {}
+    for row in rows:
+        score = .5 if row['result'] == 'draw' else float((row['result'] == 'white') == row['agent_white'])
+        pairs.setdefault(row['opening'], []).append(score)
+    assert all(len(pair) == 2 for pair in pairs.values())
+    means = np.array([sum(pair) / 2 for pair in pairs.values()])
+    bootstrap = np.random.default_rng(20260910).choice(means, (50000, len(means))).mean(axis=1)
+    intervals[name] = [float(x) for x in np.quantile(bootstrap, [.025, .975])]
+
+out.mkdir(parents=True, exist_ok=True)
+if args.promote:
+    for original, rollback in (('submission.zip', 'submission-before-draw-fix.zip'),
+                               ('VALIDATION.md', 'NEURAL_VALIDATION.md'),
+                               ('validation-evidence.zip', 'neural-validation-evidence.zip')):
+        destination = out / rollback
+        if not destination.exists():
+            shutil.copy2(out / original, destination)
+    assert sha(out / 'submission-before-draw-fix.zip') == '055cb466b0e31425e38667f7298f346cf79496e87e7bbda2a569e55e4377c4f9'
+
+long = audits['ltc']
+quick = audits['quick']
+status = ('Selected for manual upload on the combined correctness and completed A/B evidence.'
+          if args.promote else 'The draw-fix candidate is retained for review; the previous neural submission remains the upload recommendation.')
+report = f'''# Draw-handling validation
+
+{status}
+
+The unchanged trained model is the 128-wide HalfKP network blended 75% with
+the established classical evaluator. This patch changes draw handling and
+tablebase progress. It does not include new training data or retrained weights.
+
+## Completed comparison against the previous neural release
+
+| Test | Games / paired openings | Wins | Draws | Losses | Score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Quick, 20s+0.3s | 20 / 10 | {quick['wins']} | {quick['draws']} | {quick['losses']} | {100*quick['score']:.2f}% |
+| Tournament clock, 120s+0.5s | 40 / 20 | {long['wins']} | {long['draws']} | {long['losses']} | {100*long['score']:.2f}% |
+
+These were predeclared separate samples, with reversed colours and unused
+opening indices 100–109 and 110–129. Both agents ran through the unchanged
+referee, one CPU core per game, and were suspended outside their turns.
+Every PGN replayed legally. Neither engine produced a failed outcome or an
+error/fallback marker. Runtime hashes remained fixed throughout.
+
+The tournament sample's descriptive 95% opening-pair bootstrap interval for
+the score is {100*intervals['ltc'][0]:.1f}%–{100*intervals['ltc'][1]:.1f}%.
+This small fixed-sample comparison is not an SPRT and does not establish a
+platform rating or a precise Elo gain. The earlier 112-game H1-accepted SPRT
+(+62 =43 -7 against classical `05046b2`) validates the neural predecessor;
+it is not evidence of this patch's incremental gain. The samples are not pooled.
+
+## What changed and what was reproduced
+
+- `chess_draw.py` recognizes automatic repetition/fifty-move claims, including
+  intended next moves and an opponent's optional drawing reply.
+- `chess_search.py` scores immediate draws correctly, caps optional draws
+  without inventing a guaranteed defensive result, and prefers other positive
+  continuations before a repeated position becomes a forced cycle.
+- `agent.py` retains complete useful move history, bounds and charges the scan
+  to the move budget, and chooses immediate tablebase progress correctly.
+- The recorded pawn ending now converts; rook, queen, bishop-knight and Lucena
+  conversion checks also pass. All 26 recorded claim failures are recognized.
+- 3,468 referee comparisons and six near-fifty-move root comparisons pass.
+  Defensive draws and checkmate precedence have explicit regression checks.
+- Ruff, mypy, clean protocol games and 10,000-position integer reference checks
+  pass. WAC is 231/300 versus the predecessor's 228/300. Thirty fixed-depth
+  comparisons without repetition context preserve move, score and node count.
+
+The model, blend, capped opening book and all 96 Syzygy files are unchanged.
+No harness, submission dependency, training environment or original checkout
+was changed for this patch. Earlier unsuccessful development approaches are
+retained separately and described in the evidence.
+
+## Remaining draws
+
+The tournament sample contains {diagnoses['ltc']['draw_count']} draws. Among last
+logged search decisions, {diagnoses['ltc']['last_search_move_still_ge150']} still
+reported at least +150 cp, {diagnoses['ltc']['last_search_move_scored_draw']} were
+scored as a draw and {diagnoses['ltc']['last_search_move_negative']} retained a
+negative score; {diagnoses['ltc']['tablebase_draws']} draws ended through tablebase
+selection. These diagnostics explain decisions, not the true value of every
+position. A draw can be the best available result. Draw rates against the neural
+control cannot be compared directly with the earlier classical-opponent study.
+
+## Exact artifact and resources
+
+Commit: [{commit}](https://github.com/Cheekywnl/chess-codex-isolated-20260910/commit/{commit}).
+All pushes target that private repository.
+
+The candidate archive contains {package['file_count']} files and
+{package['unzipped_bytes']:,} unzipped bytes. It contains Python source and
+permitted book, tablebase and integer model assets. The extracted package
+initialized in {package['init_seconds']:.3f} seconds with peak working set
+{package['peak_rss_bytes']:,} bytes. Across the tournament games, maximum recorded
+init was {long['maximum_recorded_init_seconds']:.3f} seconds and peak working set
+was {long['maximum_recorded_peak_rss_bytes']:,} bytes.
+
+Candidate ZIP SHA-256: `{archive_hash}`.
+
+Candidate runtime: `{expected[0]}`.
+
+Control runtime: `{expected[1]}`.
+
+Local Windows checks do not replace the competition's Linux upload validation.
+The user performs the upload; no upload has been performed here.
+'''
+(out / 'DRAW_FIX_VALIDATION.md').write_text(report, encoding='utf8')
+
+handoff = {'commit': commit, 'generated_utc': datetime.now(timezone.utc).isoformat(),
+           'promoted': args.promote, 'package_sha256': archive_hash,
+           'runtime_fingerprints': expected, 'package_audit': package,
+           'matches': audits, 'draw_diagnostics': diagnoses,
+           'descriptive_pair_bootstrap_score_intervals': intervals,
+           'platform_elo_established': False, 'upload_performed': False}
+evidence_path = out / 'draw-fix-evidence.zip'
+with zipfile.ZipFile(evidence_path, 'w', zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr('release.json', json.dumps(handoff, indent=2))
+    archive.writestr('DRAW_FIX_VALIDATION.md', report)
+    for path in sorted(run.glob('draw-*')):
+        if path.is_file() and 'partial' not in path.name and path.suffix in ('.json', '.jsonl', '.log'):
+            archive.write(path, 'checks-and-games/' + path.name)
+    for path in (root / 'docs').glob('*.md'):
+        archive.write(path, 'documentation/' + path.name)
+    archive.write(root / 'docs/halfkp_training_provenance.json', 'documentation/halfkp_training_provenance.json')
+    for name in ('agent.py', 'chess_search.py', 'chess_draw.py'):
+        archive.write(root / name, 'changed-runtime/' + name)
+    for name in ('draw_regression.py', 'match_evidence.py', 'version_arena.py',
+                 'platform_agent.py', 'submission_audit.py', 'endgame_regression.py'):
+        archive.write(root / 'tools' / name, 'reproduction/' + name)
+    for name in ('audit_draw_matches.py', 'collect_draw_release.py'):
+        archive.write(root.parent / name, 'reproduction/' + name)
+    archive.write(Path(plan['opening_pool']), 'reproduction/openings-final-20260914.json')
+    for path in sorted((root.parent / 'draw-fix/data/runs').glob('draw-endgame*')):
+        if path.suffix in ('.log', '.json'):
+            archive.write(path, 'rejected-development/' + path.name)
+    predecessor = out / ('neural-validation-evidence.zip' if args.promote else 'validation-evidence.zip')
+    with zipfile.ZipFile(predecessor) as old:
+        assert old.testzip() is None
+        for member in old.infolist():
+            archive.writestr('predecessor/' + member.filename, old.read(member))
+    for name, rows in records.items():
+        pgns = []
+        for index, row in enumerate(rows):
+            game = chess.pgn.read_game(io.StringIO(row['pgn']))
+            assert game is not None and not game.errors
+            game.headers['Event'] = 'Draw handling comparison with released neural build'
+            game.headers['Round'] = str(index + 1)
+            game.headers['White'] = 'draw-fix' if row['agent_white'] else 'neural-predecessor'
+            game.headers['Black'] = 'neural-predecessor' if row['agent_white'] else 'draw-fix'
+            game.headers['Opening'] = row['opening']
+            game.headers['TimeControl'] = '20+0.3' if name == 'quick' else '120+0.5'
+            pgns.append(str(game))
+        archive.writestr(f'games-{name}.pgn', '\n\n'.join(pgns) + '\n')
+with zipfile.ZipFile(evidence_path) as archive:
+    assert archive.testzip() is None
+if args.promote:
+    shutil.copy2(root / 'submission.zip', out / 'submission.zip')
+    shutil.copy2(out / 'DRAW_FIX_VALIDATION.md', out / 'VALIDATION.md')
+    shutil.copy2(evidence_path, out / 'validation-evidence.zip')
+else:
+    shutil.copy2(root / 'submission.zip', out / 'draw-fix-candidate.zip')
+deliverables = sorted(path for path in out.iterdir() if path.is_file() and path.name != 'SHA256SUMS.txt')
+(out / 'SHA256SUMS.txt').write_text(''.join(f'{sha(path)}  {path.name}\n' for path in deliverables), encoding='utf8')
+print(json.dumps({'commit': commit, 'promoted': args.promote, 'package_sha256': archive_hash,
+                  'quick_score': quick['score'], 'tournament_score': long['score'],
+                  'report': str(out / 'DRAW_FIX_VALIDATION.md')}, indent=2))

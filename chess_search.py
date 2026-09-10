@@ -239,6 +239,20 @@ def apply_move(state: State, from_sq: int, to_sq: int, promotion: int) -> State:
     )
 
 
+def apply_move_info(
+    state: State, key: int, from_sq: int, to_sq: int, promotion: int,
+) -> tuple[State, int, bool]:
+    result, child_key, check = cst.make_move_info(
+        state, np.uint64(key), from_sq, to_sq, promotion,
+    )
+    child: State = (
+        np.uint64(result[0]), np.uint64(result[1]), np.uint64(result[2]), np.uint64(result[3]),
+        np.uint64(result[4]), np.uint64(result[5]), np.uint64(result[6]), np.uint64(result[7]),
+        bool(result[8]), np.uint64(result[9]), int(result[10]), int(result[11]),
+    )
+    return child, int(child_key), bool(check)
+
+
 def apply_null(state: State) -> State:
     return (*state[:8], not state[8], state[9], -1, state[11] + 1)
 
@@ -515,7 +529,8 @@ class Search:
         return [(packed, is_capture) for _, packed, is_capture in indexed]
 
     def quiescence(
-        self, state: State, alpha: int, beta: int, ply: int, key: int | None = None
+        self, state: State, alpha: int, beta: int, ply: int, key: int | None = None,
+        in_check: bool | None = None,
     ) -> int:
         self._time_check()
         # `key` lets a caller that already hashed this exact state (negamax falling through to
@@ -528,7 +543,8 @@ class Search:
         if self._is_draw(state, key):
             return self._draw_score(ply)
 
-        in_check = is_in_check(state)
+        if in_check is None:
+            in_check = is_in_check(state)
         from_arr, to_arr, promo_arr, count = legal_moves(state)
         pawns, knights, bishops, rooks, queens, white, black = int_fields(state)
         ep_square = state[10]
@@ -591,11 +607,12 @@ class Search:
                 if see(state, f, t) < 0:
                     continue
 
-            child = apply_move(state, f, t, p)
-            child_key = hash_of(child)
+            child, child_key, child_in_check = apply_move_info(state, key, f, t, p)
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
-                score = -self.quiescence(child, -beta, -alpha, ply + 1, child_key)
+                score = -self.quiescence(
+                    child, -beta, -alpha, ply + 1, child_key, in_check=child_in_check,
+                )
             finally:
                 self.seen[child_key] -= 1
 
@@ -617,6 +634,7 @@ class Search:
         ply: int,
         allow_null: bool = True,
         key: int | None = None,
+        in_check: bool | None = None,
     ) -> int:
         self._time_check()
         # See quiescence's matching `key` parameter: a caller that already hashed this exact
@@ -631,9 +649,10 @@ class Search:
             return tt_score
 
         if depth <= 0:
-            return self.quiescence(state, alpha, beta, ply, key)
+            return self.quiescence(state, alpha, beta, ply, key, in_check=in_check)
 
-        in_check = is_in_check(state)
+        if in_check is None:
+            in_check = is_in_check(state)
         from_arr, to_arr, promo_arr, count = legal_moves(state)
         if count == 0:
             return -(MATE - ply) if in_check else self._draw_score(ply)
@@ -668,15 +687,7 @@ class Search:
             extension = 1 if in_check else 0
             is_killer = packed == self.killers[k_ply][0] or packed == self.killers[k_ply][1]
 
-            child = apply_move(state, f, t, p)
-            # Both pruning checks below end on `not is_in_check(child)`, and a move that
-            # survives the first (LATE_MOVE_PRUNING_DEPTH >= FUTILITY_DEPTH is possible, and
-            # both fire on largely overlapping conditions) proceeds straight into the second --
-            # is_in_check(child) was being computed twice for such moves even though `child` is
-            # immutable and the answer can't change in between. Computed lazily (only if some
-            # move actually reaches a point that needs it, exactly as before) and cached for
-            # the rest of this move's checks, not unconditionally per move.
-            child_in_check: bool | None = None
+            child, child_key, child_in_check = apply_move_info(state, key, f, t, p)
 
             if (
                 prunable
@@ -687,11 +698,9 @@ class Search:
                 and not p
                 and not is_killer
                 and best_score > -MATE_THRESHOLD
+                and not child_in_check
             ):
-                if child_in_check is None:
-                    child_in_check = is_in_check(child)
-                if not child_in_check:
-                    continue
+                continue
 
             # Futility pruning: near the leaf, a quiet move that can't even reach alpha once
             # the position's current static assessment is padded by a generous margin is not
@@ -714,11 +723,9 @@ class Search:
                 and not is_killer
                 and abs(alpha) < MATE_THRESHOLD
                 and static_eval + FUTILITY_MARGIN_PER_PLY * depth <= alpha
+                and not child_in_check
             ):
-                if child_in_check is None:
-                    child_in_check = is_in_check(child)
-                if not child_in_check:
-                    continue
+                continue
 
             reduce = 0
             if (
@@ -734,21 +741,22 @@ class Search:
                 m_idx = i if i < _LMR_MAX_MOVE_INDEX else _LMR_MAX_MOVE_INDEX
                 reduce = min(int(LMR_TABLE[d_idx, m_idx]), depth - 1)
 
-            child_key = hash_of(child)
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
                 if i == 0:
                     score = -self.negamax(
-                        child, depth - 1 + extension, -beta, -alpha, ply + 1, key=child_key
+                        child, depth - 1 + extension, -beta, -alpha, ply + 1,
+                        key=child_key, in_check=child_in_check,
                     )
                 else:
                     score = -self.negamax(
                         child, depth - 1 + extension - reduce, -alpha - 1, -alpha, ply + 1,
-                        key=child_key,
+                        key=child_key, in_check=child_in_check,
                     )
                     if score > alpha:
                         score = -self.negamax(
-                            child, depth - 1 + extension, -beta, -alpha, ply + 1, key=child_key
+                            child, depth - 1 + extension, -beta, -alpha, ply + 1,
+                            key=child_key, in_check=child_in_check,
                         )
             finally:
                 self.seen[child_key] -= 1
@@ -792,27 +800,30 @@ class Search:
         best_score = -MATE - 1
         scored: list[tuple[chess.Move, int]] = []
         window_alpha = alpha
+        key = hash_of(state)
 
         for i, (packed, _) in enumerate(ordered):
             f, t, p = cst.unpack_move(packed)
             claim = self.root_draw_claims.get(packed, 0)
-            child = apply_move(state, f, t, p)
-            child_key = hash_of(child)
+            child, child_key, child_in_check = apply_move_info(state, key, f, t, p)
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
                 if claim == 1:
                     score = -CONTEMPT
                 elif i == 0:
                     score = -self.negamax(
-                        child, depth - 1, -beta, -window_alpha, 1, key=child_key
+                        child, depth - 1, -beta, -window_alpha, 1,
+                        key=child_key, in_check=child_in_check,
                     )
                 else:
                     score = -self.negamax(
-                        child, depth - 1, -window_alpha - 1, -window_alpha, 1, key=child_key
+                        child, depth - 1, -window_alpha - 1, -window_alpha, 1,
+                        key=child_key, in_check=child_in_check,
                     )
                     if score > window_alpha:
                         score = -self.negamax(
-                            child, depth - 1, -beta, -window_alpha, 1, key=child_key
+                            child, depth - 1, -beta, -window_alpha, 1,
+                            key=child_key, in_check=child_in_check,
                         )
             finally:
                 self.seen[child_key] -= 1

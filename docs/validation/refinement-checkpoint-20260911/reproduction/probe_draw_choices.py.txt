@@ -1,0 +1,76 @@
+"""Diagnostic fresh-cache root choices before recorded winning-score repetitions."""
+import argparse
+import io
+import json
+import sys
+import time
+from collections import Counter
+from pathlib import Path
+
+import chess.pgn
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--root', type=Path, required=True)
+parser.add_argument('--out', type=Path, required=True)
+args = parser.parse_args()
+sys.path.insert(0, str(args.root.resolve()))
+import agent
+import chess_search as cs
+
+# Both compared builds use this same diagnostic setup: real get_move and history,
+# a fresh transposition table, and no background activity between independent cases.
+agent._start_pondering = lambda board, move: None
+captured = {}
+original = cs.Search.search_root
+
+
+def trace(self, board, depth, deadline, prev_score=None):
+    global captured
+    result = original(self, board, depth, deadline, prev_score)
+    captured = {'depth': depth, 'score': result[1],
+                'ranked': [[m.uci(), score] for m, score in result[2]]}
+    return result
+
+
+cs.Search.search_root = trace
+draws = json.loads((args.root/'docs/validation/draw-analysis.json').read_text())['draws']
+records = []
+for row in draws:
+    game = chess.pgn.read_game(io.StringIO(row['pgn']))
+    board = game.board()
+    history = Counter({cs.hash_of_board(board): 1})
+    for ply, move in enumerate(game.mainline_moves()):
+        data = row['moves'][ply]
+        after = board.copy()
+        after.push(move)
+        if (data['candidate_turn'] and data['score_candidate_cp'] is not None
+                and data['score_candidate_cp'] >= 150
+                and history[cs.hash_of_board(after)] >= 1):
+            agent._TT = cs.TranspositionTable()
+            agent._GAME_HISTORY = dict(history)
+            current = cs.hash_of_board(board)
+            agent._GAME_HISTORY[current] -= 1
+            if agent._GAME_HISTORY[current] == 0:
+                del agent._GAME_HISTORY[current]
+            captured = {}
+            started = time.perf_counter()
+            choice = chess.Move.from_uci(agent.get_move(board.fen(), 20_000))
+            elapsed = time.perf_counter() - started
+            selected = board.copy()
+            selected.push(choice)
+            record = {'pair': row['pair_index'], 'white': row['candidate_white'],
+                      'fen': board.fen(), 'ply': ply, 'original_move': move.uci(),
+                      'original_score': data['score_candidate_cp'], 'choice': choice.uci(),
+                      'choice_returns_to_visited_position': history[cs.hash_of_board(selected)] >= 1,
+                      'immediate_claim': selected.is_game_over(claim_draw=True),
+                      'search': captured, 'seconds': elapsed}
+            records.append(record)
+            break
+        board.push(move)
+        history[cs.hash_of_board(board)] += 1
+result = {'root': str(args.root.resolve()), 'cases': len(records),
+          'repeated_choices': sum(r['choice_returns_to_visited_position'] for r in records),
+          'immediate_claims': sum(r['immediate_claim'] for r in records),
+          'diagnostic_only': True, 'records': records}
+args.out.write_text(json.dumps(result, indent=2))
+print(json.dumps({k:v for k,v in result.items() if k!='records'}))

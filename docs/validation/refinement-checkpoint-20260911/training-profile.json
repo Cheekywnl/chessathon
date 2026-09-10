@@ -1,0 +1,58 @@
+{
+  "training_shards_sampled": 601,
+  "train_rows_sampled": 601000,
+  "train_sampling": "Seed 20260910, up to 1000 uniformly chosen rows without replacement per shard; near-uniform because shards have similar row counts.",
+  "training_phase_sample": {
+    "21-32 pieces": {
+      "rows": 357688,
+      "fraction": 0.5951547420965059
+    },
+    "13-20 pieces": {
+      "rows": 155567,
+      "fraction": 0.25884692179700497
+    },
+    "2-7 pieces (classical route)": {
+      "rows": 26849,
+      "fraction": 0.0446738768718802
+    },
+    "8-12 pieces": {
+      "rows": 60896,
+      "fraction": 0.10132445923460899
+    }
+  },
+  "heldout_shards_sampled": 601,
+  "heldout_rows_sampled": 120200,
+  "heldout_sampling": "Up to 200 randomly selected rows per validation shard; each shard weighted equally, no training updates.",
+  "heldout_neural_value_MSE": {
+    "13-20 pieces": {
+      "n": 31016,
+      "MSE": 0.014377362288080434
+    },
+    "near-balanced labels (overlaps piece bands)": {
+      "n": 72567,
+      "MSE": 0.0037909754221594114
+    },
+    "queenless with rooks (overlaps piece bands)": {
+      "n": 32007,
+      "MSE": 0.010546497707511641
+    },
+    "21-32 pieces": {
+      "n": 71418,
+      "MSE": 0.006811975428207338
+    },
+    "strongly favoured/disfavoured (overlaps piece bands)": {
+      "n": 22284,
+      "MSE": 0.030827658731095966
+    },
+    "2-7 pieces (classical route)": {
+      "n": 5439,
+      "MSE": 0.021836510000944998
+    },
+    "8-12 pieces": {
+      "n": 12327,
+      "MSE": 0.020123472380449602
+    }
+  },
+  "limitations": "Quantized neural evaluator alone versus existing cp-derived sigmoid labels. It does not test search strength, history awareness, or the classical low-material route; phase differences need not be caused by insufficient data.",
+  "seconds": 72.34400000000096
+}

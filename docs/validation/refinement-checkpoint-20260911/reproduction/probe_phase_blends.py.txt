@@ -1,0 +1,41 @@
+"""Compare existing classical/neural blend errors on held-out FENs, without training."""
+import csv
+import json
+import math
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+import chess
+import numpy as np
+
+work = Path(__file__).parent
+sys.path.insert(0, str(work/'draw-fix-fast'))
+import agent  # Warms the same inference and classical paths as actual play.
+import chess_search as cs
+
+search = cs.Search(cs.TranspositionTable(10), {})
+errors = defaultdict(lambda: defaultdict(list))
+for row in csv.DictReader((work/'halfkp-trial/data/full-cache/heldout_fens.csv').open()):
+    board = chess.Board(row['fen']+' 0 1')
+    pieces = len(board.piece_map())
+    if pieces < 8:
+        continue
+    band = '8-12' if pieces <= 12 else '13-20' if pieces <= 20 else '21-32'
+    state = cs.state_from_board(board)
+    mobility = board.legal_moves.count()
+    classical = search.classical_evaluate(state, mobility)
+    cs.HALFKP_BLEND = 100
+    neural = search.evaluate(state, mobility)
+    target = float(row['target'])
+    for blend in (0, 25, 50, 75, 100):
+        score = round((classical*(100-blend) + neural*blend)/100)
+        prediction = 1/(1+math.exp(-max(-40, min(40, score/400))))
+        errors[band][blend].append((prediction-target)**2)
+result = {'bands': {band: {str(blend): {'n': len(values), 'mse': float(np.mean(values))}
+                           for blend, values in blends.items()}
+                    for band, blends in errors.items()},
+          'note': 'Existing held-out FEN preview, no training updates. Static-label fitting only; '
+                  'this cannot establish playing strength or the best blend under search.'}
+(work/'phase-blend-probe.json').write_text(json.dumps(result, indent=2))
+print(json.dumps(result, indent=2))

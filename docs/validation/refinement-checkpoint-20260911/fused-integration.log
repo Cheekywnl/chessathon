@@ -1,0 +1,35 @@
+{
+  "endgame_fallback_comparisons": 16,
+  "zero_blend_matches_classical": 100,
+  "book_move_20_21_boundary": true,
+  "cpu_affinity": [
+    6
+  ],
+  "depth": 6,
+  "search": [
+    {
+      "blend": 0,
+      "positions": 10,
+      "nodes": 429245,
+      "seconds": 10.262049300003127,
+      "nodes_per_second": 41828.38996884075
+    },
+    {
+      "blend": 75,
+      "positions": 10,
+      "nodes": 334253,
+      "seconds": 12.121848700004193,
+      "nodes_per_second": 27574.424353265884
+    },
+    {
+      "blend": 100,
+      "positions": 10,
+      "nodes": 265306,
+      "seconds": 9.75339900000472,
+      "nodes_per_second": 27201.38897218002
+    }
+  ],
+  "prior_move_score_node_comparisons": 30,
+  "weights": "weights\\halfkp.npz",
+  "playing_strength_validated": false
+}

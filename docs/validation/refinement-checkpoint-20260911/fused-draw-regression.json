@@ -1,0 +1,242 @@
+{
+  "referee_comparisons": 3468,
+  "recorded_draws_detected": 26,
+  "fifty_move_root_comparisons": 6,
+  "scan_ms_max": 16.25899999999092,
+  "scan_ms_mean": 4.903580769258462,
+  "defensive_search_move": "h1g1",
+  "opponent_optional_draw_score": -1159,
+  "tablebase_conversions": [
+    {
+      "name": "recorded pawn win",
+      "plies": 9,
+      "termination": "checkmate"
+    },
+    {
+      "name": "white rook",
+      "plies": 11,
+      "termination": "checkmate"
+    },
+    {
+      "name": "white queen",
+      "plies": 9,
+      "termination": "checkmate"
+    },
+    {
+      "name": "bishop knight",
+      "plies": 25,
+      "termination": "checkmate"
+    }
+  ],
+  "forced_history_recorded": true,
+  "captured_draws": [
+    {
+      "pair": 1,
+      "white": true,
+      "move": "b2a3",
+      "claim": 2,
+      "scan_ms": 1.8067999990307726,
+      "classified_moves": 23
+    },
+    {
+      "pair": 2,
+      "white": false,
+      "move": "g4h3",
+      "claim": 1,
+      "scan_ms": 15.318699999625096,
+      "classified_moves": 10
+    },
+    {
+      "pair": 3,
+      "white": true,
+      "move": "e6e5",
+      "claim": 1,
+      "scan_ms": 0.9848000008787494,
+      "classified_moves": 7
+    },
+    {
+      "pair": 4,
+      "white": false,
+      "move": "e3a7",
+      "claim": 2,
+      "scan_ms": 1.2616999993042555,
+      "classified_moves": 19
+    },
+    {
+      "pair": 6,
+      "white": false,
+      "move": "f8e8",
+      "claim": 1,
+      "scan_ms": 0.07790000017848797,
+      "classified_moves": 3
+    },
+    {
+      "pair": 7,
+      "white": false,
+      "move": "c6d5",
+      "claim": 2,
+      "scan_ms": 3.3280999996350147,
+      "classified_moves": 8
+    },
+    {
+      "pair": 11,
+      "white": true,
+      "move": "h6g6",
+      "claim": 2,
+      "scan_ms": 3.6643000021285843,
+      "classified_moves": 9
+    },
+    {
+      "pair": 12,
+      "white": false,
+      "move": "f2h3",
+      "claim": 2,
+      "scan_ms": 1.336100001935847,
+      "classified_moves": 5
+    },
+    {
+      "pair": 13,
+      "white": true,
+      "move": "f2f1",
+      "claim": 1,
+      "scan_ms": 0.37820000216015615,
+      "classified_moves": 2
+    },
+    {
+      "pair": 13,
+      "white": false,
+      "move": "d5c5",
+      "claim": 2,
+      "scan_ms": 0.28450000172597356,
+      "classified_moves": 18
+    },
+    {
+      "pair": 16,
+      "white": false,
+      "move": "f2f5",
+      "claim": 2,
+      "scan_ms": 2.998500000103377,
+      "classified_moves": 4
+    },
+    {
+      "pair": 17,
+      "white": false,
+      "move": "d2c2",
+      "claim": 1,
+      "scan_ms": 2.478099999279948,
+      "classified_moves": 15
+    },
+    {
+      "pair": 18,
+      "white": false,
+      "move": "d3e1",
+      "claim": 2,
+      "scan_ms": 6.854700000985758,
+      "classified_moves": 22
+    },
+    {
+      "pair": 20,
+      "white": false,
+      "move": "g3d3",
+      "claim": 2,
+      "scan_ms": 4.438199997821357,
+      "classified_moves": 4
+    },
+    {
+      "pair": 22,
+      "white": false,
+      "move": "g3h3",
+      "claim": 2,
+      "scan_ms": 15.188099998340476,
+      "classified_moves": 9
+    },
+    {
+      "pair": 24,
+      "white": false,
+      "move": "f6h6",
+      "claim": 2,
+      "scan_ms": 15.604000000166707,
+      "classified_moves": 35
+    },
+    {
+      "pair": 26,
+      "white": true,
+      "move": "b5a6",
+      "claim": 1,
+      "scan_ms": 4.914200002531288,
+      "classified_moves": 26
+    },
+    {
+      "pair": 27,
+      "white": false,
+      "move": "a2a3",
+      "claim": 1,
+      "scan_ms": 1.7410000000381842,
+      "classified_moves": 7
+    },
+    {
+      "pair": 28,
+      "white": true,
+      "move": "f6d5",
+      "claim": 2,
+      "scan_ms": 4.423400001542177,
+      "classified_moves": 6
+    },
+    {
+      "pair": 29,
+      "white": true,
+      "move": "e7e3",
+      "claim": 2,
+      "scan_ms": 2.4254999989352655,
+      "classified_moves": 27
+    },
+    {
+      "pair": 29,
+      "white": false,
+      "move": "e4g4",
+      "claim": 2,
+      "scan_ms": 16.25899999999092,
+      "classified_moves": 9
+    },
+    {
+      "pair": 31,
+      "white": false,
+      "move": "e4f6",
+      "claim": 2,
+      "scan_ms": 1.9691999987117015,
+      "classified_moves": 6
+    },
+    {
+      "pair": 32,
+      "white": false,
+      "move": "e7g6",
+      "claim": 2,
+      "scan_ms": 0.19409999731578864,
+      "classified_moves": 4
+    },
+    {
+      "pair": 35,
+      "white": false,
+      "move": "a4a3",
+      "claim": 2,
+      "scan_ms": 1.1357999974279664,
+      "classified_moves": 17
+    },
+    {
+      "pair": 36,
+      "white": false,
+      "move": "h3f5",
+      "claim": 1,
+      "scan_ms": 6.83980000030715,
+      "classified_moves": 11
+    },
+    {
+      "pair": 38,
+      "white": true,
+      "move": "d8d2",
+      "claim": 1,
+      "scan_ms": 11.588400000619004,
+      "classified_moves": 39
+    }
+  ]
+}

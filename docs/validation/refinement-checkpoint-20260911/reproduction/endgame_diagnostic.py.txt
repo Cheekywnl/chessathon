@@ -1,0 +1,71 @@
+"""Capture the existing endgame regression without changing its playing policy."""
+
+import argparse
+import json
+import sys
+import time
+from pathlib import Path
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--root', type=Path, required=True)
+parser.add_argument('--out', type=Path, required=True)
+parser.add_argument('--fen-file', type=Path)
+args = parser.parse_args()
+sys.path.insert(0, str(args.root.resolve()))
+
+import chess
+import chess.pgn
+import agent
+import chess_search as cs
+from tools import endgame_regression as regression
+
+if args.fen_file:
+    rows = []
+    for fen in json.loads(args.fen_file.read_text()):
+        search = cs.Search(cs.TranspositionTable(16), {})
+        move, score, ranked = search.search_root(chess.Board(fen), 6, time.monotonic() + 600)
+        rows.append({'fen': fen, 'move': move.uci(), 'score': score, 'nodes': search.nodes,
+                     'ranked': [[m.uci(), s] for m, s in ranked]})
+    args.out.write_text(json.dumps(rows, indent=2), encoding='utf8')
+    print(f'Completed {len(rows)} fixed-depth records', flush=True)
+else:
+    rows = []
+    original_agent = agent.get_move
+    original_opponent = regression._opponent_move
+    def capture_agent(fen, milliseconds):
+        started = time.monotonic()
+        move = original_agent(fen, milliseconds)
+        rows.append({'fen': fen, 'move': move, 'side': 'agent',
+                     'seconds': time.monotonic() - started})
+        return move
+    def capture_opponent(board, tt, history):
+        started = time.monotonic()
+        move = original_opponent(board, tt, history)
+        rows.append({'fen': board.fen(), 'move': move.uci(), 'side': 'opponent',
+                     'seconds': time.monotonic() - started})
+        return move
+    agent.get_move = capture_agent
+    regression._opponent_move = capture_opponent
+    try:
+        passed = regression.play(*regression.POSITIONS[0])
+    finally:
+        agent._stop_pondering()
+    board = chess.Board(regression.POSITIONS[0][1])
+    game = chess.pgn.Game()
+    game.setup(board)
+    node = game
+    for row in rows:
+        assert row['fen'] == board.fen()
+        move = chess.Move.from_uci(row['move'])
+        assert move in board.legal_moves
+        board.push(move)
+        node = node.add_variation(move)
+    outcome = board.outcome(claim_draw=True)
+    game.headers['Result'] = board.result(claim_draw=True)
+    record = {'root': str(args.root.resolve()), 'passed': passed,
+              'termination': outcome.termination.name.lower() if outcome else 'ply_cap',
+              'neural_asset_loaded': getattr(cs, 'HALFKP_WEIGHTS', None) is not None,
+              'moves': rows, 'pgn': str(game)}
+    args.out.write_text(json.dumps(record, indent=2), encoding='utf8')
+    print(json.dumps({k: v for k, v in record.items() if k not in ('moves', 'pgn')}), flush=True)
+    sys.exit(0 if passed else 1)

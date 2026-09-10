@@ -1,0 +1,384 @@
+{
+  "games": 76,
+  "draw_count": 26,
+  "guard_detects_last_candidate_move": 0,
+  "claim_after_candidate": 9,
+  "claim_after_opponent_reply": 26,
+  "draws": [
+    {
+      "pair": 1,
+      "candidate_white": true,
+      "last_candidate_san": "Ba3",
+      "last_move_score_cp": 986,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "h6h7"
+      ],
+      "last_move_number": 46
+    },
+    {
+      "pair": 2,
+      "candidate_white": false,
+      "last_candidate_san": "Qh3+",
+      "last_move_score_cp": 359,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "h1g1"
+      ],
+      "last_move_number": 28
+    },
+    {
+      "pair": 3,
+      "candidate_white": true,
+      "last_candidate_san": "Re5+",
+      "last_move_score_cp": 399,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "f5g6"
+      ],
+      "last_move_number": 50
+    },
+    {
+      "pair": 4,
+      "candidate_white": false,
+      "last_candidate_san": "Ba7",
+      "last_move_score_cp": 1035,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "e1h1"
+      ],
+      "last_move_number": 53
+    },
+    {
+      "pair": 6,
+      "candidate_white": false,
+      "last_candidate_san": "Ke8",
+      "last_move_score_cp": null,
+      "source": "tablebase",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "h7h8"
+      ],
+      "last_move_number": 77,
+      "tablebase_position_wdl": 2,
+      "tablebase_position_dtz": 1,
+      "current_tablebase_choice": "f8e8",
+      "tablebase_moves": [
+        {
+          "move": "f8e8",
+          "san": "Ke8",
+          "zeroing": false,
+          "wdl_candidate": 2,
+          "child_dtz": -2,
+          "current_progress_rank": -2
+        },
+        {
+          "move": "f8f7",
+          "san": "Kf7",
+          "zeroing": false,
+          "wdl_candidate": 2,
+          "child_dtz": -2,
+          "current_progress_rank": -2
+        },
+        {
+          "move": "f8e7",
+          "san": "Ke7",
+          "zeroing": false,
+          "wdl_candidate": 2,
+          "child_dtz": -2,
+          "current_progress_rank": -2
+        },
+        {
+          "move": "a5a4",
+          "san": "a4",
+          "zeroing": true,
+          "wdl_candidate": 2,
+          "child_dtz": -2,
+          "current_progress_rank": -2
+        }
+      ]
+    },
+    {
+      "pair": 7,
+      "candidate_white": false,
+      "last_candidate_san": "Bd5",
+      "last_move_score_cp": 1302,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "a3a4"
+      ],
+      "last_move_number": 76
+    },
+    {
+      "pair": 11,
+      "candidate_white": true,
+      "last_candidate_san": "Qg6+",
+      "last_move_score_cp": 709,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "g8h8"
+      ],
+      "last_move_number": 41
+    },
+    {
+      "pair": 12,
+      "candidate_white": false,
+      "last_candidate_san": "Nh3+",
+      "last_move_score_cp": 780,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "g1h1"
+      ],
+      "last_move_number": 59
+    },
+    {
+      "pair": 13,
+      "candidate_white": true,
+      "last_candidate_san": "Rf1",
+      "last_move_score_cp": -20,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "c1e3"
+      ],
+      "last_move_number": 30
+    },
+    {
+      "pair": 13,
+      "candidate_white": false,
+      "last_candidate_san": "Kc5",
+      "last_move_score_cp": 726,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "g6g4"
+      ],
+      "last_move_number": 61
+    },
+    {
+      "pair": 16,
+      "candidate_white": false,
+      "last_candidate_san": "Rf5",
+      "last_move_score_cp": 370,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "g3g2"
+      ],
+      "last_move_number": 35
+    },
+    {
+      "pair": 17,
+      "candidate_white": false,
+      "last_candidate_san": "Rc2",
+      "last_move_score_cp": -20,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "c3d4"
+      ],
+      "last_move_number": 49
+    },
+    {
+      "pair": 18,
+      "candidate_white": false,
+      "last_candidate_san": "Ne1+",
+      "last_move_score_cp": 281,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "g2g1"
+      ],
+      "last_move_number": 32
+    },
+    {
+      "pair": 20,
+      "candidate_white": false,
+      "last_candidate_san": "Rd3",
+      "last_move_score_cp": 446,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "h1g1"
+      ],
+      "last_move_number": 32
+    },
+    {
+      "pair": 22,
+      "candidate_white": false,
+      "last_candidate_san": "Qh3+",
+      "last_move_score_cp": 567,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "h1g1"
+      ],
+      "last_move_number": 26
+    },
+    {
+      "pair": 24,
+      "candidate_white": false,
+      "last_candidate_san": "Qh6",
+      "last_move_score_cp": 293,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "f1g1"
+      ],
+      "last_move_number": 39
+    },
+    {
+      "pair": 26,
+      "candidate_white": true,
+      "last_candidate_san": "Ba6",
+      "last_move_score_cp": 438,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "c8c6"
+      ],
+      "last_move_number": 29
+    },
+    {
+      "pair": 27,
+      "candidate_white": false,
+      "last_candidate_san": "Ra3",
+      "last_move_score_cp": -91,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "f1f2"
+      ],
+      "last_move_number": 43
+    },
+    {
+      "pair": 28,
+      "candidate_white": true,
+      "last_candidate_san": "Nd5+",
+      "last_move_score_cp": 1119,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "e7d7"
+      ],
+      "last_move_number": 29
+    },
+    {
+      "pair": 29,
+      "candidate_white": true,
+      "last_candidate_san": "Qe3",
+      "last_move_score_cp": 923,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "h8h7"
+      ],
+      "last_move_number": 49
+    },
+    {
+      "pair": 29,
+      "candidate_white": false,
+      "last_candidate_san": "Qg4+",
+      "last_move_score_cp": 173,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "g1h1"
+      ],
+      "last_move_number": 30
+    },
+    {
+      "pair": 31,
+      "candidate_white": false,
+      "last_candidate_san": "Nf6+",
+      "last_move_score_cp": 452,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "d5c5"
+      ],
+      "last_move_number": 52
+    },
+    {
+      "pair": 32,
+      "candidate_white": false,
+      "last_candidate_san": "Ng6",
+      "last_move_score_cp": -592,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "e6f5"
+      ],
+      "last_move_number": 68
+    },
+    {
+      "pair": 35,
+      "candidate_white": false,
+      "last_candidate_san": "Ra3",
+      "last_move_score_cp": -78,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": false,
+      "opponent_replies_allowing_referee_claim": [
+        "h3g2"
+      ],
+      "last_move_number": 50
+    },
+    {
+      "pair": 36,
+      "candidate_white": false,
+      "last_candidate_san": "Qf5+",
+      "last_move_score_cp": 77,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "c2c3"
+      ],
+      "last_move_number": 38
+    },
+    {
+      "pair": 38,
+      "candidate_white": true,
+      "last_candidate_san": "Qd2",
+      "last_move_score_cp": 144,
+      "source": "search",
+      "current_direct_guard_detects": false,
+      "claim_after_candidate": true,
+      "opponent_replies_allowing_referee_claim": [
+        "f7f6"
+      ],
+      "last_move_number": 29
+    }
+  ]
+}

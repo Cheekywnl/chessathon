@@ -23,6 +23,11 @@ import chess_movegen as mg
 
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
 
+RawState = tuple[
+    np.uint64, np.uint64, np.uint64, np.uint64, np.uint64, np.uint64,
+    np.uint64, np.uint64, bool, np.uint64, int, int,
+]
+
 _bit = mg._bit
 _sliding_attacks = mg._sliding_attacks
 BISHOP_DIRS = mg.BISHOP_DIRS
@@ -160,12 +165,9 @@ def make_move(
 # --- Zobrist hashing: a fixed pseudo-random table, generated once at import with a fixed seed.
 # Only needs to be internally consistent within one process (TT keys and repetition detection
 # never need to match across process restarts), so determinism across runs isn't a requirement,
-# just convenient for debugging. Recomputed fully from scratch each call rather than threaded
-# incrementally through make_move -- an incremental scheme needs perfectly paired XOR-in/XOR-out
-# on every code path including castling rook moves and en passant, which is exactly the kind of
-# easy-to-get-subtly-wrong bookkeeping the immutable-state design elsewhere in this module is
-# deliberately avoiding. A full recompute costs about the same as one eval call; cheap next to
-# what removing push()/pop() saves.
+# just convenient for debugging. zobrist_hash remains the independent full-state reference.
+# make_move_info updates a known parent hash from before/after bitboard differences, including
+# castling rights and en passant. Both paths retain the same pseudo-legal en passant convention.
 _rng = np.random.default_rng(20260907)
 ZOBRIST_PIECE_SQUARE = _rng.integers(0, 2**63, size=(2, 6, 64), dtype=np.int64).astype(np.uint64)
 ZOBRIST_CASTLING = _rng.integers(0, 2**63, size=64, dtype=np.int64).astype(np.uint64)
@@ -229,6 +231,50 @@ def zobrist_hash(
     if turn:
         h ^= turn_key
     return h
+
+
+@njit(cache=False)
+def make_move_info(
+    state: RawState, parent_key: np.uint64, from_sq: int, to_sq: int, promotion: int,
+) -> tuple[RawState, np.uint64, bool]:
+    """Compute the child, its exact hash and check status in one compiled call.
+
+    Hash changes follow the before/after bitboards, including castling, captures
+    and promotions. This keeps all special-move rules in make_move itself.
+    """
+    child = make_move(
+        state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7],
+        state[8], state[9], state[10], state[11], from_sq, to_sq, promotion,
+    )
+    key = parent_key ^ ZOBRIST_TURN
+    pieces_before = (state[0], state[1], state[2], state[3], state[4], state[5])
+    pieces_after = (child[0], child[1], child[2], child[3], child[4], child[5])
+    for piece in range(6):
+        for color in range(2):
+            occupied_before = state[6] if color == 0 else state[7]
+            occupied_after = child[6] if color == 0 else child[7]
+            delta = ((pieces_before[piece] & occupied_before)
+                     ^ (pieces_after[piece] & occupied_after))
+            while delta:
+                square = _lsb_index(delta)
+                key ^= ZOBRIST_PIECE_SQUARE[color, piece, square]
+                delta &= delta - np.uint64(1)
+    rights = state[9] ^ child[9]
+    while rights:
+        square = _lsb_index(rights)
+        key ^= ZOBRIST_CASTLING[square]
+        rights &= rights - np.uint64(1)
+    if state[10] >= 0:
+        key ^= ZOBRIST_EP_FILE[state[10] % 8]
+    if child[10] >= 0:
+        key ^= ZOBRIST_EP_FILE[child[10] % 8]
+    own = child[6] if child[8] else child[7]
+    king = _lsb_index(child[5] & own)
+    check = mg.is_square_attacked(
+        king, not child[8], child[0], child[1], child[2], child[3], child[4], child[5],
+        child[6], child[7],
+    )
+    return child, key, check
 
 
 def hash_state(
@@ -465,9 +511,11 @@ def warm_up() -> None:
         np.uint64(board.occupied_co[True]), np.uint64(board.occupied_co[False]),
     )
     make_move(*state, True, np.uint64(board.clean_castling_rights()), -1, 0, 12, 28, 0)
-    hash_state(
+    parent_key = hash_state(
         board.pawns, board.knights, board.bishops, board.rooks, board.queens, board.kings,
         board.occupied_co[True], board.occupied_co[False], True, board.clean_castling_rights(), -1,
     )
+    make_move_info((*state, True, np.uint64(board.clean_castling_rights()), -1, 0),
+                   np.uint64(parent_key), 12, 28, 0)
     piece_values = np.array([100, 320, 330, 500, 900, 20_000], dtype=np.int64)
     see_raw(*state, 12, 28, -1, True, piece_values)

@@ -1,0 +1,117 @@
+"""Archive this session's reproducible experiments; never copy raw data or checkpoints."""
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import subprocess
+import time
+
+work = Path(__file__).resolve().parent
+repo = work / 'draw-fused'
+archive = repo / 'docs' / 'validation' / 'refinement-checkpoint-20260911'
+archive.mkdir(parents=True, exist_ok=True)
+inventory = []
+for name in ['draw-fix', 'draw-fix-fast', 'draw-neural100', 'halfkp-trial',
+             'halfkp-anneal-128', 'halfkp-width-64', 'halfkp-refine-128', 'no-ponder-trial']:
+    directory = work / name
+    destination = archive / name
+    destination.mkdir(exist_ok=True)
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=directory, text=True).strip()
+    patch = subprocess.check_output(['git', 'diff', '--binary', 'HEAD', '--', '*.py',
+                                     'pyproject.toml'], cwd=directory)
+    (destination / 'uncommitted-code.patch').write_bytes(patch)
+    for relative in ['chess_draw.py', 'tools/draw_regression.py'] if name == 'draw-fix' else []:
+        source = directory / relative
+        if source.exists():
+            shutil.copyfile(source, destination / (relative.replace('/', '_') + '.txt'))
+    assets = []
+    for relative in ['weights/halfkp.npz', 'book/codekiddy.bin']:
+        source = directory / relative
+        if source.exists():
+            assets.append({'path': relative, 'bytes': source.stat().st_size,
+                           'sha256': hashlib.sha256(source.read_bytes()).hexdigest()})
+    inventory.append({'worktree': name, 'head': head, 'archived_patch_bytes': len(patch),
+                      'assets_manifest_only': assets})
+    if name in ['draw-fix', 'no-ponder-trial']:
+        candidates = list(directory.glob('data-*.log'))
+        candidates += list((directory / 'data' / 'runs').glob('*.log'))
+        candidates += list((directory / 'data' / 'runs').glob('*.json'))
+        for source in candidates:
+            if source.stat().st_size < 2_000_000:
+                shutil.copyfile(source, destination / source.name)
+
+scratch = archive / 'reproduction'
+scratch.mkdir(exist_ok=True)
+for source in work.glob('*.py'):
+    shutil.copyfile(source, scratch / (source.name + '.txt'))
+for source in work.glob('*.json'):
+    if source.stat().st_size < 2_000_000:
+        shutil.copyfile(source, archive / source.name)
+for source in (repo / 'data' / 'runs').glob('fused-*'):
+    if source.is_file() and source.stat().st_size < 2_000_000:
+        shutil.copyfile(source, archive / source.name)
+(archive / 'inventory.json').write_text(json.dumps(inventory, indent=2) + '\n')
+
+note = '''# Refinement checkpoint, 11 September 2026
+
+This is an unfinished experiment, pushed at the user's explicit request to preserve all work.
+It is NOT a promoted release. The upload artifact and private main remain the validated
+7eda0fa release (runtime d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c).
+
+The new objective is at least 90% actual wins against that fixed released neural engine,
+with draws and losses reported separately. It has not been achieved. More targeted training
+or data is authorized if supported by the observed weaknesses.
+
+## Current fused move/hash/check candidate
+
+- Same 75% neural blend and released weights, book, and tablebases as draw-fix-fast.
+- Fused move application, incremental Zobrist update from immutable bitboard differences,
+  and check detection reduce repeated Python/Numba calls.
+- 52,009 legal child transitions match prior state, full hash, and check status; all special
+  moves included. 2,400 chained hashes match the independent reference.
+- 19 history-bearing depth-6 searches match moves, scores, nodes, ranked scores, TT, history,
+  and killers. Paired time 22.7601s before, 21.2352s after (1.0718x). This is not Elo evidence.
+- Integration: 30 exact depth-6 searches at blends 0/75/100, fallback and book checks pass.
+- make gate passes: ruff, mypy (47 files), two real random-opponent smoke games.
+- Draw regression passes 3,468 referee comparisons and four tablebase conversions.
+- Full WAC: 234/300 at one second per position.
+- Endgame regression FAILS: Lucena ends in threefold repetition. Although fixed-depth
+  search matches, changed timing exposes an existing conversion weakness. No promotion.
+- No real A/B games or package audit yet for this fused candidate.
+
+## Preserved results
+
+- Released model: +62 =43 -7 in 112 games at 120s+0.5 versus classical 05046b2;
+  paired SPRT accepted H1. This does not establish a platform rating.
+- draw-fix-fast: +5 =11 -4 in 20 games at 20s+0.3 versus released model, 52.5% score.
+- The later long draw-fix test was stopped at the user's request after three completed games;
+  it is incomplete and excluded from strength conclusions.
+- draw-neural100: +5 =13 -6 in 24 games at 20s+0.3, 47.9167% score. Rejected;
+  improved fitting error did not translate to improved match results.
+- Earlier slow draw handling and no-ponder attempts also remain unpromoted.
+
+The archive stores code patches against the listed commits, diagnostic sources and results,
+and asset hashes for this session's earlier worktrees. Existing published branches preserve
+their committed work. Datasets, environments, raw checkpoints, and unselected weights are
+excluded as required by the original request. Selected released weights are already in Git.
+The original shared checkout's uncommitted work was not touched.
+
+## Next experiments
+
+1. Resolve the uncovered KRPvKR conversion and investigate tablebase/dependency size within
+   the 50 MB package cap before changing assets.
+2. Improve search efficiency and draw decisions, then repeat correctness/endgame screens.
+3. Reweight existing sparse endgames before downloading more broad data; preserve random-init
+   lineage, held-out split, and quantization checks for any trained candidate.
+4. Use fresh, diverse paired openings for short real-clock screens. Spend time on full-clock
+   confirmation only after a substantial measured gain. No claim that 90% wins is guaranteed.
+'''
+(repo / 'docs' / 'REFINEMENT_CHECKPOINT_20260911.md').write_text(note, encoding='utf-8')
+with (repo / 'viewer' / 'activity_log.jsonl').open('a') as stream:
+    stream.write(json.dumps({'time': time.time(), 'status': 'issue', 'message':
+      'User requested push of all progress, then refinement toward 90% actual wins vs 7eda0fa. '
+      'Checkpoint draw-fused WIP: 52,009 transition checks + exact depth-6 search parity pass; '
+      'paired speed 1.0718x; gate passes; WAC 234/300; Lucena FAILS repetition. '
+      'Not promoted. Archived prior experiment code/results; no raw data/checkpoints.'}) + '\n')
+print(json.dumps({'archive': str(archive), 'files': len(list(archive.rglob('*'))),
+                  'bytes': sum(p.stat().st_size for p in archive.rglob('*') if p.is_file())}))

@@ -1,0 +1,104 @@
+"""Read-only game diagnosis; no changes to tested runtime or training labels."""
+import argparse
+import collections
+import hashlib
+import io
+import json
+import math
+import re
+from pathlib import Path
+
+import chess
+import chess.pgn
+import numpy as np
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--log', type=Path, required=True)
+parser.add_argument('--out', type=Path, required=True)
+args = parser.parse_args()
+raw = args.log.read_bytes()
+rows = [json.loads(line) for line in raw.decode().splitlines() if line.strip()]
+pair_counts = collections.Counter(row['pair_index'] for row in rows)
+assert all(n == 2 for n in pair_counts.values())
+details = []
+scores = []
+pairs = collections.defaultdict(list)
+for row in rows:
+    score = .5 if row['result'] == 'draw' else float((row['result'] == 'white') == row['agent_white'])
+    scores.append(score)
+    pairs[row['pair_index']].append(score)
+    if score != .5:
+        continue
+    game = chess.pgn.read_game(io.StringIO(row['pgn']))
+    assert game is not None and not game.errors
+    board = game.board()
+    logs = {}
+    for color, field in ((True, 'white_log'), (False, 'black_log')):
+        logs[color] = [dict(re.findall(r'(\w+)=([^\s]+)', line)) for line in row[field].splitlines() if line.startswith('move=')]
+    cursors = {True: 0, False: 0}
+    moves = []
+    for ply, move in enumerate(game.mainline_moves()):
+        assert move in board.legal_moves
+        color = board.turn
+        log = logs[color][cursors[color]] if cursors[color] < len(logs[color]) else None
+        if board.legal_moves.count() == 1:
+            log = None
+        else:
+            assert log is not None and log['move'] == move.uci(), (row['opening'], ply, move, log)
+            cursors[color] += 1
+        material = sum(len(board.pieces(pt, row['agent_white'])) * value - len(board.pieces(pt, not row['agent_white'])) * value for pt, value in ((1,100),(2,320),(3,330),(4,500),(5,900)))
+        recorded = {'ply': ply, 'move_number': board.fullmove_number, 'candidate_turn': color == row['agent_white'],
+                    'san': board.san(move), 'uci': move.uci(), 'fen': board.fen(), 'pieces': len(board.piece_map()),
+                    'check': board.is_check(), 'material_candidate_cp': material,
+                    'source': log.get('source', 'search') if log else 'forced',
+                    'score_candidate_cp': (int(log['score']) * (1 if color == row['agent_white'] else -1)) if log and 'score' in log else None,
+                    'depth': int(log['depth']) if log and 'depth' in log else None,
+                    'clock_ms': int(log['time_left_ms']) if log and 'time_left_ms' in log else None}
+        board.push(move)
+        recorded['check_after'] = board.is_check()
+        recorded['third_occurrence_after'] = board.is_repetition(3)
+        recorded['claimable_after'] = board.can_claim_threefold_repetition()
+        moves.append(recorded)
+    assert all(cursors[c] == len(logs[c]) for c in cursors)
+    candidates = [m for m in moves if m['candidate_turn'] and m['score_candidate_cp'] is not None]
+    last = candidates[-1]
+    claim_moves = []
+    for move in list(board.legal_moves):
+        san = board.san(move)
+        board.push(move)
+        if board.is_repetition(3):
+            claim_moves.append({'uci': move.uci(), 'san': san})
+        board.pop()
+    cp = [m['score_candidate_cp'] for m in candidates]
+    details.append({'opening': row['opening'], 'pair_index': row['pair_index'], 'candidate_white': row['agent_white'],
+                    'plies_played': len(moves), 'final_fullmove': board.fullmove_number, 'final_fen': board.fen(),
+                    'final_pieces': len(board.piece_map()), 'final_material': ''.join(sorted([p.symbol() for p in board.piece_map().values()])),
+                    'candidate_material_cp': moves[-1]['material_candidate_cp'],
+                    'min_eval_cp': min(cp), 'max_eval_cp': max(cp), 'last_eval_cp': last['score_candidate_cp'],
+                    'last_depth': last['depth'], 'last_clock_ms': last['clock_ms'],
+                    'last_eval_ply': last['ply'], 'third_occurrence_on_board': board.is_repetition(3),
+                    'side_allowed_to_claim': 'candidate' if board.turn == row['agent_white'] else 'baseline',
+                    'claim_moves': claim_moves, 'final_mover': 'candidate' if moves[-1]['candidate_turn'] else 'baseline',
+                    'candidate_last6_check_fraction': sum(m['check_after'] for m in [m for m in moves if m['candidate_turn']][-6:]) / min(6,len(candidates)),
+                    'last12': moves[-12:], 'moves': moves, 'pgn': row['pgn']})
+pairmeans = np.array([sum(v)/2 for v in pairs.values()])
+rng = np.random.default_rng(20260910)
+bootstrap = rng.choice(pairmeans, size=(50000,len(pairmeans))).mean(axis=1)
+lo, hi = np.quantile(bootstrap, [.025,.975])
+elo = lambda score: 400 * math.log10(score/(1-score))
+summary = {'games': len(scores), 'pairs': len(pairs), 'wins': scores.count(1), 'draws': scores.count(.5), 'losses': scores.count(0),
+           'score': float(np.mean(scores)), 'logistic_elo_descriptive': elo(float(np.mean(scores))),
+           'pair_bootstrap_95_descriptive_elo': [elo(lo), elo(hi)],
+           'uncertainty_note': 'Opening-pair percentile bootstrap at this snapshot; not sequentially adjusted, not a platform rating.',
+           'input_sha256': hashlib.sha256(raw).hexdigest(),
+           'draws_ended_before_actual_third_occurrence': sum(not d['third_occurrence_on_board'] for d in details),
+           'draws_final_neural_bypass_piece_count': sum(d['final_pieces'] <= 7 for d in details),
+           'draws_last_candidate_search_eval_ge150': sum(d['last_eval_cp'] >= 150 for d in details),
+           'draws_last_candidate_search_eval_ge300': sum(d['last_eval_cp'] >= 300 for d in details),
+           'draws_last_candidate_search_eval_le_minus150': sum(d['last_eval_cp'] <= -150 for d in details),
+           'draws_last_candidate_clock_under5s': sum(d['last_clock_ms'] < 5000 for d in details),
+           'draws': details}
+args.out.write_text(json.dumps(summary, indent=2), encoding='utf8')
+print(json.dumps({k:v for k,v in summary.items() if k != 'draws'}, indent=2))
+for d in details:
+    print(f"pair={d['pair_index']+1:2} {'W' if d['candidate_white'] else 'B'} {d['opening'].split('_',2)[2]:25} pieces={d['final_pieces']:2} cp(last/max)={d['last_eval_cp']:5}/{d['max_eval_cp']:5} clock={d['last_clock_ms']/1000:5.1f}s third={d['third_occurrence_on_board']} claimant={d['side_allowed_to_claim']:9} mat={d['final_material']}")

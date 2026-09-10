@@ -1,0 +1,277 @@
+"""Collect completed, selected-build validation records for the manual-upload handoff."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import io
+import json
+import shutil
+import subprocess
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+import chess.pgn
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--release', type=Path, required=True)
+parser.add_argument('--trial', type=Path, required=True)
+parser.add_argument('--out', type=Path, required=True)
+parser.add_argument('--evidence-stem', default='final-anneal75-sprt')
+parser.add_argument('--practical-release', action='store_true',
+                    help='Publish completed A/B evidence while explicitly reporting SPRT as ongoing')
+args = parser.parse_args()
+release, trial, out = args.release.resolve(), args.trial.resolve(), args.out.resolve()
+run = trial / 'data/runs'
+checks = release / 'data/runs'
+result = json.loads((run / f'{args.evidence_stem}.result.json').read_text())
+audit = json.loads((run / f'{args.evidence_stem}-summary.json').read_text())
+package = json.loads((checks / 'release-package-audit.json').read_text())
+manifest = json.loads((checks / 'release-runtime-manifest.json').read_text())
+if args.practical_release:
+    assert result.get('full_sprt_continues') and result['games'] >= 40
+else:
+    assert result['decision']['verdict'] == 'H1 accepted', 'Promotion evidence not complete'
+assert result['games'] == audit['games'] and result['games'] % 2 == 0
+assert audit['candidate_failure_or_fallback_markers'] == 0
+assert audit['legal_pgn_replay']
+assert result['configuration']['builds']['agent']['runtime_sha256'] == manifest['runtime']['runtime_sha256']
+assert audit['runtime_fingerprints'] == [[manifest['runtime']['runtime_sha256'], manifest['baseline_runtime_sha256']]]
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def git(*arguments: str) -> str:
+    return subprocess.check_output(['git', '-C', str(release), *arguments], text=True).strip()
+
+commit = git('rev-parse', 'HEAD')
+assert git('status', '--porcelain') == '', 'Commit the complete release first'
+assert git('remote', 'get-url', '--push', 'origin') == 'https://github.com/Cheekywnl/chess-codex-isolated-20260910.git'
+assert digest(release / 'submission.zip') == package['sha256']
+with zipfile.ZipFile(release / 'submission.zip') as archive:
+    hashes = {member.filename.replace('\\', '/'): hashlib.sha256(archive.read(member)).hexdigest()
+              for member in archive.infolist()}
+    assert hashes == manifest['runtime']['files']
+    assert sum(member.file_size for member in archive.infolist()) == package['unzipped_bytes']
+
+out.mkdir(parents=True, exist_ok=True)
+evidence = out.parent / 'work/final-evidence'
+evidence.mkdir(parents=True, exist_ok=True)
+
+def copy(source: Path, relative: str) -> None:
+    assert source.is_file(), source
+    destination = evidence / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+
+for name in ('HALFKP_MODEL_CARD.md', 'halfkp_training_provenance.json', 'GPU_TRAINING_20260910.md'):
+    copy(release / 'docs' / name, 'provenance/' + name)
+if (release / 'docs/DRAW_ANALYSIS.md').exists():
+    copy(release / 'docs/DRAW_ANALYSIS.md', 'diagnostics/DRAW_ANALYSIS.md')
+    for name in ('draw-analysis.json', 'draw-mechanics.json', 'training-profile.json'):
+        copy(release / 'docs/validation' / name, 'diagnostics/' + name)
+for name in ('release-gate.log', 'release-endgame.log', 'baseline-endgame-cpu6.log',
+             'endgame-fixed-baseline.json', 'endgame-fixed-candidate.json',
+             'endgame-comparison-fens.json', 'endgame-trace-candidate.json',
+             'endgame-trace-baseline.json', 'release-endgame-repeat.log',
+             'release-wac.log', 'release-package-audit.json', 'release-runtime-manifest.json'):
+    copy(checks / name, 'checks/' + name)
+for name in ('first75-summary.json', 'anneal75-quick-summary.json', 'width64-quick-summary.json',
+             'refine100-quick-summary.json', 'first75-ltc-summary.json', 'anneal75-ltc-clock-summary.json',
+             'mopup-refactor.json', 'ponder-terminal-check.json'):
+    copy(run / name, 'checks/' + name)
+for stem in ('anneal75-quick', 'anneal75-ltc-clock', 'first75-ltc-a', 'first75-ltc-a-resume',
+             'first75-ltc-b', args.evidence_stem):
+    for suffix in ('.jsonl', '.builds.json'):
+        copy(run / (stem + suffix), 'games/' + stem + suffix)
+for suffix in ('.result.json', '-summary.json', '.log'):
+    copy(run / (args.evidence_stem + suffix), 'games/' + args.evidence_stem + suffix)
+copy(run / 'openings-final-20260914.json', 'games/openings-final-20260914.json')
+for name in ('quant-check.json', 'best_quantized.json'):
+    copy(run / 'full-128-anneal' / name, 'checks/anneal-' + name)
+for name in ('paired_statistics.py', 'sprt_arena.py', 'version_arena.py',
+             'match_evidence.py', 'platform_agent.py', 'submission_audit.py'):
+    copy(release / 'tools' / name, 'reproduction/' + name)
+copy(release.parent / 'endgame_diagnostic.py', 'reproduction/endgame_diagnostic.py')
+(evidence / 'changed-files.txt').write_text(git('diff', '--name-status', '05046b2', commit) + '\n', encoding='utf8')
+
+games = []
+for line in (run / f'{args.evidence_stem}.jsonl').read_text().splitlines():
+    row = json.loads(line)
+    game = chess.pgn.read_game(io.StringIO(row['pgn']))
+    assert game is not None and not game.errors
+    game.headers['Event'] = 'Independent HalfKP promotion test'
+    game.headers['Round'] = str(row['pair_index'] + 1)
+    game.headers['White'] = 'anneal128-blend75' if row['agent_white'] else 'baseline-05046b2'
+    game.headers['Black'] = 'baseline-05046b2' if row['agent_white'] else 'anneal128-blend75'
+    game.headers['TimeControl'] = '120+0.5'
+    game.headers['Opening'] = row['opening']
+    games.append(str(game))
+(evidence / 'games/final-games.pgn').write_text('\n\n'.join(games) + '\n', encoding='utf8')
+handoff = {'commit': commit, 'generated_utc': datetime.now(timezone.utc).isoformat(),
+           'submission_sha256': package['sha256'], 'unzipped_bytes': package['unzipped_bytes'],
+           'runtime_sha256': manifest['runtime']['runtime_sha256'],
+           'sprt': result, 'game_audit': audit, 'package_audit': package,
+           'release_basis': 'practical completed-A/B decision; SPRT ongoing' if args.practical_release else 'completed SPRT',
+           'platform_elo_established': False, 'upload_performed': False}
+(evidence / 'release.json').write_text(json.dumps(handoff, indent=2) + '\n', encoding='utf8')
+
+with zipfile.ZipFile(out / 'validation-evidence.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+    for path in sorted(evidence.rglob('*')):
+        if path.is_file():
+            archive.write(path, path.relative_to(evidence).as_posix())
+shutil.copy2(release / 'submission.zip', out / 'submission.zip')
+decision = result['decision']
+baseline_notes = len(audit['baseline_diagnostics'])
+if args.practical_release:
+    introduction = f'''The selected annealed 128-wide, 75% neural hybrid is released based on
+{result['games']} completed independent tournament-clock A/B games against baseline
+`05046b2`. **The formal SPRT is still running and has not passed.** This is a
+practical release decision using the strong completed results, following the
+user's request to prioritize the remaining time.'''
+    statistical_status = f'''At this snapshot, the log-likelihood ratio was
+{result['llr_including_inflight']:.6f}, below the positive stopping threshold.
+The full predeclared test continues as a supplementary check; it is not a
+completed-SPRT promotion claim. Snapshot: {result['snapshot_utc']}.'''
+    test_label = 'Independent A/B snapshot; SPRT ongoing'
+else:
+    introduction = '''The selected annealed 128-wide, 75% neural hybrid passed its predeclared
+independent local SPRT against baseline `05046b2`.'''
+    statistical_status = f'''The final test accepted H1 after {decision['pairs_at_boundary']}
+completed opening pairs, at log-likelihood ratio {decision['llr_at_boundary']:.6f}.'''
+    test_label = 'Independent final SPRT, including in-flight pairs'
+report = f'''# HalfKP submission handoff
+
+{introduction}
+
+The archive is ready for the user to upload
+manually and run through platform validation. No platform rating is established;
+the 2500 target and 3000 aspiration remain unverified.
+
+Commit: [{commit}](https://github.com/Cheekywnl/chess-codex-isolated-20260910/commit/{commit}).
+All pushes went to that private repository. The original checkout and clean
+`05046b28ad9131de8d52b3b991b16601b362167c` rollback opponent remain preserved.
+
+Upload **submission.zip**. The separate **validation-evidence.zip** is the review
+record, containing PGNs, captured runtime logs, checks, hashes and model provenance.
+The submission has {package['unzipped_bytes']:,} unzipped bytes across
+{package['file_count']} files. Its SHA-256 is:
+
+`{package['sha256']}`
+
+## Playing-strength evidence
+
+| Selected-build test | Clock | Games | Wins | Draws | Losses | Score |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Selection screen | 20s+0.3s | 20 | 14 | 5 | 1 | 82.5% |
+| Separate clock check | 120s+0.5s | 4 | 2 | 2 | 0 | 75.0% |
+| {test_label} | 120s+0.5s | {result['games']} | {result['wins']} | {result['draws']} | {result['losses']} | {result['score']:.1%} |
+
+{statistical_status}
+
+The predeclared bounds were
+±2.944439, with local logistic-Elo hypotheses 0 versus +20 and alpha=beta=0.05.
+The pentanomial statistic treats each reversed-colour opening pair as one trial.
+It evaluates pairs in preselected order and retains all in-flight pairs after a
+decision. The planned test permits a decision only after at least twenty pairs,
+with a 200-game cap. These hypotheses are not a platform rating estimate.
+
+The fresh opening pool was generated before observing final games, used distinct
+positions and distinct deterministic book exits, and excluded earlier screening
+openings/exits. Selection and clock-check games were not pooled into SPRT.
+The first, different 128-wide model separately scored +24 =14 -2 in forty
+120s+0.5s games; those games also remain outside the final test.
+
+All {result['games']} PGNs in this independent-test snapshot replay legally.
+That snapshot contains no crash, illegal-move, flag or void
+outcomes and no candidate failure/fallback markers in the captured logs.
+Recorded baseline post-final-move ponder diagnostics: {baseline_notes}; any such
+diagnostics remain explicitly attached to their completed checkmate games.
+Terminations: {', '.join(f'{k}: {v}' for k, v in result['terminations'].items())}.
+
+Agents used the unchanged competition-pinned CPU interpreter, one distinct
+physical core per simultaneous game, and actual process-tree suspension outside
+their turns. The largest recorded interpreter peak working set across the included
+games was {audit['maximum_recorded_peak_rss_bytes']:,} bytes; the longest recorded
+init was {audit['maximum_recorded_init_seconds']:.3f}s. Source and asset fingerprints
+were checked before the run and again when the included evidence was captured.
+The release archive's members match the
+tested runtime fingerprint:
+
+`{manifest['runtime']['runtime_sha256']}`
+
+## Correctness and package checks
+
+The later 76-game draw investigation identified two remaining conversion defects:
+the repetition safeguard can act too late for automatic draw claims, and the
+tablebase selector can fail to prefer an immediately winning pawn advance over
+a king shuffle. The latter reproduced a tablebase-proven win drawn by repetition.
+These issues remain in the unchanged released build. See **DRAW_ANALYSIS.md** and
+the diagnostic records in the evidence archive for details and training priorities.
+
+- Ruff, strict mypy and two real-protocol gate games passed.
+- The expanded feature checks covered 2,004 reference and mirrored-perspective
+  cases, stable splitting, malformed-input bounds and factor coalescence.
+- The mop-up extraction matched 12,000 evaluation cases and ten fixed-depth
+  move/score/node cases. An additional 21 low-material searches matched baseline
+  exactly in move, score, nodes and ranked root scores.
+- On 10,000 held-out positions, integer-reference and bitboard inference each had
+  zero mismatches. Float/quantized error averaged 5.250 cp, p99 19.344 cp.
+- WAC scored 228/300 at one second per position, matching the earlier selected
+  build screen. This is a tactical screen, not a rating measurement.
+- The final standard Lucena rerun passed by checkmate. One earlier repeat drew
+  by repetition; it is retained along with the later passing candidate/baseline
+  traces. The timed endgame screen is sensitive to timing, and conversion is not
+  guaranteed under every timing condition. No engine policy was changed between
+  these runs.
+- The actual extracted zip passed source/asset, integer-weight, import and legal
+  move checks: {package['init_seconds']:.3f}s local init and
+  {package['peak_rss_bytes']:,}-byte peak working set during the smoke.
+
+## Exact runtime changes
+
+Added `chess_halfkp_int.py` and `weights/halfkp.npz` (6,942,764 bytes). Changed
+`agent.py`, `chess_eval.py`, `chess_search.py` and `book/codekiddy.bin`. No runtime
+file was removed. All 96 original Syzygy files, totalling 29,874,560 bytes, remain
+byte-for-byte unchanged. The book is 12,500,000 bytes and is consulted only through
+move 20. The evidence archive includes the complete repository changed-file list.
+
+The evaluator uses 75% integer HalfKP and 25% classical evaluation in ordinary
+positions. It preserves the classical route for seven or fewer pieces and bare
+kings, the mop-up helper, repetition safeguards and tablebases. The terminal
+predicted-reply ponder guard prevents starting a search on an already-ended game.
+The tested archive contains source and permitted assets only: no training data,
+optimizer checkpoints, float HalfKP weights, CUDA files or native binaries.
+
+## Training and limits of this evidence
+
+The team trained from random initialization with seed 20260910, then continued
+only its own checkpoint. The network uses 40,960 shared king-relative features,
+width 128, a vertically mirrored Black perspective, side-to-move-first ordering
+and a 32 -> 32 -> 1 head. Training-only feature factors were folded away.
+
+All 150,000,000 existing labelled rows and 56,927 self-play rows were read.
+The loader rejected 11,629 overfull-board rows and split accepted rows into
+148,547,121 training and 1,498,177 held-out rows using a stable position hash.
+The full-data experiments collectively processed 1,368,458,798 row presentations
+across repeated passes, not that many unique positions. The existing dataset was
+not downloaded again. The model card and provenance JSON contain the commands,
+label semantics, seeds, source/checkpoint hashes and quantization measurements.
+
+Local testing used Windows on the user's CPU, not the competition's Linux/EPYC
+host. The official upload validation remains the authority on platform acceptance.
+The [agent contract](https://aichessathon.com/docs/agent-contract.md) and
+[competition rules](https://aichessathon.com/docs/rules.md) were fetched again before
+the handoff. They specify a 50 MB unzipped cap, one CPU, 2 GB RAM, 90-second init,
+120s+0.5s games, and uploads closing 11 September at 11:00. No upload was performed
+by this task.
+'''
+(out / 'VALIDATION.md').write_text(report, encoding='utf8')
+sum_names = ['submission.zip', 'validation-evidence.zip', 'VALIDATION.md']
+sum_names.extend(name for name in ('DRAW_ANALYSIS.md', 'draw-diagnostics.zip') if (out / name).is_file())
+sums = ''.join(f'{digest(out / name)}  {name}\n' for name in sum_names)
+(out / 'SHA256SUMS.txt').write_text(sums, encoding='utf8')
+print(json.dumps({'commit': commit, 'evidence_zip': str(out / 'validation-evidence.zip'),
+                  'submission': str(out / 'submission.zip'), 'games': result['games'],
+                  'decision': result['decision'], 'package_sha256': package['sha256']}, indent=2))

@@ -1,0 +1,133 @@
+[
+  {
+    "worktree": "draw-fix",
+    "head": "7eda0fa706274447f42a34d57978bf09cd1c1edf",
+    "archived_patch_bytes": 14546,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 6942764,
+        "sha256": "3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 12500000,
+        "sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b"
+      }
+    ]
+  },
+  {
+    "worktree": "draw-fix-fast",
+    "head": "408f9c69a1f67789b17aea9fd0abd2bf700e2fa9",
+    "archived_patch_bytes": 0,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 6942764,
+        "sha256": "3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 12500000,
+        "sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b"
+      }
+    ]
+  },
+  {
+    "worktree": "draw-neural100",
+    "head": "89b0265a2e8dc3866e6fa11e1491217615435f36",
+    "archived_patch_bytes": 0,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 6942764,
+        "sha256": "3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 12500000,
+        "sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b"
+      }
+    ]
+  },
+  {
+    "worktree": "halfkp-trial",
+    "head": "88c48cd889b9cd5fe3508af143794c68d95b496d",
+    "archived_patch_bytes": 0,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 6949254,
+        "sha256": "cd2c6c5ea9c14f6fb85512e373a2f2b1f2348e49118f96f710d911ec45db0768"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 12500000,
+        "sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b"
+      }
+    ]
+  },
+  {
+    "worktree": "halfkp-anneal-128",
+    "head": "2596a86c7c54697a2bb4930dd7cf60e257511dfb",
+    "archived_patch_bytes": 3271,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 6942764,
+        "sha256": "3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 12500000,
+        "sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b"
+      }
+    ]
+  },
+  {
+    "worktree": "halfkp-width-64",
+    "head": "2596a86c7c54697a2bb4930dd7cf60e257511dfb",
+    "archived_patch_bytes": 3271,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 3334402,
+        "sha256": "ef794958bb77a239461f135fdc36e919f3b7c625aa50a203dd0ae6f8485be8f6"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 14737600,
+        "sha256": "275d17971ee9bfcab2b18bcd0783f9dd80d760ee3a3ac8902f7e1f2567b4e6af"
+      }
+    ]
+  },
+  {
+    "worktree": "halfkp-refine-128",
+    "head": "4c19b2b1acece4bfc466d3c5e3a44b83539386ff",
+    "archived_patch_bytes": 507,
+    "assets_manifest_only": [
+      {
+        "path": "weights/halfkp.npz",
+        "bytes": 6936983,
+        "sha256": "dbdf991eff2d615712698e8631bbe40e4801069f7a5723976928ea1721603190"
+      },
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 12500000,
+        "sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b"
+      }
+    ]
+  },
+  {
+    "worktree": "no-ponder-trial",
+    "head": "05046b28ad9131de8d52b3b991b16601b362167c",
+    "archived_patch_bytes": 1662,
+    "assets_manifest_only": [
+      {
+        "path": "book/codekiddy.bin",
+        "bytes": 16484048,
+        "sha256": "46e8ad19a960bbc491a64d5b54ff3648b9ac2c10666cf0fc29dcfc08e249e79c"
+      }
+    ]
+  }
+]

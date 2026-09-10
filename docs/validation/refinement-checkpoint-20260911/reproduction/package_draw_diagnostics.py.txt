@@ -1,0 +1,23 @@
+"""Package the exact reviewed snapshot and read-only diagnostic records."""
+import hashlib
+import json
+import zipfile
+from pathlib import Path
+
+root = Path(__file__).parent
+out = root.parent / 'outputs'
+data = json.loads((root / 'draw-analysis.json').read_text())
+lines = (root / 'halfkp-trial/data/runs/final-anneal75-sprt.jsonl').read_bytes().splitlines(keepends=True)
+snapshot = b''.join(lines[:data['games']])
+assert hashlib.sha256(snapshot).hexdigest() == data['input_sha256']
+with zipfile.ZipFile(out / 'draw-diagnostics.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr('reviewed-76-games.jsonl', snapshot)
+    archive.writestr('draws.pgn', '\n\n'.join(d['pgn'] for d in data['draws']) + '\n')
+    archive.write(out / 'DRAW_ANALYSIS.md', 'DRAW_ANALYSIS.md')
+    for name in ('draw-analysis.json','draw-mechanics.json','training-profile.json',
+                 'analyze_draws.py','probe_draw_mechanics.py','profile_training_data.py'):
+        archive.write(root / name, name)
+with zipfile.ZipFile(out / 'draw-diagnostics.zip') as archive:
+    assert archive.testzip() is None
+print(json.dumps({'zip_bytes':(out / 'draw-diagnostics.zip').stat().st_size,
+                  'sha256':hashlib.sha256((out / 'draw-diagnostics.zip').read_bytes()).hexdigest()}))

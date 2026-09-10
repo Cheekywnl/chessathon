@@ -1,0 +1,38 @@
+history case 1/19: exact
+history case 2/19: exact
+history case 3/19: exact
+history case 4/19: exact
+history case 5/19: exact
+history case 6/19: exact
+history case 7/19: exact
+history case 8/19: exact
+history case 9/19: exact
+history case 10/19: exact
+history case 11/19: exact
+history case 12/19: exact
+history case 13/19: exact
+history case 14/19: exact
+history case 15/19: exact
+history case 16/19: exact
+history case 17/19: exact
+history case 18/19: exact
+history case 19/19: exact
+{
+  "legal_transitions": 52009,
+  "move_types": {
+    "quiet": 47236,
+    "capture": 4387,
+    "castling": 22,
+    "capture_promotion": 40,
+    "promotion": 320,
+    "en_passant": 4
+  },
+  "chained_hash_checks": 2400,
+  "history_search_comparisons": 19,
+  "depth": 6,
+  "cpu": 4,
+  "before_seconds": 22.760077300001285,
+  "fused_seconds": 21.235174299999926,
+  "speed_ratio": 1.071810241745996,
+  "playing_strength_validated": false
+}

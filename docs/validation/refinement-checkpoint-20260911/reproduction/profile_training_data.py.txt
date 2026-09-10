@@ -1,0 +1,73 @@
+"""Bounded, deterministic phase coverage and held-out error audit."""
+import collections
+import json
+import math
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+root = Path(__file__).parent
+sys.path.insert(0, str(root / 'halfkp-anneal-128'))
+import chess_halfkp_int as qi
+from tools.halfkp_quant_check import weight_args
+
+cache = root / 'halfkp-trial' / 'data' / 'full-cache'
+weights = qi.load_weights(root / 'halfkp-anneal-128' / 'weights' / 'halfkp.npz')
+qi.warm_up(weights)
+wa = weight_args(weights)
+rng = np.random.default_rng(20260910)
+
+def phase(count):
+    return '2-7 pieces (classical route)' if count <= 7 else '8-12 pieces' if count <= 12 else '13-20 pieces' if count <= 20 else '21-32 pieces'
+
+started = time.monotonic()
+coverage = collections.Counter()
+sampled = 0
+training_files = sorted(cache.glob('train-*.npy'))
+for path in training_files:
+    array = np.load(path, mmap_mode='r', allow_pickle=False)
+    indexes = rng.choice(len(array), min(1000, len(array)), replace=False)
+    counts = array[indexes]['count'].astype(int) + 2
+    coverage.update(phase(int(n)) for n in counts)
+    sampled += len(indexes)
+    del array
+
+errors = collections.defaultdict(list)
+target_bins = collections.Counter()
+sample_counts = collections.Counter()
+valid_files = sorted(cache.glob('validation-*.npy'))
+if not valid_files:
+    valid_files = sorted(cache.glob('val-*.npy'))
+assert valid_files
+for path in valid_files:
+    array = np.load(path, mmap_mode='r', allow_pickle=False)
+    for row in array[rng.choice(len(array), min(200, len(array)), replace=False)]:
+        count = int(row['count'])
+        label = phase(count + 2)
+        cp = qi.forward(row['white'], row['black'], count, bool(row['stm']), *wa)
+        prediction = 1 / (1 + math.exp(-max(-40,min(40,float(cp)/400))))
+        target = float(row['target'])
+        error = (prediction - target) ** 2
+        errors[label].append(error)
+        sample_counts[label] += 1
+        pieces = (row['white'][:count] // 64 % 10) // 2
+        if not np.any(pieces == 4) and np.any(pieces == 3):
+            errors['queenless with rooks (overlaps piece bands)'].append(error)
+        if target >= .75 or target <= .25:
+            errors['strongly favoured/disfavoured (overlaps piece bands)'].append(error)
+        if .4 <= target <= .6:
+            errors['near-balanced labels (overlaps piece bands)'].append(error)
+    del array
+
+result = {'training_shards_sampled':len(training_files), 'train_rows_sampled':sampled,
+          'train_sampling':'Seed 20260910, up to 1000 uniformly chosen rows without replacement per shard; near-uniform because shards have similar row counts.',
+          'training_phase_sample':{k:{'rows':v,'fraction':v/sampled} for k,v in coverage.items()},
+          'heldout_shards_sampled':len(valid_files), 'heldout_rows_sampled':sum(sample_counts.values()),
+          'heldout_sampling':'Up to 200 randomly selected rows per validation shard; each shard weighted equally, no training updates.',
+          'heldout_neural_value_MSE':{k:{'n':len(v), 'MSE':float(np.mean(v))} for k,v in errors.items()},
+          'limitations':'Quantized neural evaluator alone versus existing cp-derived sigmoid labels. It does not test search strength, history awareness, or the classical low-material route; phase differences need not be caused by insufficient data.',
+          'seconds':time.monotonic()-started}
+(root / 'training-profile.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result,indent=2))

@@ -1,0 +1,192 @@
+{
+  "legal_transitions": 52009,
+  "move_types": {
+    "quiet": 47236,
+    "capture": 4387,
+    "castling": 22,
+    "capture_promotion": 40,
+    "promotion": 320,
+    "en_passant": 4
+  },
+  "chained_hash_checks": 2400,
+  "history_search_comparisons": 19,
+  "depth": 6,
+  "cpu": 4,
+  "before_seconds": 22.760077300001285,
+  "fused_seconds": 21.235174299999926,
+  "speed_ratio": 1.071810241745996,
+  "comparisons": [
+    {
+      "pair": 0,
+      "white": true,
+      "move": "a3c1",
+      "score": 912,
+      "nodes": 13211,
+      "before_seconds": 0.4640021999985038,
+      "fused_seconds": 0.39531799999895156
+    },
+    {
+      "pair": 1,
+      "white": false,
+      "move": "c8e6",
+      "score": 359,
+      "nodes": 23562,
+      "before_seconds": 0.9264837999980955,
+      "fused_seconds": 0.8481801000016276
+    },
+    {
+      "pair": 2,
+      "white": true,
+      "move": "e5e4",
+      "score": 386,
+      "nodes": 21171,
+      "before_seconds": 0.5917009000004327,
+      "fused_seconds": 0.5561209000006784
+    },
+    {
+      "pair": 3,
+      "white": false,
+      "move": "f4g4",
+      "score": 1043,
+      "nodes": 33687,
+      "before_seconds": 0.9122982000008051,
+      "fused_seconds": 0.8364725999999791
+    },
+    {
+      "pair": 6,
+      "white": false,
+      "move": "f4d2",
+      "score": 1300,
+      "nodes": 21326,
+      "before_seconds": 0.6117983000003733,
+      "fused_seconds": 0.5673143999993044
+    },
+    {
+      "pair": 10,
+      "white": true,
+      "move": "g6h5",
+      "score": 672,
+      "nodes": 33465,
+      "before_seconds": 1.0924030999995011,
+      "fused_seconds": 1.3245944999980566
+    },
+    {
+      "pair": 11,
+      "white": false,
+      "move": "b4c3",
+      "score": 286,
+      "nodes": 17383,
+      "before_seconds": 0.7571179000005941,
+      "fused_seconds": 0.7056320000010601
+    },
+    {
+      "pair": 12,
+      "white": true,
+      "move": "g1h1",
+      "score": 397,
+      "nodes": 11567,
+      "before_seconds": 0.5128751000011107,
+      "fused_seconds": 0.4081095000001369
+    },
+    {
+      "pair": 12,
+      "white": false,
+      "move": "a6d3",
+      "score": 743,
+      "nodes": 19361,
+      "before_seconds": 0.6087026000022888,
+      "fused_seconds": 0.49597870000070543
+    },
+    {
+      "pair": 15,
+      "white": false,
+      "move": "f1c1",
+      "score": 351,
+      "nodes": 28037,
+      "before_seconds": 0.9662242999984301,
+      "fused_seconds": 0.9741474000002199
+    },
+    {
+      "pair": 17,
+      "white": false,
+      "move": "f7f6",
+      "score": 268,
+      "nodes": 28276,
+      "before_seconds": 1.1138254000034067,
+      "fused_seconds": 0.9371318999983487
+    },
+    {
+      "pair": 19,
+      "white": false,
+      "move": "f7f6",
+      "score": 490,
+      "nodes": 24958,
+      "before_seconds": 1.682570199998736,
+      "fused_seconds": 1.0409810000019206
+    },
+    {
+      "pair": 21,
+      "white": false,
+      "move": "c8d8",
+      "score": 432,
+      "nodes": 87440,
+      "before_seconds": 3.6322041999992507,
+      "fused_seconds": 3.941495600000053
+    },
+    {
+      "pair": 23,
+      "white": false,
+      "move": "g8f7",
+      "score": 296,
+      "nodes": 65605,
+      "before_seconds": 2.775352100001328,
+      "fused_seconds": 2.4733067999986815
+    },
+    {
+      "pair": 25,
+      "white": true,
+      "move": "e5c7",
+      "score": 393,
+      "nodes": 16250,
+      "before_seconds": 0.6580003999988548,
+      "fused_seconds": 0.6052090999983193
+    },
+    {
+      "pair": 27,
+      "white": true,
+      "move": "g8g4",
+      "score": 1082,
+      "nodes": 43133,
+      "before_seconds": 1.6907634000017424,
+      "fused_seconds": 1.62676300000021
+    },
+    {
+      "pair": 28,
+      "white": true,
+      "move": "f6g7",
+      "score": 773,
+      "nodes": 2778,
+      "before_seconds": 0.09370320000016363,
+      "fused_seconds": 0.09677709999959916
+    },
+    {
+      "pair": 28,
+      "white": false,
+      "move": "g4f3",
+      "score": 97,
+      "nodes": 41256,
+      "before_seconds": 1.7030780999994022,
+      "fused_seconds": 1.5876451000003726
+    },
+    {
+      "pair": 30,
+      "white": false,
+      "move": "b3d2",
+      "score": 66,
+      "nodes": 57017,
+      "before_seconds": 1.9669738999982656,
+      "fused_seconds": 1.8139966000017012
+    }
+  ],
+  "playing_strength_validated": false
+}

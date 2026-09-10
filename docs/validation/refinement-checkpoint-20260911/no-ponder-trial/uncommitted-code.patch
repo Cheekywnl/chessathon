@@ -1,0 +1,38 @@
+diff --git a/agent.py b/agent.py
+index c93a279..3c1384d 100644
+--- a/agent.py
++++ b/agent.py
+@@ -23,6 +23,7 @@ import chess_state as cst
+ SAFETY_MARGIN_MS = 300.0
+ MIN_THINK_MS = 50.0
+ MAX_SEARCH_DEPTH = 64
++PONDER_ENABLED = False
+ PONDER_TIME_CAP_S = 300.0
+ PONDER_JOIN_TIMEOUT_S = 1.0
+ 
+@@ -111,13 +112,9 @@ def _open_book() -> "chess.polyglot.MemoryMappedReader | None":
+ 
+ _BOOK = _open_book()
+ 
+-# Pondering: while the opponent thinks, the harness blocks on stdin and this core sits idle
+-# unless we use it ourselves -- the rules explicitly allow this ("the process keeps its core
+-# while the opponent thinks"). A ponder thread keeps deepening on our predicted reply to our
+-# own move and banks results into the shared transposition table. It is always stopped and
+-# joined at the top of the *next* get_move, before any new work starts, so the ponder thread
+-# and the real search thread never touch shared state at the same time -- no true concurrent
+-# access to guard, just a clean handoff.
++# The live contract suspends this process outside its turn. Pondering is disabled:
++# starting a worker cannot earn opponent-time nodes and adds startup/join work to
++# our own clock. Legacy helpers remain for this isolated A/B comparison.
+ _ponder_thread: threading.Thread | None = None
+ _ponder_stop = threading.Event()
+ 
+@@ -289,6 +286,8 @@ def _avoid_needless_repetition(
+ 
+ def _start_pondering(board: chess.Board, our_move: chess.Move) -> None:
+     global _ponder_thread
++    if not PONDER_ENABLED:
++        return
+     board_after_us = board.copy(stack=False)
+     board_after_us.push(our_move)
+     if board_after_us.is_game_over(claim_draw=False):

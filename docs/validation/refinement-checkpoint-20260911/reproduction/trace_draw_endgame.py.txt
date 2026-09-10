@@ -1,0 +1,56 @@
+import json
+import sys
+import threading
+from pathlib import Path
+
+import chess
+import chess.pgn
+
+root = Path(__file__).parent / 'draw-fix'
+sys.path.insert(0, str(root))
+import agent
+import chess_search as cs
+from tools import endgame_regression as regression
+
+records = []
+last_search = {}
+original_search = cs.Search.search_root
+original_agent = agent.get_move
+original_opponent = regression._opponent_move
+
+def search(self, board, depth, deadline, prev_score=None):
+    global last_search
+    result = original_search(self, board, depth, deadline, prev_score)
+    if threading.current_thread() is threading.main_thread() and self.tt is agent._TT:
+        last_search = {'depth':depth,'score':result[1],'ranked':[[m.uci(),s] for m,s in result[2]],
+                       'claims':self.root_draw_claims, 'history':dict(agent._GAME_HISTORY)}
+    return result
+
+def move(fen, milliseconds):
+    global last_search
+    last_search = {}
+    uci = original_agent(fen, milliseconds)
+    board=chess.Board(fen)
+    wdl=agent._TABLEBASE.get_wdl(board) if len(board.piece_map())<=5 else None
+    records.append({'fen':fen,'move':uci,'candidate':True,'search':last_search,'tablebase_wdl':wdl})
+    return uci
+
+def opponent(board, tt, history):
+    result = original_opponent(board,tt,history)
+    records.append({'fen':board.fen(),'move':result.uci(),'candidate':False})
+    return result
+
+cs.Search.search_root = search
+agent.get_move = move
+regression._opponent_move = opponent
+passed = regression.play(*regression.POSITIONS[0])
+agent._stop_pondering()
+game=chess.pgn.Game()
+game.setup(chess.Board(regression.POSITIONS[0][1]))
+node=game
+for row in records:
+    node=node.add_variation(chess.Move.from_uci(row['move']))
+result={'passed':passed,'moves':records,'pgn':str(game)}
+path=root/'data/runs/draw-endgame-trace.json'
+path.write_text(json.dumps(result,indent=2))
+print(json.dumps({'passed':passed,'plies':len(records),'path':str(path)}))

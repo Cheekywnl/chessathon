@@ -1,0 +1,229 @@
+"""Independent referee comparisons and real search/tablebase draw regressions."""
+
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import random
+import time
+from collections import Counter
+from pathlib import Path
+
+import chess
+import chess.pgn
+
+import agent
+import chess_draw as cd
+import chess_search as cs
+import chess_state as cst
+
+
+def history(board: chess.Board) -> dict[int, int]:
+    copy = board.copy()
+    counts: Counter[int] = Counter()
+    while True:
+        counts[cs.hash_of_board(copy)] += 1
+        if not copy.move_stack:
+            return dict(counts)
+        copy.pop()
+
+
+def reference(board: chess.Board) -> bool:
+    outcome = board.outcome(claim_draw=True)
+    return outcome is not None and outcome.winner is None
+
+
+def packed(move: chess.Move) -> int:
+    return cst.pack_move(move.from_square, move.to_square, move.promotion or 0)
+
+
+def reference_claims(board: chess.Board) -> dict[int, int]:
+    claims = {}
+    for move in list(board.legal_moves):
+        if board.is_zeroing(move):
+            continue
+        board.push(move)
+        try:
+            if reference(board):
+                claims[packed(move)] = cd.IMMEDIATE
+                continue
+            for reply in list(board.legal_moves):
+                if board.is_zeroing(reply):
+                    continue
+                board.push(reply)
+                try:
+                    if reference(board):
+                        claims[packed(move)] = cd.OPPONENT_CAN_DRAW
+                        break
+                finally:
+                    board.pop()
+        finally:
+            board.pop()
+    return claims
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    source = Path("docs/validation/draw-analysis.json")
+    draws = json.loads(source.read_text())["draws"]
+    checked = 0
+    captured = []
+    scan_ms = []
+    forced_board = None
+    for row in draws:
+        game = chess.pgn.read_game(io.StringIO(row["pgn"]))
+        assert game is not None and not game.errors
+        board = game.board()
+        last_candidate = max(i for i, move in enumerate(row["moves"]) if move["candidate_turn"])
+        for index, move in enumerate(game.mainline_moves()):
+            counts = history(board)
+            before = board.fen(), list(board.move_stack), dict(counts)
+            assert cd.automatic_draw(board, counts) == reference(board)
+            assert before == (board.fen(), list(board.move_stack), counts)
+            checked += 1
+            if board.legal_moves.count() == 1:
+                forced_board = board.copy()
+            if index == last_candidate:
+                started = time.perf_counter()
+                claims, complete = cd.root_claims(
+                    board, counts, list(board.legal_moves), time.monotonic() + 60,
+                )
+                elapsed = (time.perf_counter() - started) * 1000
+                scan_ms.append(elapsed)
+                assert complete and packed(move) in claims
+                assert claims == reference_claims(board), (row["opening"], claims)
+                after = board.copy()
+                after.push(move)
+                expected = cd.IMMEDIATE if reference(after) else cd.OPPONENT_CAN_DRAW
+                assert claims[packed(move)] == expected
+                assert before == (board.fen(), list(board.move_stack), counts)
+                captured.append({"pair": row["pair_index"] + 1, "white": row["candidate_white"],
+                                 "move": move.uci(), "claim": claims[packed(move)],
+                                 "scan_ms": elapsed, "classified_moves": len(claims)})
+            board.push(move)
+        assert cd.automatic_draw(board, history(board)) == reference(board)
+        checked += 1
+
+    rng = random.Random(20260910)
+    for _ in range(20):
+        board = chess.Board()
+        for _ply in range(80):
+            if board.is_game_over():
+                break
+            board.push(rng.choice(list(board.legal_moves)))
+            assert cd.automatic_draw(board, history(board)) == reference(board)
+            checked += 1
+    for fen in (
+        "7k/6Q1/5K2/8/8/8/8/8 b - - 100 90",  # mate overrides clock
+        "7k/5K2/6Q1/8/8/8/8/8 b - - 100 90",  # stalemate
+        "7k/8/8/8/8/8/8/K7 w - - 0 1",  # insufficient material
+        "6k1/8/8/8/8/8/3q4/6K1 w - - 99 50",
+        "6k1/8/8/8/8/8/3q4/6K1 w - - 100 50",
+        "4k3/8/8/r4pPK/8/8/8/8 w - f6 0 1",  # illegal pinned en passant
+    ):
+        board = chess.Board(fen)
+        assert board.is_valid()
+        assert cd.automatic_draw(board, history(board)) == reference(board)
+        checked += 1
+
+    # A queen-down side must keep a guaranteed draw; an opponent's optional
+    # repetition cannot rescue its score when that opponent can instead win.
+    defensive = chess.Board("6k1/8/8/8/8/8/3q4/6K1 w - - 0 1")
+    cycle = ["g1h1", "g8h8", "h1g1", "h8g8", "g1h1", "g8h8"]
+    optional_score = None
+    defensive_choice = None
+    for index, uci in enumerate(cycle):
+        defensive.push_uci(uci)
+        if index not in (3, 5):
+            continue
+        assert not reference(defensive)
+        counts = history(defensive)
+        claims, complete = cd.root_claims(
+            defensive, counts, list(defensive.legal_moves), time.monotonic() + 60,
+        )
+        assert complete
+        search = cs.Search(cs.TranspositionTable(16), counts)
+        search.root_draw_claims = claims
+        selected, score, ranked = search.search_root(defensive, 4, time.monotonic() + 60)
+        if index == 3:
+            intended = chess.Move.from_uci("g1h1")
+            assert claims[packed(intended)] == cd.OPPONENT_CAN_DRAW
+            optional_score = dict(ranked)[intended]
+            assert optional_score < -cs.CONTEMPT, ranked
+        else:
+            assert claims[packed(selected)] == cd.IMMEDIATE and score == -cs.CONTEMPT
+            defensive_choice = selected.uci()
+            agent._GAME_HISTORY = counts
+            assert agent._tablebase_move(defensive, claims) == selected
+
+    # Reproduce the winning pawn ending from pair 6, including the original history.
+    pawn_row = next(row for row in draws if row["pair_index"] == 5)
+    pawn_game = chess.pgn.read_game(io.StringIO(pawn_row["pgn"]))
+    assert pawn_game is not None
+    pawn_board = pawn_game.end().board()
+    pawn_board.pop()
+    counts = history(pawn_board)
+    claims, _ = cd.root_claims(
+        pawn_board, counts, list(pawn_board.legal_moves), time.monotonic() + 60,
+    )
+    assert agent._tablebase_move(pawn_board, claims) == chess.Move.from_uci("a5a4")
+
+    tablebase_games = []
+    for name, fen in (
+        ("recorded pawn win", pawn_board.fen()),
+        ("white rook", "7k/8/8/8/8/2K5/8/R7 w - - 0 1"),
+        ("white queen", "7k/8/8/8/8/2K5/8/Q7 w - - 0 1"),
+        ("bishop knight", "7k/8/8/8/8/2K5/8/BN6 w - - 0 1"),
+    ):
+        board = chess.Board(fen)
+        assert agent._TABLEBASE is not None
+        wdl = agent._TABLEBASE.probe_wdl(board)
+        winning = board.turn if wdl > 0 else not board.turn
+        assert abs(wdl) == 2
+        for ply in range(240):
+            outcome = board.outcome(claim_draw=True)
+            if outcome is not None:
+                assert outcome.winner == winning, (name, board.fen(), outcome)
+                tablebase_games.append({"name": name, "plies": ply,
+                                        "termination": outcome.termination.name.lower()})
+                break
+            counts = history(board)
+            claims, complete = cd.root_claims(
+                board, counts, list(board.legal_moves), time.monotonic() + 60,
+            )
+            assert complete
+            table_move = agent._tablebase_move(board, claims)
+            assert table_move is not None
+            board.push(table_move)
+        else:
+            raise AssertionError(f"{name} did not convert")
+
+    assert forced_board is not None
+    agent._GAME_HISTORY = {}
+    agent._TT = cs.TranspositionTable(16)
+    old_key = cs.hash_of_board(forced_board)
+    selected = chess.Move.from_uci(agent.get_move(forced_board.fen(), 1000))
+    if forced_board.is_irreversible(selected):
+        assert old_key not in agent._GAME_HISTORY
+    else:
+        assert agent._GAME_HISTORY[old_key] == 1
+    forced_board.push(selected)
+    assert agent._GAME_HISTORY[cs.hash_of_board(forced_board)] == 1
+    agent._stop_pondering()
+
+    result = {"referee_comparisons": checked, "recorded_draws_detected": len(captured),
+              "scan_ms_max": max(scan_ms), "scan_ms_mean": sum(scan_ms)/len(scan_ms),
+              "defensive_search_move": defensive_choice,
+              "opponent_optional_draw_score": optional_score,
+              "tablebase_conversions": tablebase_games, "forced_history_recorded": True,
+              "captured_draws": captured}
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(result, indent=2), encoding="utf8")
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
