@@ -22,6 +22,7 @@ import csv
 import glob
 import time
 from pathlib import Path
+from typing import Any, TextIO
 
 import chess
 import chess.pgn
@@ -59,8 +60,11 @@ def _result_from_outcome(outcome: chess.Outcome | None) -> float | None:
     return 1.0 if outcome.winner == chess.WHITE else 0.0
 
 
-def self_play_rows(games: int) -> list[tuple[str, int, float]]:
-    rows: list[tuple[str, int, float]] = []
+def self_play_games(games: int, writer: Any, out_file: TextIO) -> None:
+    """Writes each game's sampled positions to `writer` as soon as that game finishes, and
+    flushes immediately -- a long unattended run (this is meant to run for hours, generating
+    data for tools/train_nnue.py) should never risk losing everything to a late crash or an
+    impatient kill, and a partial file should always be safe to read mid-run."""
     for game in range(games):
         board = chess.Board()
         tt_white = cs.TranspositionTable(TT_SIZE_POWER)
@@ -94,15 +98,21 @@ def self_play_rows(games: int) -> list[tuple[str, int, float]]:
         if result is None:
             continue
         for fen, mobility in positions:
-            rows.append((fen, mobility, result))
-        print(f"self-play game {game + 1}/{games}: {len(positions)} positions, result={result}")
-    return rows
+            writer.writerow([fen, mobility, result])
+        out_file.flush()
+        print(
+            f"self-play game {game + 1}/{games}: {len(positions)} positions, result={result}",
+            flush=True,
+        )
 
 
 def real_game_rows() -> list[tuple[str, int, float]]:
     rows: list[tuple[str, int, float]] = []
     root = Path(__file__).resolve().parent.parent
-    for path in sorted(glob.glob(str(root / "games" / "real" / "*.pgn"))):
+    paths = sorted(glob.glob(str(root / "games" / "real" / "*.pgn"))) + sorted(
+        glob.glob(str(root / "game_logs" / "*.pgn"))
+    )
+    for path in paths:
         with open(path) as f:
             game = chess.pgn.read_game(f)
         if game is None:
@@ -125,7 +135,7 @@ def real_game_rows() -> list[tuple[str, int, float]]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build a Texel-tuning dataset.")
+    parser = argparse.ArgumentParser(description="Build a Texel-tuning / NNUE dataset.")
     parser.add_argument("--games", type=int, default=150)
     parser.add_argument("--out", type=Path, default=Path("data/tune_positions.csv"))
     parser.add_argument("--skip-self-play", action="store_true")
@@ -135,17 +145,19 @@ def main() -> None:
     mg.warm_up()
     cst.warm_up()
 
-    rows = real_game_rows()
-    print(f"real games: {len(rows)} positions")
-    if not arguments.skip_self_play:
-        rows.extend(self_play_rows(arguments.games))
+    real_rows = real_game_rows()
+    print(f"real games: {len(real_rows)} positions", flush=True)
 
     arguments.out.parent.mkdir(parents=True, exist_ok=True)
     with open(arguments.out, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["fen", "mobility", "result"])
-        writer.writerows(rows)
-    print(f"\nwrote {len(rows)} positions to {arguments.out}")
+        writer.writerows(real_rows)
+        f.flush()
+        if not arguments.skip_self_play:
+            self_play_games(arguments.games, writer, f)
+
+    print(f"\nwrote data to {arguments.out}")
 
 
 if __name__ == "__main__":
