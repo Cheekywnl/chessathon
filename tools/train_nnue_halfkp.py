@@ -228,6 +228,8 @@ def _fen_codes_to_halfkp(
                 black_king_sq = rank * 8 + file
             file += 1
 
+    if white_king_sq < 0 or black_king_sq < 0:
+        raise ValueError("FEN missing a king")
     black_king_mirrored = black_king_sq ^ 56
 
     # Second pass: emit one feature pair per non-king piece.
@@ -245,6 +247,8 @@ def _fen_codes_to_halfkp(
             file += code - 48
         else:
             if code != 75 and code != 107:
+                if n >= len(white_out) or n >= len(black_out):
+                    raise ValueError("more than 30 non-king pieces")
                 square = rank * 8 + file
                 piece_type = piece_type_lookup[code]
                 is_white = 1 if code < 97 else 0  # uppercase ASCII < lowercase ASCII
@@ -275,13 +279,10 @@ def halfkp_indices_for_fen_fast(fen: str) -> tuple[list[int], list[int]]:
     return white_out[:n].tolist(), black_out[:n].tolist()
 
 
-# Forces _fen_codes_to_halfkp's JIT compilation to happen once, here, single-threaded, at import
-# time -- before _FEATURE_EXECUTOR's worker threads exist at all. Numba's first-call compilation
-# is not safe to trigger concurrently from multiple threads (it was crashing the whole process,
-# silently and unrecoverably, with no Python-catchable exception, whenever the first real batch
-# happened to dispatch several chunks to freshly-started threads at once -- reproducible at
-# 100k+ rows, intermittent at very small scale where the race often didn't fire). Verified fixed
-# by confirming the crash disappears with this warm-up in place before trusting a real run.
+# Compile once, single-threaded. The 150M CSV also contains impossible boards with
+# more than 30 non-king pieces; the explicit bound above prevents an unchecked write.
+# Full-dataset training uses tools.halfkp_data and tools.train_halfkp_stream, which
+# reject malformed boards, retain rejection counts, and never build full FEN lists.
 halfkp_indices_for_fen_fast("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
 def build_embeddingbag_batch(
