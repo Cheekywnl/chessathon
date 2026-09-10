@@ -48,6 +48,7 @@ from __future__ import annotations
 import argparse
 import csv
 import glob
+from collections.abc import Iterator
 from pathlib import Path
 
 import numpy as np
@@ -117,7 +118,13 @@ def _cp_to_target(cp: float) -> float:
     return float(1.0 / (1.0 + np.exp(-cp / 400.0)))
 
 
-def load_dataset(pattern: str) -> tuple[np.ndarray, np.ndarray]:
+def load_dataset(pattern: str) -> tuple[list[str], np.ndarray]:
+    """Loads FENs and targets only -- no feature extraction here. FENs stay as plain strings
+    (~1.4GB for 20M rows of text+float) instead of the 768-wide dense float32 matrix that would
+    take 61.5GB at that scale (each position has only ~32 non-zero features out of 768; storing
+    all of them densely, for the whole dataset, before training even starts, is what swallowed
+    32GB of RAM and started swapping on a 20M-row run). Features get extracted one batch at a
+    time inside the training loop instead, via iter_batches()."""
     paths: list[str] = []
     for part in pattern.split(","):
         paths.extend(sorted(glob.glob(part.strip())))
@@ -140,11 +147,25 @@ def load_dataset(pattern: str) -> tuple[np.ndarray, np.ndarray]:
                 targets.append(_cp_to_target(float(third)) if is_cp_format else float(third))
             print(f"  {path}: {len(fens) - n_before} positions ({'cp' if is_cp_format else 'wdl'})")
     print(f"loaded {len(fens)} positions from {len(paths)} file(s)")
+    return fens, np.array(targets, dtype=np.float32)
 
-    print("extracting features...")
-    x = np.stack([fen_to_features(fen) for fen in fens]).astype(np.float32)
-    y = np.array(targets, dtype=np.float32)
-    return x, y
+
+def features_for_indices(fens: list[str], indices: np.ndarray) -> np.ndarray:
+    """Materializes dense features for just one batch's worth of rows -- the only place
+    fen_to_features() gets called during training now."""
+    return np.stack([fen_to_features(fens[i]) for i in indices]).astype(np.float32)
+
+
+def iter_batches(
+    fens: list[str], y: np.ndarray, batch_size: int, rng: np.random.Generator | None
+) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+    """Yields (batch_x, batch_y) pairs, extracting features lazily per batch. rng=None means
+    sequential order (used for validation); an rng shuffles (used for training)."""
+    n = len(fens)
+    order = rng.permutation(n) if rng is not None else np.arange(n)
+    for start in range(0, n, batch_size):
+        idx = order[start : start + batch_size]
+        yield features_for_indices(fens, idx), y[idx]
 
 
 def main() -> None:
@@ -168,45 +189,46 @@ def main() -> None:
         device = torch.device("cpu")
     print(f"device: {device}")
 
-    x, y = load_dataset(arguments.data)
-    n = len(x)
-    rng = np.random.default_rng(42)
-    perm = rng.permutation(n)
-    x, y = x[perm], y[perm]
+    fens, y = load_dataset(arguments.data)
+    n = len(fens)
+    split_rng = np.random.default_rng(42)
+    perm = split_rng.permutation(n)
+    fens = [fens[i] for i in perm]
+    y = y[perm]
     n_val = max(1, int(n * arguments.val_fraction))
-    x_train, y_train = x[n_val:], y[n_val:]
-    x_val, y_val = x[:n_val], y[:n_val]
-    print(f"train: {len(x_train)}, val: {len(x_val)}")
+    val_fens, val_y = fens[:n_val], y[:n_val]
+    train_fens, train_y = fens[n_val:], y[n_val:]
+    print(f"train: {len(train_fens)}, val: {len(val_fens)}")
 
     model = ValueNet().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=arguments.lr)
 
-    x_train_t = torch.from_numpy(x_train).to(device)
-    y_train_t = torch.from_numpy(y_train).to(device)
-    x_val_t = torch.from_numpy(x_val).to(device)
-    y_val_t = torch.from_numpy(y_val).to(device)
-
-    n_train = len(x_train_t)
+    n_train = len(train_fens)
+    epoch_rng = np.random.default_rng(43)
     for epoch in range(1, arguments.epochs + 1):
         model.train()
-        epoch_perm = torch.randperm(n_train, device=device)
         total_loss = 0.0
-        for start in range(0, n_train, arguments.batch_size):
-            idx = epoch_perm[start : start + arguments.batch_size]
-            batch_x, batch_y = x_train_t[idx], y_train_t[idx]
+        for batch_x, batch_y in iter_batches(train_fens, train_y, arguments.batch_size, epoch_rng):
+            batch_x_t = torch.from_numpy(batch_x).to(device)
+            batch_y_t = torch.from_numpy(batch_y).to(device)
             optimizer.zero_grad()
-            raw_output = model(batch_x)
+            raw_output = model(batch_x_t)
             predicted = torch.sigmoid(raw_output / 400.0)
-            loss = torch.mean((predicted - batch_y) ** 2)
+            loss = torch.mean((predicted - batch_y_t) ** 2)
             loss.backward()  # type: ignore[no-untyped-call]  # torch's own stub gap, not ours
             optimizer.step()
-            total_loss += loss.item() * len(idx)
+            total_loss += loss.item() * len(batch_x)
         train_loss = total_loss / n_train
 
         model.eval()
+        val_loss_total = 0.0
         with torch.no_grad():
-            val_predicted = torch.sigmoid(model(x_val_t) / 400.0)
-            val_loss = torch.mean((val_predicted - y_val_t) ** 2).item()
+            for batch_x, batch_y in iter_batches(val_fens, val_y, arguments.batch_size, None):
+                batch_x_t = torch.from_numpy(batch_x).to(device)
+                batch_y_t = torch.from_numpy(batch_y).to(device)
+                val_predicted = torch.sigmoid(model(batch_x_t) / 400.0)
+                val_loss_total += torch.mean((val_predicted - batch_y_t) ** 2).item() * len(batch_x)
+        val_loss = val_loss_total / len(val_fens)
 
         print(
             f"epoch {epoch}/{arguments.epochs}: "
