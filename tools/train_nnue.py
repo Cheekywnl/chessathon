@@ -50,7 +50,6 @@ import csv
 import glob
 from pathlib import Path
 
-import chess
 import numpy as np
 
 try:
@@ -62,23 +61,37 @@ except ImportError as exc:
         "or Colab, not the CPU-only competition sandbox this repo otherwise targets."
     ) from exc
 
-PIECE_ORDER = [
-    (chess.PAWN, chess.WHITE), (chess.KNIGHT, chess.WHITE), (chess.BISHOP, chess.WHITE),
-    (chess.ROOK, chess.WHITE), (chess.QUEEN, chess.WHITE), (chess.KING, chess.WHITE),
-    (chess.PAWN, chess.BLACK), (chess.KNIGHT, chess.BLACK), (chess.BISHOP, chess.BLACK),
-    (chess.ROOK, chess.BLACK), (chess.QUEEN, chess.BLACK), (chess.KING, chess.BLACK),
-]
 INPUT_SIZE = 768
 HIDDEN1 = 256
 HIDDEN2 = 32
 
 
+# Plane index for each FEN piece letter -- 6 white piece types, then the same 6 for black.
+_PLANE_FOR_LETTER = {
+    "P": 0, "N": 1, "B": 2, "R": 3, "Q": 4, "K": 5,
+    "p": 6, "n": 7, "b": 8, "r": 9, "q": 10, "k": 11,
+}
+
+
 def fen_to_features(fen: str) -> np.ndarray:
-    board = chess.Board(fen)
+    """Parses just the FEN's piece-placement field directly, without constructing a
+    chess.Board (which also parses castling rights, en passant, move counters -- none of
+    which this needs). At 1M+ rows, avoiding a full Board() per position is a real, measured
+    win over the board.pieces()-based version this replaced."""
     features = np.zeros(INPUT_SIZE, dtype=np.float32)
-    for plane, (piece_type, color) in enumerate(PIECE_ORDER):
-        for square in board.pieces(piece_type, color):
-            features[plane * 64 + square] = 1.0
+    placement = fen.split(" ", 1)[0]
+    rank = 7
+    file = 0
+    for ch in placement:
+        if ch == "/":
+            rank -= 1
+            file = 0
+        elif ch.isdigit():
+            file += int(ch)
+        else:
+            square = rank * 8 + file
+            features[_PLANE_FOR_LETTER[ch] * 64 + square] = 1.0
+            file += 1
     return features
 
 
