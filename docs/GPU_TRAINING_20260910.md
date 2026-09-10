@@ -170,7 +170,12 @@ controller stopped both counter and CPU-time progress outside turns.
 
 `data/runs/first75-a.jsonl` and `first75-b.jsonl` contain complete game/PGN/log records.
 Failed or void games now abort version/SPRT scoring instead of being counted as
-draws. Results are pending; no network has been promoted or committed as an asset.
+draws. The completed screen scored +8 =10 -2 (65%), with ten checkmates and ten
+threefold repetitions. Full PGNs replay legally. There were zero candidate runtime
+error/fallback markers and no crash, illegal, flag or void outcome. One baseline
+log contained a partial ponder-thread exception after its final move before mate;
+this diagnostic is retained explicitly in `first75-summary.json`. No network has
+been promoted or committed as an asset.
 
 ## Continued training and rejected bounded experiment
 
@@ -186,3 +191,43 @@ The isolated `no-ponder-trial` passed its gate but failed the Lucena regression 
 threefold repetition. It was rejected at that screen. Its patch remains isolated;
 the original baseline is untouched. No claim is made that disabling pondering is
 safe simply because the live platform suspends opponent-time work.
+
+## Terminal ponder diagnosis and wider testing
+
+The diagnostic above was reproduced from the exact recorded position: after
+`d1c2 d2d1q#`, the old worker called `search_root` with no legal moves and raised
+`IndexError: list index out of range`. The candidate now checks whether the
+predicted reply ends the game before starting a worker. The reproduction test
+proves that terminal predictions do not start a thread while ordinary predictions
+still do. This is a bounded guard, not the rejected broad removal of pondering.
+
+Match evidence now records exact root-source/book/Syzygy/network hashes, refuses
+existing log paths, checks that builds remain unchanged, measures subprocess peak
+working sets, replays PGNs, rejects failed outcomes and runtime fallback markers,
+and requires unique completed opening/colour pairs. Only the narrowly reproduced
+baseline terminal-prediction diagnostic is retained with an explicit qualification;
+candidate exceptions and unexplained opponent errors remain disqualifying.
+
+An additional 100-opening pool was selected before seeing its match outcomes,
+using seed 20260910, square-root-weight sampling from the original existing book,
+and the original classical evaluator at depth 4 to reject |score| >125 cp. All
+positions are distinct and retain at least 26 pieces, drawn evenly from ten opening
+families. This is our local pool, not the platform's undisclosed opening set.
+Command: `python -m tools.make_opening_suite --baseline ../baseline-05046b2
+--out data/runs/openings-20260910.json --count 100`. Pool SHA-256:
+`9a99073e107677f0fbef76759c4dcc449b60c29672c5b028d1ffa64d1167fe47`.
+
+The 128-wide anneal completed two full additional epochs (297,094,242 presentations,
+37,212 steps) in 600.240 seconds, with best validation MSE 0.01065746171.
+Checkpoint SHA-256: `85fe3648e14711f989b85bc590499cbe6b12e5a8aa39262ac0c81cf877234e0a`.
+Float SHA-256: `045f8db4f39e92dc1f146d3caf5f42c96d7845a2fdcafb9320e5d420ecd1565e`.
+Integer asset: 6,942,764 bytes, SHA-256
+`3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2`.
+Its 10,000-position check had zero integer/reference or board-path mismatches;
+mean absolute error 5.250 cp, p99 19.344 cp, maximum 41.234 cp. Subset probability
+MSE was 0.00941733 float versus 0.00941929 quantized. It awaits real matches.
+
+A separate random-initialization width-64 run (seed 20260912, batch 8192, initial
+LR 0.0005, four epochs maximum, patience eight, validation every 20M rows) explores
+the measured CPU and book-space tradeoff. Its outputs stay separate in
+`data/runs/full-64`; it is not substituted into any live tested build.

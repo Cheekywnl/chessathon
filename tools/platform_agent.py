@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
-from harness.sandbox import RUNNER, Agent
+from harness.sandbox import RUNNER, Agent, AgentFailure
 
 
 class SuspendedAgent(Agent):
@@ -22,11 +23,24 @@ class SuspendedAgent(Agent):
         self.cpu = cpu
         self.control: Any = None
         self.controls: list[Any] = []
+        self.init_seconds = 0.0
+        self.peak_rss_bytes = 0
+        self.moves_returned = 0
+
+    def _measure_memory(self) -> None:
+        if self.control is not None:
+            memory = self.control.memory_info()
+            self.peak_rss_bytes = max(self.peak_rss_bytes,
+                                      int(getattr(memory, "peak_wset", memory.rss)))
+            if self.peak_rss_bytes > 2_000_000_000:
+                raise AgentFailure("crash")
 
     def start(self, init_budget_s: float) -> None:
         import psutil  # type: ignore[import-untyped]
 
+        started = time.monotonic()
         super().start(init_budget_s)
+        self.init_seconds = time.monotonic() - started
         assert self._process is not None
         root = psutil.Process(self._process.pid)
         # A Windows venv python.exe can be a launcher with a child interpreter.
@@ -38,6 +52,7 @@ class SuspendedAgent(Agent):
                 raise RuntimeError("agent did not inherit the controller's one-core affinity")
         for process in reversed(self.controls):
             process.suspend()
+        self._measure_memory()
 
     def move(self, fen: str, time_left_ms: int) -> str:
         if self.control is None:
@@ -45,7 +60,10 @@ class SuspendedAgent(Agent):
         for process in self.controls:
             process.resume()
         try:
-            return super().move(fen, time_left_ms)
+            reply = super().move(fen, time_left_ms)
+            self.moves_returned += 1
+            self._measure_memory()
+            return reply
         finally:
             if self._process is not None and self._process.poll() is None:
                 for process in reversed(self.controls):

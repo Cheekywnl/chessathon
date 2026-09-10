@@ -36,6 +36,7 @@ import chess
 from harness.referee import FAILED_TERMINATIONS, play_match
 from harness.rules import PLY_CAP
 from harness.sandbox import Agent, local
+from tools.match_evidence import audit_runtime_logs, build_manifest
 from tools.platform_agent import local as platform_local
 
 FAST_BASE_MS = 20_000
@@ -67,6 +68,25 @@ def _fen_for(moves: list[str]) -> str:
     return board.fen()
 
 
+def load_opening_file(path: Path) -> list[tuple[str, str]]:
+    """Validate a preselected opening suite, including its recorded legal move lines."""
+    data = json.loads(path.read_text(encoding="utf8"))
+    result = []
+    seen = set()
+    for entry in data["positions"]:
+        board = chess.Board()
+        for uci in entry["uci_line"]:
+            board.push_uci(uci)
+        assert board.fen() == entry["fen"]
+        assert board.is_valid() and not board.is_game_over(claim_draw=True)
+        key = " ".join(board.fen().split()[:4])
+        assert key not in seen, "duplicate opening position"
+        seen.add(key)
+        result.append((entry["name"], entry["fen"]))
+    assert len(result) == data["count"] and result
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Score one agent directory against another across diverse openings."
@@ -80,6 +100,9 @@ def main() -> None:
                         help="Pin to this core and suspend each agent outside its turn")
     parser.add_argument("--engine-python", help="Pinned CPU interpreter for platform subprocesses")
     parser.add_argument("--jsonl", type=Path, help="Write exact game records and PGNs")
+    parser.add_argument("--opening-file", type=Path, help="Preselected generated opening suite")
+    parser.add_argument("--opening-start", type=int, default=0)
+    parser.add_argument("--opening-count", type=int)
     parser.add_argument(
         "--openings",
         nargs="+",
@@ -88,6 +111,15 @@ def main() -> None:
         help="Which named openings to play (default: all).",
     )
     arguments = parser.parse_args()
+    if arguments.jsonl and arguments.jsonl.exists():
+        raise FileExistsError("use a fresh game log; existing evidence must not be appended")
+    openings = (load_opening_file(arguments.opening_file) if arguments.opening_file else
+                [(name, _fen_for(OPENING_LINES[name])) for name in arguments.openings])
+    end = (arguments.opening_start + arguments.opening_count
+           if arguments.opening_count is not None else None)
+    openings = openings[arguments.opening_start:end]
+    if not openings:
+        raise ValueError("empty opening selection")
 
     factory: Callable[[Path], Agent] = local
     if arguments.platform_cpu is not None:
@@ -96,13 +128,18 @@ def main() -> None:
 
     agent = arguments.agent.resolve()
     opponent = arguments.opponent.resolve()
+    manifests = {"agent": build_manifest(agent), "opponent": build_manifest(opponent)}
+    if arguments.jsonl:
+        arguments.jsonl.parent.mkdir(parents=True, exist_ok=True)
+        arguments.jsonl.with_suffix(".builds.json").write_text(
+            json.dumps(manifests, indent=2), encoding="utf8",
+        )
     wins = draws = losses = 0
     terminations: dict[str, int] = {}
-    games = len(arguments.openings) * 2
+    games = len(openings) * 2
 
     game_num = 0
-    for name in arguments.openings:
-        fen = _fen_for(OPENING_LINES[name])
+    for name, fen in openings:
         for agent_plays_white in (True, False):
             game_num += 1
             white, black = (agent, opponent) if agent_plays_white else (opponent, agent)
@@ -126,10 +163,26 @@ def main() -> None:
                                           "result": outcome.result,
                                           "termination": outcome.termination, "pgn": outcome.pgn,
                                           "white_log": white_process.stderr_tail,
-                                          "black_log": black_process.stderr_tail}) + "\n")
+                                          "black_log": black_process.stderr_tail,
+                                          "white_peak_rss": getattr(
+                                              white_process, "peak_rss_bytes", None),
+                                          "black_peak_rss": getattr(
+                                              black_process, "peak_rss_bytes", None),
+                                          "white_init_seconds": getattr(
+                                              white_process, "init_seconds", None),
+                                          "black_init_seconds": getattr(
+                                              black_process, "init_seconds", None)
+                                          }) + "\n")
             if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
                 print(white_process.stderr_tail, black_process.stderr_tail)
                 raise SystemExit(f"Invalid strength test: game {game_num} {outcome.termination}")
+            notes = audit_runtime_logs({"agent_white": agent_plays_white,
+                                        "result": outcome.result,
+                                        "termination": outcome.termination, "pgn": outcome.pgn,
+                                        "white_log": white_process.stderr_tail,
+                                        "black_log": black_process.stderr_tail})
+            if notes:
+                print(f"game {game_num} baseline diagnostic: {notes}", flush=True)
             if outcome.result == "draw":
                 draws += 1
             elif (outcome.result == "white") == agent_plays_white:
@@ -143,8 +196,10 @@ def main() -> None:
                 flush=True,
             )
 
+    assert build_manifest(agent) == manifests["agent"], "candidate changed during match"
+    assert build_manifest(opponent) == manifests["opponent"], "opponent changed during match"
     score = (wins + draws / 2) / games
-    n_openings = len(arguments.openings)
+    n_openings = len(openings)
     print(f"\n{arguments.agent} vs {arguments.opponent} over {games} games, {n_openings} openings")
     print(f"+{wins} ={draws} -{losses}, score {score:.1%}")
     print("terminations: " + ", ".join(f"{n} {c}" for n, c in terminations.items()))
