@@ -1,0 +1,8 @@
+game 1/4 [20260914_134_french, agent=white]: white by checkmate
+game 2/4 [20260914_134_french, agent=black]: draw by threefold_repetition
+game 3/4 [20260914_135_caro_kann, agent=white]: draw by threefold_repetition
+game 4/4 [20260914_135_caro_kann, agent=black]: draw by threefold_repetition
+
+. vs ..\halfkp-release over 4 games, 2 openings
++1 =3 -0, score 62.5%
+terminations: checkmate 1, threefold_repetition 3

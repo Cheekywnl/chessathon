@@ -1,0 +1,43 @@
+{
+  "games": 24,
+  "openings": 12,
+  "clock_ms": [
+    20000,
+    300
+  ],
+  "wins": 5,
+  "draws": 13,
+  "losses": 6,
+  "score": 0.4791666666666667,
+  "terminations": {
+    "threefold_repetition": 13,
+    "checkmate": 11
+  },
+  "pair_score_counts": {
+    "0.5": 4,
+    "1.5": 5,
+    "1.0": 2,
+    "0.0": 1
+  },
+  "log_sha256": {
+    "data\\runs\\draw100-quick-a.jsonl": "babee250b0f28b62c12d36e3bd1900a9994daa7e79f777c7ecf4fa246ee970aa",
+    "data\\runs\\draw100-quick-b.jsonl": "ed34b959d7f0f9b08d4df6199dcfaee23af30e2864dc80026279015299ef87db",
+    "data\\runs\\draw100-quick-c.jsonl": "70449f423ae45cccdc34adb2461e3e6345ccc348f8eea36f67dd65f6e25216fa",
+    "data\\runs\\draw100-quick-d.jsonl": "adc837608b500ba95eb1aec80baec846cb11a5a3f2a37bfeaf0b3a1885d2e8b0",
+    "data\\runs\\draw100-quick-e.jsonl": "02ce91a86bbf27f8a63dedbab5d2df695a582e799d8be7a137c8d8fe6e44277b",
+    "data\\runs\\draw100-quick-f.jsonl": "d6a9e950b9a54e0377c6b7cb2d2e72c552b55fb31fb73d9911739630f16110c1"
+  },
+  "fingerprinted_logs": 6,
+  "runtime_fingerprints": [
+    [
+      "df7608b9f3779aa645cf7b2c20c38acb3d5cef44ebff78af053cc7f550f6fc57",
+      "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 242761728,
+  "maximum_recorded_init_seconds": 14.81199999999808,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

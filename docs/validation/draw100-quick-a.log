@@ -1,0 +1,8 @@
+game 1/4 [20260914_130_startpos, agent=white]: draw by threefold_repetition
+game 2/4 [20260914_130_startpos, agent=black]: white by checkmate
+game 3/4 [20260914_131_italian, agent=white]: draw by threefold_repetition
+game 4/4 [20260914_131_italian, agent=black]: black by checkmate
+
+. vs ..\halfkp-release over 4 games, 2 openings
++1 =2 -1, score 50.0%
+terminations: threefold_repetition 2, checkmate 2
