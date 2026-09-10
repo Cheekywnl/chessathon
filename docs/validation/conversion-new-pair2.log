@@ -1,0 +1,39 @@
+move=d4d5 depth=8 score=484 nodes=66560 ms=2031 time_left_ms=20000
+move=g2f1 depth=7 score=422 nodes=26868 ms=1125 time_left_ms=20000
+move=f2f4 depth=10 score=165 nodes=49450 ms=1265 time_left_ms=20000
+move=e5f5 depth=12 score=269 nodes=53460 ms=1359 time_left_ms=20000
+move=f1f2 depth=14 score=315 nodes=56102 ms=1344 time_left_ms=20000
+move=f2f3 depth=13 score=327 nodes=83968 ms=2031 time_left_ms=20000
+move=h2h3 source=tablebase
+move=f3e3 source=tablebase
+move=e3d4 source=tablebase
+move=d4e5 source=tablebase
+move=h3h4 source=tablebase
+move=e5f6 source=tablebase
+move=f6g5 source=tablebase
+move=g5h5 source=tablebase
+move=g3g4 source=tablebase
+move=g4g5 source=tablebase
+move=g5g6 source=tablebase
+move=g6g7 source=tablebase
+move=h5h6 source=tablebase
+move=h4h5 source=tablebase
+move=h6h7 source=tablebase
+move=g7g8q source=tablebase
+move=h5h6 source=tablebase
+move=h7h8 source=tablebase
+move=h6h7 source=tablebase
+move=g8f8 source=tablebase
+move=h8g8 source=tablebase
+move=h7h8q source=tablebase
+move=h8h7 source=tablebase
+move=h7d3 source=tablebase
+move=g8h7 source=tablebase
+move=h7g6 source=tablebase
+move=f8b4 source=tablebase
+move=b4c4 source=tablebase
+move=g6f6 source=tablebase
+move=c4c5 source=tablebase
+move=f6e6 source=tablebase
+move=c5c8 source=tablebase
+{"root": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-neural100", "pair": 2, "start_fen": "8/5r2/6k1/4R2p/3P2p1/6P1/5PKP/8 w - - 14 49", "prior_history_plies": 82, "new_plies": 75, "result": "1-0", "termination": "CHECKMATE", "seconds": 38.01499999999942, "final_fen": "2Q1k3/8/4K3/8/8/8/8/8 b - - 15 86", "limitations": "Known development cases selected from earlier draw diagnosis. Fresh caches, preserved full game history, background activity disabled, plain classical search opponent at 0.8 s/move and candidate get_move with a fixed 20000 ms input. These are conversion diagnostics, not fair-clock A/B games, independent validation, or Elo evidence."}

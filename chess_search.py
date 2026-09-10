@@ -59,7 +59,7 @@ CONTEMPT = 20
 
 # Candidate blend, promoted only with a validated weight asset and real A/B evidence.
 # An absent or malformed asset retains the classical evaluator exactly.
-HALFKP_BLEND = 75
+HALFKP_BLEND = 100
 HALFKP_MIN_PIECES = 8
 HALFKP_WEIGHTS: halfkp.QuantizedWeights | None = None
 _halfkp_path = Path(__file__).resolve().parent / "weights" / "halfkp.npz"

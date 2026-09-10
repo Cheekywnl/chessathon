@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\draw-neural100\tools\halfkp_integration_check.py", line 109, in <module>
+    main()
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\draw-neural100\tools\halfkp_integration_check.py", line 32, in main
+    import psutil  # type: ignore[import-untyped]
+    ^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'psutil'

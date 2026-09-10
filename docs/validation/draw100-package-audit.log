@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-neural100\\submission.zip",
+  "sha256": "e5ae96ae1ff4338fec11af8039e5607e3d8475ba0e5b360ef9c4967cdaba10c5",
+  "unzipped_bytes": 49470039,
+  "file_count": 107,
+  "integer_network": true,
+  "init_seconds": 12.775287300002674,
+  "peak_rss_bytes": 227225600,
+  "cpu_affinity": [
+    2
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.0010030999983428046
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "h2h3",
+      "seconds": 0.22857410000142409
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.04566239999985555
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

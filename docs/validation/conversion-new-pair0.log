@@ -1,0 +1,17 @@
+move=f6f4 depth=7 score=987 nodes=42507 ms=1234 time_left_ms=20000
+move=a3b2 depth=9 score=1088 nodes=41868 ms=1641 time_left_ms=20000
+move=f4f3 depth=8 score=1012 nodes=44893 ms=1703 time_left_ms=20000
+move=f3f6 depth=8 score=1012 nodes=30459 ms=1172 time_left_ms=20000
+move=h2h1 depth=8 score=1052 nodes=55296 ms=2031 time_left_ms=20000
+move=b2a3 depth=9 score=1044 nodes=55205 ms=1922 time_left_ms=20000
+move=a3b4 depth=9 score=1210 nodes=55720 ms=1937 time_left_ms=20000
+move=b4c3 depth=10 score=1216 nodes=52306 ms=1781 time_left_ms=20000
+move=f6f3 depth=10 score=1216 nodes=51103 ms=1812 time_left_ms=20000
+move=f3f8 depth=8 score=1367 nodes=38050 ms=1344 time_left_ms=20000
+move=h4g5 depth=8 score=31989 nodes=26148 ms=859 time_left_ms=20000
+move=f8h8 depth=1 score=31991 nodes=38 ms=0 time_left_ms=20000
+move=h8g7 depth=1 score=31993 nodes=27 ms=0 time_left_ms=20000
+move=g7f6 depth=1 score=31995 nodes=28 ms=0 time_left_ms=20000
+move=f2f3 depth=1 score=31997 nodes=45 ms=0 time_left_ms=20000
+move=c3e1 depth=1 score=31999 nodes=62 ms=0 time_left_ms=20000
+{"root": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-neural100", "pair": 0, "start_fen": "4b1r1/4P2k/5Qp1/7p/p6P/B7/5PPK/8 w - - 3 45", "prior_history_plies": 70, "new_plies": 31, "result": "1-0", "termination": "CHECKMATE", "seconds": 25.73400000000038, "final_fen": "4b3/4P3/5Q2/6rp/7k/5P2/6P1/4B2K b - - 2 60", "limitations": "Known development cases selected from earlier draw diagnosis. Fresh caches, preserved full game history, background activity disabled, plain classical search opponent at 0.8 s/move and candidate get_move with a fixed 20000 ms input. These are conversion diagnostics, not fair-clock A/B games, independent validation, or Elo evidence."}

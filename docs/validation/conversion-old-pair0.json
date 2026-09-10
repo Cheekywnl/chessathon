@@ -1,0 +1,19 @@
+{
+  "root": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-release",
+  "pair": 0,
+  "start_fen": "4b1r1/4P2k/5Qp1/7p/p6P/B7/5PPK/8 w - - 3 45",
+  "prior_history_plies": 70,
+  "new_plies": 4,
+  "moves": [
+    "a3b2",
+    "h7h6",
+    "h2h1",
+    "h6h7"
+  ],
+  "result": "1/2-1/2",
+  "termination": "THREEFOLD_REPETITION",
+  "seconds": 4.953000000001339,
+  "final_fen": "4b1r1/4P2k/5Qp1/7p/p6P/8/1B3PP1/7K w - - 7 47",
+  "pgn_including_prior_history": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n[FEN \"r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10\"]\n[SetUp \"1\"]\n\n10. Be2 h5 11. O-O a5 12. b5 Ne7 13. Qc2 b6 14. Rad1 Qc7 15. Bd3 Bd7 16. e4 Ng4 17. h3 Nh2 18. e5 Nxf3+ 19. Nxf3 Bc5 20. Ng5 Rac8 21. Bh7+ Kh8 22. Qe2 g6 23. cxd5 Nxd5 24. Rxd5 exd5 25. e6+ d4 26. Re1 Be8 27. e7 Rg8 28. Bxg6 fxg6 29. Qf3 Qd6 30. Re6 Qxe6 31. Nxe6 Bxb5 32. Nxd4 Be8 33. Qb7 Bxa3 34. Bxa3 Rc3 35. Bb2 Rd3 36. Nf3+ Kh7 37. Qxb6 Rd1+ 38. Kh2 Rd5 39. Qe3 Bd7 40. Ng5+ Rxg5 41. Qxg5 a4 42. Qf6 Be8 43. h4 Kh6 44. Ba3 Kh7 45. Bb2 Kh6 46. Kh1 Kh7 *",
+  "limitations": "Known development cases selected from earlier draw diagnosis. Fresh caches, preserved full game history, background activity disabled, plain classical search opponent at 0.8 s/move and candidate get_move with a fixed 20000 ms input. These are conversion diagnostics, not fair-clock A/B games, independent validation, or Elo evidence."
+}
