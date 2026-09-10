@@ -38,6 +38,7 @@ files = [
     "agent.py",
     "chess_eval.py",
     "chess_nnue.py",
+    "chess_nnue_halfkp.py",
     "chess_search.py",
     "chess_movegen.py",
     "chess_state.py",
