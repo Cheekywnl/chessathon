@@ -25,12 +25,13 @@ def main() -> None:
     parser.add_argument("--weights", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--depth", type=int, default=5)
+    parser.add_argument("--cpu", type=int, default=4)
     parser.add_argument("--compare-search", type=Path,
                         help="Prior search module for exact move/score/node equivalence")
     args = parser.parse_args()
     import psutil  # type: ignore[import-untyped]
 
-    psutil.Process().cpu_affinity([4])
+    psutil.Process().cpu_affinity([args.cpu])
     weights = qi.load_weights(args.weights)
     qi.warm_up(weights)
     search = cs.Search(cs.TranspositionTable(16), {})
@@ -97,7 +98,7 @@ def main() -> None:
                         "seconds": elapsed, "nodes_per_second": nodes / elapsed})
     output = {"endgame_fallback_comparisons": len(endgames) * 4,
               "zero_blend_matches_classical": len(boards), "book_move_20_21_boundary": True,
-              "cpu_affinity": [4], "depth": args.depth, "search": results,
+              "cpu_affinity": [args.cpu], "depth": args.depth, "search": results,
               "prior_move_score_node_comparisons": 30 if before is not None else 0,
               "weights": str(args.weights), "playing_strength_validated": False}
     args.out.write_text(json.dumps(output, indent=2), encoding="utf8")

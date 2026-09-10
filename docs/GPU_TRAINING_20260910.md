@@ -231,3 +231,55 @@ A separate random-initialization width-64 run (seed 20260912, batch 8192, initia
 LR 0.0005, four epochs maximum, patience eight, validation every 20M rows) explores
 the measured CPU and book-space tradeoff. Its outputs stay separate in
 `data/runs/full-64`; it is not substituted into any live tested build.
+
+## Wider models and promotion test design
+
+The 128-wide annealed asset separately passed the gate, Lucena, 10k quantized
+reference, one-core integration and actual extracted-package checks. WAC: 228/300
+at 1 second per position. Its isolated worktree is `halfkp-anneal-128`; it is now
+playing a fresh 20-game 20s+0.3s screen against the original baseline. The first
+asset continues its independent forty-game 120s+0.5s test in `halfkp-trial`, on
+opening-pool entries 0 through 19. Both use source commit `2596a86` and distinct,
+uncommitted weight assets. Their live runtime files remain frozen.
+
+The width-64 model completed four full passes (594,188,484 presentations, 74,424
+steps) in 1,084.811 seconds, with best held-out probability MSE 0.01113301740.
+Checkpoint SHA-256: `ef8f4b729acb661a64ad65636a300b77480cd0457744c81573b2006304ed41b2`.
+Float SHA-256: `a170e6cb5bffe4dc2ae3f2d6625a8be5c7cdc6cd9b1ed7bbb20a6e2d19e2f1ee`.
+The first power-of-two quantization failed the existing error limits: MAE 15.255 cp,
+p99 42.361 cp. It was not shipped or tested as a strength candidate. Using the
+available int8 range instead (integer hidden scales 122 and 82, output scale
+0.22669325843) requires no inference code change and gave MAE 3.665 cp, p99 15.727 cp,
+maximum 27.418 cp, with zero integer/board-reference mismatches on 10k held-out
+positions. Probability MSE: float 0.01000552, integer 0.01002572.
+Accepted integer artifact: 3,334,402 bytes, SHA-256
+`ef794958bb77a239461f135fdc36e919f3b7c625aa50a203dd0ae6f8485be8f6`.
+
+The width-64 candidate retains the highest-weight entry for every original book
+key (14,737,600 bytes; no key coverage loss), and all Syzygy assets. Its package
+is 48,092,037 bytes unzipped, SHA-256
+`15a541c6ac6b6acd31d2dae102f7f17ab39cbc7b9b73ae8388007671e892057b`.
+The extracted-package smoke imported in 10.423 seconds, peaked at 202,391,552 bytes,
+and returned legal moves. At depth 5 on ten fixed positions, it measured about
+25.1k NPS at blend 75 and 28.0k at blend 100 during other isolated-core jobs; timing
+and tactical screens remain distinct from playing strength.
+
+`tools/sprt_arena.py` now uses a pentanomial constrained maximum-likelihood ratio
+with each reversed-colour opening pair as one trial. It evaluates in preselected
+opening order even with multiple CPU workers, never repeats an opening as a new
+trial, stops only at a completed pair, and retains in-flight pairs. The statistical
+definition is [Van den Bergh's GSPRT note](https://cantate.be/Fishtest/GSPRT_approximation.pdf),
+equation 1.1; the code derives its one-dimensional Lagrange solve independently.
+No chess-engine code or weights were imported from statistical references.
+Explicit regularization is 0.001 count per score cell, with at least twenty pairs
+before a decision by default. Mathematical constraint/binary/symmetry checks and
+a four-game, two-worker real-protocol plumbing test passed; void rejection and
+actual process suspension were retested. This statistic does not establish a
+platform rating. For the final selected build, the planned fresh test bounds are
+logistic local Elo 0 versus 20, alpha=beta=0.05, up to 200 games. The selection
+screens will not be pooled into that test.
+
+The tools now subtract the starting FEN's existing plies from the live total cap
+without changing `harness/`. Earlier runs used the harness's cap of 600 additional
+plies; no completed screen game reached that cap. This distinction has no effect
+on their recorded checkmates and repetitions and remains documented explicitly.

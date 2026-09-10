@@ -12,7 +12,7 @@ import numpy as np
 from tools.halfkp_data import file_hash
 
 
-def quantize(source: Path, output: Path) -> dict[str, object]:
+def quantize(source: Path, output: Path, dense_scaling: str = "power2") -> dict[str, object]:
     if output.exists():
         raise ValueError(f"Refusing to overwrite weights: {output}")
     with np.load(source, allow_pickle=False) as data:
@@ -32,6 +32,10 @@ def quantize(source: Path, output: Path) -> dict[str, object]:
         weights = arrays[f"W{layer}"]
         maximum = max(float(np.abs(weights).max()), 1e-9)
         scale = 2.0 ** min(15, math.floor(math.log2(127 / maximum)))
+        if dense_scaling == "fullrange":
+            scale = min(32768.0, 127 / maximum)
+            if layer != 4:
+                scale = float(math.floor(scale))
         if layer != 4 and scale < 1:
             raise ValueError("hidden weight outside supported range")
         quantized = np.rint(weights * scale)
@@ -55,6 +59,7 @@ def quantize(source: Path, output: Path) -> dict[str, object]:
         "output": str(output.resolve()), "sha256": file_hash(output),
         "file_bytes": output.stat().st_size, "int16_accumulator_absolute_bound": bound,
         "weight_scales": scales, "width": int(w1.shape[1]),
+        "dense_scaling": dense_scaling,
         "playing_strength_validated": False,
     }
     output.with_suffix(".json").write_text(json.dumps(note, indent=2), encoding="utf8")
@@ -65,8 +70,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--float", dest="source", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--dense-scaling", choices=("power2", "fullrange"), default="power2")
     args = parser.parse_args()
-    print(json.dumps(quantize(args.source, args.out), indent=2))
+    print(json.dumps(quantize(args.source, args.out, args.dense_scaling), indent=2))
 
 
 if __name__ == "__main__":

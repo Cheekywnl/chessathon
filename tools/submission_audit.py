@@ -22,6 +22,7 @@ def main() -> None:
     parser.add_argument("--zip", dest="archive", type=Path, required=True)
     parser.add_argument("--engine-python", required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--cpu", type=int, default=2)
     args = parser.parse_args()
     with zipfile.ZipFile(args.archive) as archive:
         entries = archive.infolist()
@@ -52,7 +53,7 @@ def main() -> None:
         with tempfile.TemporaryDirectory(prefix="chess-zip-audit-") as temp:
             root = Path(temp)
             archive.extractall(root)
-            process = local(root, cpu=2, python=args.engine_python)
+            process = local(root, cpu=args.cpu, python=args.engine_python)
             assert isinstance(process, SuspendedAgent)
             try:
                 started = time.perf_counter()
@@ -81,7 +82,7 @@ def main() -> None:
     result = {"zip": str(args.archive.resolve()), "sha256": file_hash(args.archive),
               "unzipped_bytes": total, "file_count": len(names),
               "integer_network": integer_network, "init_seconds": init_seconds,
-              "peak_rss_bytes": peak_rss, "cpu_affinity": [2], "smoke_moves": moves,
+              "peak_rss_bytes": peak_rss, "cpu_affinity": [args.cpu], "smoke_moves": moves,
               "source_and_permitted_assets_only": True, "playing_strength_validated": False}
     args.out.write_text(json.dumps(result, indent=2), encoding="utf8")
     print(json.dumps(result, indent=2))

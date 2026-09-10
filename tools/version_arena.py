@@ -149,7 +149,8 @@ def main() -> None:
                 black_process,
                 arguments.base_ms,
                 arguments.increment_ms,
-                ply_cap=arguments.ply_cap,
+                # The live cap includes plies already present in the starting FEN.
+                ply_cap=max(1, arguments.ply_cap - chess.Board(fen).ply()),
                 start_fen=fen,
             )
             terminations[outcome.termination] = terminations.get(outcome.termination, 0) + 1

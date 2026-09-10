@@ -1,0 +1,91 @@
+"""Pentanomial GSPRT likelihood for reversed-colour game pairs.
+
+Independent trial = one opening with both colours, with average score in
+{0, .25, .5, .75, 1}. Constrained multinomial maximum likelihood follows the
+definition in Michel Van den Bergh, A Practical Introduction to the GSPRT,
+https://cantate.be/Fishtest/GSPRT_approximation.pdf, equation 1.1.
+This local testing statistic cannot establish a competition platform rating.
+"""
+
+from __future__ import annotations
+
+import math
+
+
+def elo_to_score(elo: float) -> float:
+    return 1 / (1 + 10 ** (-elo / 400))
+
+
+def constrained_probabilities(
+    counts: list[float], support: list[float], mean: float,
+) -> list[float]:
+    """Solve q_i = f_i / (1 + lambda*(x_i-mean)) by monotone bisection.
+
+    The likelihood optimum has this form from the normalization and mean
+    Lagrange constraints. Positive counts keep the optimum inside the simplex.
+    """
+    if len(counts) != len(support) or not all(count > 0 for count in counts):
+        raise ValueError("need a positive count for each support point")
+    if not min(support) < mean < max(support):
+        raise ValueError("mean must lie inside support")
+    total = sum(counts)
+    frequencies = [count / total for count in counts]
+    deviations = [point - mean for point in support]
+    lower = -1 / max(deviations)
+    upper = -1 / min(deviations)
+    value = 0.0
+    for _ in range(100):
+        value = (lower + upper) / 2
+        constraint = sum(f * d / (1 + value * d)
+                         for f, d in zip(frequencies, deviations, strict=True))
+        if constraint > 0:
+            lower = value
+        else:
+            upper = value
+    probabilities = [f / (1 + value * d)
+                     for f, d in zip(frequencies, deviations, strict=True)]
+    assert abs(sum(probabilities) - 1) < 1e-8
+    assert abs(sum(p * x for p, x in zip(probabilities, support, strict=True)) - mean) < 1e-8
+    return probabilities
+
+
+def pair_llr(pair_scores: list[float], elo0: float, elo1: float) -> float:
+    if not pair_scores:
+        return 0.0
+    if any(score not in (0, 0.25, 0.5, 0.75, 1) for score in pair_scores):
+        raise ValueError("incomplete or invalid paired score")
+    # Explicit 0.001-count regularization avoids empty-cell boundary singularities.
+    counts = [pair_scores.count(index / 4) + 0.001 for index in range(5)]
+    support = [index / 4 for index in range(5)]
+    null = constrained_probabilities(counts, support, elo_to_score(elo0))
+    alternative = constrained_probabilities(counts, support, elo_to_score(elo1))
+    return sum(n * math.log(right / left)
+               for n, left, right in zip(counts, null, alternative, strict=True))
+
+
+def selfcheck() -> None:
+    # Two support points have a unique solution, independent of observed counts.
+    for mean in (0.1, 0.3, 0.5, 0.7, 0.9):
+        probabilities = constrained_probabilities([37, 63], [0, 1], mean)
+        assert abs(probabilities[0] - (1 - mean)) < 1e-12
+        assert abs(probabilities[1] - mean) < 1e-12
+    scores = [0, 0.25, 0.5, 0.75, 1] * 20
+    assert pair_llr(scores, 0, 0) == 0
+    positive = [0.5] * 20 + [0.75] * 30 + [1] * 20 + [0.25] * 10
+    assert pair_llr(positive, 0, 10) > 0
+    mirror = [1 - score for score in positive]
+    assert abs(pair_llr(positive, 0, 10) + pair_llr(mirror, -10, 0)) < 1e-9
+    assert math.isfinite(pair_llr([1] * 100, 0, 10))
+    assert math.isfinite(pair_llr([0.5] * 100, 0, 10))
+    # First-order approximation is independently calculated for a small interval.
+    lo, hi = elo_to_score(0), elo_to_score(0.1)
+    near_null = [*scores, 0.75, 0.75]
+    mean = sum(near_null) / len(near_null)
+    variance = sum((score - mean) ** 2 for score in near_null) / len(near_null)
+    approximation = len(near_null) * (hi - lo) / variance * (mean - (lo + hi) / 2)
+    assert abs(pair_llr(near_null, 0, 0.1) / approximation - 1) < 0.01
+    print("paired statistics: constraints, binary solution, symmetry and finite checks passed")
+
+
+if __name__ == "__main__":
+    selfcheck()

@@ -36,11 +36,12 @@ def get_move(fen, time_left_ms):
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine-python", required=True)
+    parser.add_argument("--cpu", type=int, default=2)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="chess-platform-check-") as temp:
         root = Path(temp)
         (root / "agent.py").write_text(BUSY_AGENT, encoding="utf8")
-        agent = local(root, cpu=2, python=args.engine_python)
+        agent = local(root, cpu=args.cpu, python=args.engine_python)
         assert isinstance(agent, SuspendedAgent)
         try:
             agent.start(10)
@@ -65,7 +66,7 @@ def main() -> None:
             assert after_move <= 0.016, after_move
             assert (root / "ticks.txt").read_text() == final_ticks
             affinity = agent.control.cpu_affinity()
-            assert affinity == [2]
+            assert affinity == [args.cpu]
         finally:
             agent.stop()
     for module in (version_arena, sprt_arena):

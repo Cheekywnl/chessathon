@@ -1,203 +1,194 @@
-"""SPRT (Sequential Probability Ratio Test) A/B arena -- the actual methodology real engine
-developers use to validate changes (fishtest, OpenBench, cutechess-cli all implement this),
-rather than committing to a fixed game count and eyeballing a confidence interval the way
-tools/version_arena.py's plain result does.
+"""Real-protocol, opening-paired GSPRT with optional independent CPU workers.
 
-Runs games one at a time between two agent directories (real subprocess protocol, same
-harness.referee.play_match / harness.sandbox.local primitives version_arena.py uses, and the
-same diverse-opening set so two deterministic engines still get real game-to-game variety) and
-recomputes a log-likelihood ratio after every game. Stops as soon as there's enough evidence to
-accept H1 (candidate is at least elo1 stronger than baseline) or H0 (candidate is not
-meaningfully better than elo0 -- typically 0, "no improvement"), rather than always playing a
-fixed number of games. A clearly bad or clearly good change is often decided in far fewer games
-than a fixed-N test would need; a genuinely close one correctly keeps running instead of
-resolving to a coin flip.
-
-Method: the GSPRT (generalized SPRT) normal approximation to the sequential likelihood ratio,
-the same one cutechess-cli and fishtest use (see Michel Van den Bergh's "the SPRT applied to
-chess engine testing", https://hardy.uhasselt.be/Toga/GSPRT_approximation.pdf). Per-game score
-x in {0, 0.5, 1}; t0/t1 are the expected scores implied by elo0/elo1 via the standard logistic
-Elo formula; after n games with sample mean s_bar and variance var:
-
-    LLR = n * (t1 - t0) / var * (s_bar - (t0 + t1) / 2)
-
-Stop and accept H1 when LLR >= ln((1-beta)/alpha); stop and accept H0 when
-LLR <= ln(beta/(1-alpha)). Default alpha = beta = 0.05 (standard 5% false-positive/negative rate).
-
-Usage:
-    uv run python -m tools.sprt_arena --agent . --opponent /path/to/baseline
-    uv run python -m tools.sprt_arena --agent . --opponent /path/to/baseline --elo0 0 --elo1 10
-    uv run python -m tools.sprt_arena --agent . --opponent . --selfcheck  # sanity: should
-        # reach H0 ("no difference") relatively quickly, since there is truly zero Elo gap
+Each opening is used once with each colour. Decisions use completed pairs in the
+preselected opening order, never whichever result finishes first. In-flight pairs
+finish and remain in the log after a boundary is reached. No repeated deterministic
+opening is counted as a new independent trial. See tools.paired_statistics for
+the constrained pentanomial likelihood and its mathematical reference.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import math
-from collections.abc import Callable
-from functools import partial
+from collections import Counter
+from concurrent.futures import Future, ProcessPoolExecutor
 from pathlib import Path
+from typing import Any
+
+import chess
 
 from harness.referee import FAILED_TERMINATIONS, play_match
 from harness.rules import PLY_CAP
-from harness.sandbox import Agent, local
+from harness.sandbox import local
+from tools.match_evidence import audit_runtime_logs, build_manifest
+from tools.paired_statistics import pair_llr
 from tools.platform_agent import local as platform_local
-from tools.version_arena import FAST_BASE_MS, FAST_INCREMENT_MS, OPENING_LINES, _fen_for
+from tools.version_arena import (
+    FAST_BASE_MS,
+    FAST_INCREMENT_MS,
+    OPENING_LINES,
+    _fen_for,
+    load_opening_file,
+)
 
 
-def elo_to_score(elo: float) -> float:
-    return 1.0 / (1.0 + math.pow(10.0, -elo / 400.0))
-
-
-# A real, short winning (or losing) streak gives zero empirical variance -- dividing by that
-# is undefined, but the streak itself is strong evidence, not "no evidence": returning 0 there
-# (as an early version of this did) is backwards, silently treating the most decisive possible
-# result as inconclusive. Flooring variance instead keeps the LLR large-but-finite in that case,
-# so a real streak still drives the test toward a correct, prompt conclusion. The floor matches
-# the natural variance of a heavily lopsided-but-not-literally-certain outcome (a ~90/10 coin),
-# not an arbitrary small number picked to force a particular answer.
-_MIN_VARIANCE = 0.09 * 0.91
-
-
-def compute_llr(results: list[float], elo0: float, elo1: float) -> float:
-    n = len(results)
-    if n < 2:
-        return 0.0
-    mean = sum(results) / n
-    var = max(sum((x - mean) ** 2 for x in results) / n, _MIN_VARIANCE)
-    t0 = elo_to_score(elo0)
-    t1 = elo_to_score(elo1)
-    return n * (t1 - t0) / var * (mean - (t0 + t1) / 2.0)
+def play_pair(job: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for agent_white in (True, False):
+        agent, opponent = Path(job["agent"]), Path(job["opponent"])
+        white, black = (agent, opponent) if agent_white else (opponent, agent)
+        if job["cpu"] is None:
+            wp, bp = local(white), local(black)
+        else:
+            wp = platform_local(white, cpu=job["cpu"], python=job["python"])
+            bp = platform_local(black, cpu=job["cpu"], python=job["python"])
+        outcome = play_match(wp, bp, job["base_ms"], job["increment_ms"],
+                             ply_cap=max(1, job["ply_cap"] - chess.Board(job["fen"]).ply()),
+                             start_fen=job["fen"])
+        row: dict[str, Any] = {"opening": job["name"], "pair_index": job["index"],
+               "agent_white": agent_white, "base_ms": job["base_ms"],
+               "increment_ms": job["increment_ms"], "result": outcome.result,
+               "termination": outcome.termination, "pgn": outcome.pgn,
+               "white_log": wp.stderr_tail, "black_log": bp.stderr_tail,
+               "white_peak_rss": getattr(wp, "peak_rss_bytes", None),
+               "black_peak_rss": getattr(bp, "peak_rss_bytes", None),
+               "white_init_seconds": getattr(wp, "init_seconds", None),
+               "black_init_seconds": getattr(bp, "init_seconds", None), "cpu": job["cpu"]}
+        rows.append(row)
+        if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
+            break
+        try:
+            row["diagnostics"] = audit_runtime_logs(row)
+        except ValueError as exc:
+            row["evidence_error"] = str(exc)
+            break
+    return rows
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="SPRT A/B test between two agent directories, stopping as soon as the "
-        "evidence supports accepting or rejecting the candidate."
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", type=Path, default=Path("."))
     parser.add_argument("--opponent", type=Path, required=True)
     parser.add_argument("--base-ms", type=int, default=FAST_BASE_MS)
     parser.add_argument("--increment-ms", type=int, default=FAST_INCREMENT_MS)
     parser.add_argument("--ply-cap", type=int, default=PLY_CAP)
-    parser.add_argument("--platform-cpu", type=int,
-                        help="Pin to this core and suspend each agent outside its turn")
-    parser.add_argument("--engine-python", help="Pinned CPU interpreter for platform subprocesses")
-    parser.add_argument("--elo0", type=float, default=0.0, help="H0: no better than this.")
-    parser.add_argument("--elo1", type=float, default=5.0, help="H1: at least this much better.")
-    parser.add_argument("--alpha", type=float, default=0.05, help="False-positive rate.")
-    parser.add_argument("--beta", type=float, default=0.05, help="False-negative rate.")
-    parser.add_argument(
-        "--max-games",
-        type=int,
-        default=400,
-        help="Safety cap -- report inconclusive rather than run forever if neither bound is hit.",
-    )
-    parser.add_argument(
-        "--selfcheck",
-        action="store_true",
-        help="Ignore --opponent's identity for interpretation purposes; just a labeled run "
-        "intended for --agent and --opponent pointing at the same build, as a sanity check "
-        "that the tool correctly finds no difference rather than a spurious one.",
-    )
-    arguments = parser.parse_args()
-
-    factory: Callable[[Path], Agent] = local
-    if arguments.platform_cpu is not None:
-        factory = partial(platform_local, cpu=arguments.platform_cpu,
-                          python=arguments.engine_python)
-
-    agent = arguments.agent.resolve()
-    opponent = arguments.opponent.resolve()
-    lower_bound = math.log(arguments.beta / (1 - arguments.alpha))
-    upper_bound = math.log((1 - arguments.beta) / arguments.alpha)
-
-    print(
-        f"SPRT: elo0={arguments.elo0} elo1={arguments.elo1} alpha={arguments.alpha} "
-        f"beta={arguments.beta} bounds=[{lower_bound:.3f}, {upper_bound:.3f}]"
-    )
-
-    results: list[float] = []
-    terminations: dict[str, int] = {}
-    opening_names = list(OPENING_LINES)
-    game_num = 0
-
-    while game_num < arguments.max_games:
-        for name in opening_names:
-            fen = _fen_for(OPENING_LINES[name])
-            for agent_plays_white in (True, False):
-                game_num += 1
-                white, black = (agent, opponent) if agent_plays_white else (opponent, agent)
-                white_process, black_process = factory(white), factory(black)
-                outcome = play_match(
-                    white_process,
-                    black_process,
-                    arguments.base_ms,
-                    arguments.increment_ms,
-                    ply_cap=arguments.ply_cap,
-                    start_fen=fen,
-                )
-                terminations[outcome.termination] = terminations.get(outcome.termination, 0) + 1
-
-                if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
-                    print(white_process.stderr_tail, black_process.stderr_tail)
-                    raise SystemExit(f"Invalid SPRT: game {game_num} {outcome.termination}")
-                if outcome.result == "draw":
-                    score = 0.5
-                elif (outcome.result == "white") == agent_plays_white:
-                    score = 1.0
-                else:
-                    score = 0.0
-                results.append(score)
-
-                llr = compute_llr(results, arguments.elo0, arguments.elo1)
-                mean = sum(results) / len(results)
-                side = "white" if agent_plays_white else "black"
-                print(
-                    f"game {game_num} [{name}, agent={side}]: {outcome.result} by "
-                    f"{outcome.termination} -- score {mean:.1%}, llr={llr:.3f}",
-                    flush=True,
-                )
-
-                if llr >= upper_bound:
-                    _report(
-                        results, terminations, llr, upper_bound,
-                        "H1 ACCEPTED -- candidate is stronger",
-                    )
-                    return
-                if llr <= lower_bound:
-                    _report(
-                        results, terminations, llr, lower_bound,
-                        "H0 ACCEPTED -- candidate is not distinguishable from the baseline "
-                        "at this bound (not necessarily identical, just not proven better)",
-                    )
-                    return
-                if game_num >= arguments.max_games:
-                    _report(results, terminations, llr, None, "INCONCLUSIVE -- max games reached")
-                    return
-
-
-def _report(
-    results: list[float],
-    terminations: dict[str, int],
-    llr: float,
-    bound: float | None,
-    verdict: str,
-) -> None:
-    n = len(results)
-    mean = sum(results) / n
-    bound_note = f" (bound {bound:.3f})" if bound is not None else ""
-    print(f"\n{verdict}")
-    print(f"{n} games, score {mean:.1%}, final llr={llr:.3f}{bound_note}")
-    print("terminations: " + ", ".join(f"{name} {count}" for name, count in terminations.items()))
-    broken = {name: count for name, count in terminations.items() if name in FAILED_TERMINATIONS}
-    if broken:
-        print(
-            "\nwarning: non-clean terminations present -- treat this result as a methodology "
-            "artifact, not a pure strength signal: "
-            + ", ".join(f"{k} {v}" for k, v in broken.items())
+    parser.add_argument("--platform-cpu", type=int)
+    parser.add_argument("--workers", nargs="+", type=int, help="Distinct CPUs, one game per CPU")
+    parser.add_argument("--engine-python")
+    parser.add_argument("--opening-file", type=Path)
+    parser.add_argument("--opening-start", type=int, default=0)
+    parser.add_argument("--max-games", type=int, default=400)
+    parser.add_argument("--min-pairs", type=int, default=20)
+    parser.add_argument("--elo0", type=float, default=0)
+    parser.add_argument("--elo1", type=float, default=5)
+    parser.add_argument("--alpha", type=float, default=0.05)
+    parser.add_argument("--beta", type=float, default=0.05)
+    parser.add_argument("--jsonl", type=Path)
+    parser.add_argument("--selfcheck", action="store_true", help="Label an identical-build run")
+    args = parser.parse_args()
+    if args.max_games < 2 or args.max_games % 2 or args.min_pairs < 2:
+        raise ValueError("positive whole colour pairs and at least two minimum pairs required")
+    if not (0 < args.alpha < 0.5 and 0 < args.beta < 0.5 and args.elo0 < args.elo1):
+        raise ValueError("invalid statistical bounds")
+    if args.workers and (args.platform_cpu is not None
+                         or len(set(args.workers)) != len(args.workers)):
+        raise ValueError("choose distinct worker CPUs or one platform CPU")
+    if args.jsonl and args.jsonl.exists():
+        raise FileExistsError("use a new evidence log")
+    openings = (load_opening_file(args.opening_file) if args.opening_file else
+                [(name, _fen_for(line)) for name, line in OPENING_LINES.items()])
+    openings = openings[args.opening_start:args.opening_start + args.max_games // 2]
+    if not openings:
+        raise ValueError("no unused opening positions")
+    cpus = args.workers or [args.platform_cpu]
+    agent, opponent = args.agent.resolve(), args.opponent.resolve()
+    manifests = {"agent": build_manifest(agent), "opponent": build_manifest(opponent)}
+    lower, upper = math.log(args.beta / (1 - args.alpha)), math.log((1 - args.beta) / args.alpha)
+    configuration = {"elo0": args.elo0, "elo1": args.elo1, "alpha": args.alpha,
+                     "beta": args.beta, "min_pairs": args.min_pairs, "cpus": cpus,
+                     "model": "pentanomial constrained MLE; 0.001 count per cell",
+                     "bounds": [lower, upper], "opening_order": [name for name, _fen in openings],
+                     "selfcheck": args.selfcheck, "builds": manifests}
+    if args.jsonl:
+        args.jsonl.parent.mkdir(parents=True, exist_ok=True)
+        args.jsonl.with_suffix(".builds.json").write_text(
+            json.dumps(configuration, indent=2), encoding="utf8",
         )
+    print(json.dumps({key: value for key, value in configuration.items()
+                      if key not in ("builds", "opening_order")}), flush=True)
+    scores: list[float] = []
+    pair_scores: list[float] = []
+    records: list[dict[str, Any]] = []
+    decision: dict[str, Any] | None = None
+    pending: dict[int, Future[list[dict[str, Any]]]] = {}
+    pool = ProcessPoolExecutor(max_workers=len(cpus)) if len(cpus) > 1 else None
+
+    def job(index: int, cpu: int | None) -> dict[str, Any]:
+        name, fen = openings[index]
+        return {"index": index, "name": name, "fen": fen, "cpu": cpu,
+                "agent": str(agent), "opponent": str(opponent), "python": args.engine_python,
+                "base_ms": args.base_ms, "increment_ms": args.increment_ms, "ply_cap": args.ply_cap}
+
+    try:
+        if pool:
+            for index in range(min(len(cpus), len(openings))):
+                pending[index] = pool.submit(play_pair, job(index, cpus[index]))
+        for index in range(len(openings)):
+            if pool:
+                if index not in pending:
+                    break
+                rows = pending.pop(index).result()
+            elif decision:
+                break
+            else:
+                rows = play_pair(job(index, cpus[0]))
+            for row in rows:
+                if args.jsonl:
+                    with args.jsonl.open("a", encoding="utf8") as stream:
+                        stream.write(json.dumps(row) + "\n")
+                records.append(row)
+                if (row["termination"] in FAILED_TERMINATIONS or row["result"] == "void"
+                        or "evidence_error" in row):
+                    raise SystemExit(f"Invalid SPRT: {row['opening']} {row['termination']} "
+                                     f"{row.get('evidence_error', '')}")
+                score = (0.5 if row["result"] == "draw" else
+                         float((row["result"] == "white") == row["agent_white"]))
+                scores.append(score)
+            assert len(rows) == 2
+            pair_scores.append(sum(scores[-2:]) / 2)
+            llr = pair_llr(pair_scores, args.elo0, args.elo1)
+            print(f"pair {index + 1}/{len(openings)} {openings[index][0]}: "
+                  f"{scores[-2:]}; +{scores.count(1)} ={scores.count(0.5)} -{scores.count(0)}; "
+                  f"LLR={llr:.4f}", flush=True)
+            if (decision is None and len(pair_scores) >= args.min_pairs
+                    and (llr >= upper or llr <= lower)):
+                decision = {"verdict": "H1 accepted" if llr >= upper else "H0 accepted",
+                            "pairs_at_boundary": len(pair_scores), "llr_at_boundary": llr}
+                print(json.dumps(decision), flush=True)
+            next_index = index + len(cpus)
+            if pool and decision is None and next_index < len(openings):
+                pending[next_index] = pool.submit(
+                    play_pair, job(next_index, cpus[index % len(cpus)]),
+                )
+    finally:
+        if pool:
+            pool.shutdown(wait=True, cancel_futures=True)
+        assert build_manifest(agent) == manifests["agent"], "candidate changed during test"
+        assert build_manifest(opponent) == manifests["opponent"], "opponent changed during test"
+    result = {"decision": decision or {"verdict": "inconclusive: opening/game cap"},
+              "games": len(scores), "pairs": len(pair_scores), "wins": scores.count(1),
+              "draws": scores.count(0.5), "losses": scores.count(0),
+              "score": sum(scores) / len(scores), "llr_including_inflight": llr,
+              "terminations": dict(Counter(row["termination"] for row in records)),
+              "configuration": configuration, "platform_elo_established": False}
+    if args.jsonl:
+        args.jsonl.with_suffix(".result.json").write_text(
+            json.dumps(result, indent=2), encoding="utf8",
+        )
+    print(json.dumps({key: value for key, value in result.items() if key != "configuration"}),
+          flush=True)
 
 
 if __name__ == "__main__":
