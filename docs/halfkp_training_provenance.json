@@ -1,0 +1,317 @@
+{
+  "network": "full-128-anneal",
+  "initial_run": {
+    "command": [
+      "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\cuda-env\\Scripts\\python.exe",
+      "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\tools\\train_halfkp_stream.py",
+      "--prepared",
+      "data\\full-cache",
+      "--out",
+      "data\\runs\\full-128",
+      "--epochs",
+      "3",
+      "--width",
+      "128",
+      "--batch-size",
+      "8192",
+      "--validate-every",
+      "10000000"
+    ],
+    "seed": 20260910,
+    "random_initialization": true,
+    "published_network_used": false,
+    "factorization": true,
+    "width": 128,
+    "architecture": "40960 shared FT, clipped dual perspective -> 32 -> 32 -> 1",
+    "source_manifest": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\full-cache\\manifest.json",
+    "source_manifest_sha256": "6d63c217336798ec31b4b881f938d4d274eecc587678fad202b3b48e58df22b3",
+    "torch": "2.5.1+cu121",
+    "numpy": "2.5.2",
+    "device": "cuda",
+    "batch_size": 8192,
+    "start_unix": 1789066033.533238,
+    "resources": {
+      "ram_available_gb": 8.066945024,
+      "system_ram_used_gb": 9.025671168,
+      "process_rss_gb": 0.586723328,
+      "cuda_allocated_gb": 0.021338624,
+      "cuda_reserved_gb": 0.023068672,
+      "nvidia_smi_util_used_total": "7, 1010, 8192"
+    },
+    "rows_trained": 180081830,
+    "steps": 22556,
+    "best_validation_mse": 0.01148086245415928,
+    "training_seconds": 375.8445683,
+    "checkpoint_sha256": "9b6f9f3c23e4a9b37b85595c8320422a8aa998031be5a87b6906edf97da96c57",
+    "float_weights_sha256": "2772c8656405de51e9ca89f2fcc3a874b46d3405769e1bf66e4b938a40e03d84"
+  },
+  "selected_continuation_run": {
+    "command": [
+      "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\cuda-env\\Scripts\\python.exe",
+      "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\tools\\train_halfkp_stream.py",
+      "--prepared",
+      "data\\full-cache",
+      "--out",
+      "data\\runs\\full-128-anneal",
+      "--epochs",
+      "2",
+      "--width",
+      "128",
+      "--batch-size",
+      "8192",
+      "--lr",
+      "0.0002",
+      "--validate-every",
+      "10000000",
+      "--patience",
+      "8",
+      "--resume",
+      "data\\runs\\full-128\\best_checkpoint.pt"
+    ],
+    "seed": 20260910,
+    "random_initialization": false,
+    "lineage_random_initialization": true,
+    "published_network_used": false,
+    "factorization": true,
+    "width": 128,
+    "architecture": "40960 shared FT, clipped dual perspective -> 32 -> 32 -> 1",
+    "source_manifest": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\full-cache\\manifest.json",
+    "source_manifest_sha256": "6d63c217336798ec31b4b881f938d4d274eecc587678fad202b3b48e58df22b3",
+    "torch": "2.5.1+cu121",
+    "numpy": "2.5.2",
+    "device": "cuda",
+    "batch_size": 8192,
+    "start_unix": 1789066874.0915565,
+    "resources": {
+      "ram_available_gb": 7.732527104,
+      "system_ram_used_gb": 9.360089088,
+      "process_rss_gb": 0.609050624,
+      "cuda_allocated_gb": 0.064015872,
+      "cuda_reserved_gb": 0.065011712,
+      "nvidia_smi_util_used_total": "1, 1127, 8192"
+    },
+    "parent_run": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\runs\\full-128\\run.json",
+    "parent_checkpoint_sha256": "9b6f9f3c23e4a9b37b85595c8320422a8aa998031be5a87b6906edf97da96c57",
+    "rows_trained": 297094242,
+    "steps": 37212,
+    "best_validation_mse": 0.010657461710659292,
+    "training_seconds": 600.2397831999997,
+    "checkpoint_sha256": "85fe3648e14711f989b85bc590499cbe6b12e5a8aa39262ac0c81cf877234e0a",
+    "float_weights_sha256": "045f8db4f39e92dc1f146d3caf5f42c96d7845a2fdcafb9320e5d420ecd1565e"
+  },
+  "quantization": {
+    "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\runs\\full-128-anneal\\best_float.npz",
+    "source_sha256": "045f8db4f39e92dc1f146d3caf5f42c96d7845a2fdcafb9320e5d420ecd1565e",
+    "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\halfkp-trial\\data\\runs\\full-128-anneal\\best_quantized.npz",
+    "sha256": "3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2",
+    "file_bytes": 6942764,
+    "int16_accumulator_absolute_bound": 15191,
+    "weight_scales": [
+      128.0,
+      128.0,
+      0.125
+    ],
+    "width": 128,
+    "playing_strength_validated": false
+  },
+  "quantization_reference_check": {
+    "positions": 10000,
+    "integer_reference_mismatches": 0,
+    "bitboard_inference_mismatches": 0,
+    "cpu_affinity": [
+      6
+    ],
+    "mean_abs_error_cp": 5.250025200547985,
+    "p99_abs_error_cp": 19.343552174287712,
+    "max_abs_error_cp": 41.233950985179234,
+    "float_probability_mse": 0.009417334858007208,
+    "quant_probability_mse": 0.009419292267449012,
+    "microseconds_per_call": {
+      "classical": [
+        9.065709999958926,
+        9.752865000018573
+      ],
+      "quantized": [
+        10.872319999998581,
+        10.14470000000074
+      ]
+    },
+    "checksum": -534000,
+    "playing_strength_validated": false
+  },
+  "prepared_manifest_sha256": "6d63c217336798ec31b4b881f938d4d274eecc587678fad202b3b48e58df22b3",
+  "source_accounting": {
+    "version": 1,
+    "record_bytes": 128,
+    "shard_rows": 250000,
+    "split": "blake2b(canonical first 4 FEN fields, digest_size=8, person=halfkp-split-v1), little-endian modulo 1000; <10 held out",
+    "labels": "cp: White-relative, sigmoid(stm_cp/400); WDL: White-result, complemented for Black to move",
+    "source": "https://database.lichess.org/#evals (CC0); team self-play where supplied",
+    "sources": [
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\lichess\\lichess_eval_large.csv",
+        "bytes": 9348699018,
+        "mtime_ns": 1789058906225028500,
+        "rows": 149988371,
+        "rows_seen": 150000000,
+        "header": [
+          "fen",
+          "depth",
+          "cp"
+        ],
+        "sha256": "6ce1108f70e3d14213fc1d0b41b024b5c3768a64e98247ab406562ba9d9650ec"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_0.csv",
+        "bytes": 86813,
+        "mtime_ns": 1789028284251371000,
+        "rows": 1442,
+        "rows_seen": 1442,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "c6a0027dff309e0b834ada6fba2d2ab3fcc88a722bd0483aa930ab571fe4b0ed"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_1.csv",
+        "bytes": 82824,
+        "mtime_ns": 1789028273072587200,
+        "rows": 1354,
+        "rows_seen": 1354,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "9e81a994ff1f960aa3d057bf7946c58a0d74f4e3ab4398abb2f445823925d4fb"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_2.csv",
+        "bytes": 87646,
+        "mtime_ns": 1789028274042599900,
+        "rows": 1417,
+        "rows_seen": 1417,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "c800b73fe6171c6c46a9eabd3d84d1355fc03a6ea18967e07a95cf7a3fa9b635"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_3.csv",
+        "bytes": 87586,
+        "mtime_ns": 1789028285179063300,
+        "rows": 1437,
+        "rows_seen": 1437,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "8e2adebbe3f303b345ab9ac11d95b2d70983df31347756447bb58f66221f57c7"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_4.csv",
+        "bytes": 88775,
+        "mtime_ns": 1789028274783178700,
+        "rows": 1424,
+        "rows_seen": 1424,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "0cd648326c78022ba50d6f0a5ecdfc80e1436e4afcb4ef7bd9cdfd2cf82055e3"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_5.csv",
+        "bytes": 88253,
+        "mtime_ns": 1789028282791247500,
+        "rows": 1413,
+        "rows_seen": 1413,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "2eb3a854e53410062eb7e0b26f92c507def4eb01d7db350e1c66e226d9d40133"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_6.csv",
+        "bytes": 746735,
+        "mtime_ns": 1789058450849858100,
+        "rows": 12159,
+        "rows_seen": 12159,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "848eef1a07b98d1c70e6a6c4dcf20d7f405fa47690906426da54d8d9f5c7cdc2"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_7.csv",
+        "bytes": 751503,
+        "mtime_ns": 1789058456607275700,
+        "rows": 12140,
+        "rows_seen": 12140,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "98e2b600970c1977660573c11cfb98a5ee2c1a92214f0b329307f52cf6c5fc90"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_8.csv",
+        "bytes": 740965,
+        "mtime_ns": 1789058440771905900,
+        "rows": 12060,
+        "rows_seen": 12060,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "1722cce706eff2ea9b1a75e8c29f474db1e6d84f924a157526f93bd8e5e10cd8"
+      },
+      {
+        "path": "C:\\Users\\cheek\\chessathon\\data\\selfplay_shards\\shard_9.csv",
+        "bytes": 741970,
+        "mtime_ns": 1789058455354038200,
+        "rows": 12081,
+        "rows_seen": 12081,
+        "header": [
+          "fen",
+          "mobility",
+          "result"
+        ],
+        "sha256": "99e38dee116af472f7b2ba6ec63232ee822371de7bba6dabb0acede962bd543b"
+      }
+    ],
+    "train": {
+      "entries": 601,
+      "detail": "See local full-cache/manifest.json with the hash above."
+    },
+    "validation": {
+      "entries": 601,
+      "detail": "See local full-cache/manifest.json with the hash above."
+    },
+    "rows": 150045298,
+    "train_rows": 148547121,
+    "validation_rows": 1498177,
+    "rejected_rows": 11629,
+    "rejection_reasons": {
+      "more than 30 non-king pieces": 11629
+    },
+    "complete": true,
+    "preparation_seconds": 1699.7707042000002,
+    "pilot_limit": null
+  },
+  "runtime_sha256": "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c",
+  "status": "selected; independent promotion test running",
+  "platform_elo_established": false
+}

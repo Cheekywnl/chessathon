@@ -366,3 +366,44 @@ its psutil dependency; every agent runs the unchanged competition CPU interprete
 The first 100 fresh opening pairs are eligible; boundaries are ±2.944438979.
 Completed pairs are evaluated in their preselected order. No promotion occurs
 until this evidence and the final artifact audit support it.
+
+## Release staging and repeated endgame audit
+
+The separate `halfkp-release` worktree starts from `88c48cd` and copies only the
+selected annealed integer network and capped book. Its runtime fingerprint is
+exactly the selected `d488f913...`, independently checked against every archive
+member. The staged zip is 49,462,799 bytes unzipped, with 537,201 bytes of headroom;
+all 96 original Syzygy files (29,874,560 bytes) are unchanged. New runtime files
+are `chess_halfkp_int.py` and `weights/halfkp.npz`; changed runtime files are
+`agent.py`, `chess_eval.py`, `chess_search.py` and `book/codekiddy.bin`. No runtime
+file is removed. The sole `pyproject.toml` change adds the integer module to mypy's
+file list; submission dependencies and `uv.lock` remain unchanged.
+
+The selected model's separate four-game 120s+0.5s clock check finished **+2 =2 -0**,
+two mates and two repetitions, with legal PGN replay and no runtime diagnostics.
+Maximum observed peak working set was 253,558,784 bytes; maximum init was 11.860s.
+Those four games are not included in the independent final SPRT.
+
+Windows processor-topology enumeration confirmed physical sibling pairs
+`[0,1], [2,3], [4,5], [6,7], [8,9], [10,11], [12,13], [14,15]`. Concurrent game
+CPUs 2, 4, 8, 10, 12 and 14 therefore use distinct physical cores. CPU 6 is used
+for release checks after the selected model's clock check completed.
+
+Release `make gate` passed ruff, strict mypy (44 source files), and two clean
+real-protocol mates. A subsequent one-core Lucena repeat drew by repetition,
+despite this exact selected build's earlier pass. This failure is retained in
+`data/runs/release-endgame.log`; it is not relabeled as a pass. The unchanged
+baseline's corresponding run passed. A diagnostic compared 21 legal low-material
+positions at depth 6: both engines matched exactly in move, score, node count and
+every ranked root score. Traced reruns of the original endgame procedure then
+converted Lucena to checkmate for both candidate and baseline, with full legal
+PGNs retained. The candidate trace took 57 plies. No engine policy was changed.
+This establishes timing sensitivity of the existing endgame screen, not a
+guarantee of conversion under every timing condition. The initial draw remains a
+reported limitation, alongside the passing runs and exact fixed-depth evidence.
+
+The standalone model card and compact training provenance now record the exact
+selected lineage, source accounting, training commands and quantization checks.
+The original data and float/optimizer checkpoints remain local; no weight has
+yet been committed or promoted. The final sequential test and release checks
+continue with frozen runtime assets.
