@@ -35,11 +35,14 @@ from __future__ import annotations
 
 import argparse
 import math
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 from harness.referee import FAILED_TERMINATIONS, play_match
 from harness.rules import PLY_CAP
-from harness.sandbox import local
+from harness.sandbox import Agent, local
+from tools.platform_agent import local as platform_local
 from tools.version_arena import FAST_BASE_MS, FAST_INCREMENT_MS, OPENING_LINES, _fen_for
 
 
@@ -78,6 +81,9 @@ def main() -> None:
     parser.add_argument("--base-ms", type=int, default=FAST_BASE_MS)
     parser.add_argument("--increment-ms", type=int, default=FAST_INCREMENT_MS)
     parser.add_argument("--ply-cap", type=int, default=PLY_CAP)
+    parser.add_argument("--platform-cpu", type=int,
+                        help="Pin to this core and suspend each agent outside its turn")
+    parser.add_argument("--engine-python", help="Pinned CPU interpreter for platform subprocesses")
     parser.add_argument("--elo0", type=float, default=0.0, help="H0: no better than this.")
     parser.add_argument("--elo1", type=float, default=5.0, help="H1: at least this much better.")
     parser.add_argument("--alpha", type=float, default=0.05, help="False-positive rate.")
@@ -96,6 +102,11 @@ def main() -> None:
         "that the tool correctly finds no difference rather than a spurious one.",
     )
     arguments = parser.parse_args()
+
+    factory: Callable[[Path], Agent] = local
+    if arguments.platform_cpu is not None:
+        factory = partial(platform_local, cpu=arguments.platform_cpu,
+                          python=arguments.engine_python)
 
     agent = arguments.agent.resolve()
     opponent = arguments.opponent.resolve()
@@ -118,9 +129,10 @@ def main() -> None:
             for agent_plays_white in (True, False):
                 game_num += 1
                 white, black = (agent, opponent) if agent_plays_white else (opponent, agent)
+                white_process, black_process = factory(white), factory(black)
                 outcome = play_match(
-                    local(white),
-                    local(black),
+                    white_process,
+                    black_process,
                     arguments.base_ms,
                     arguments.increment_ms,
                     ply_cap=arguments.ply_cap,
@@ -128,7 +140,10 @@ def main() -> None:
                 )
                 terminations[outcome.termination] = terminations.get(outcome.termination, 0) + 1
 
-                if outcome.result == "draw" or outcome.result == "void":
+                if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
+                    print(white_process.stderr_tail, black_process.stderr_tail)
+                    raise SystemExit(f"Invalid SPRT: game {game_num} {outcome.termination}")
+                if outcome.result == "draw":
                     score = 0.5
                 elif (outcome.result == "white") == agent_plays_white:
                     score = 1.0

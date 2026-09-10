@@ -39,6 +39,7 @@ files = [
     "chess_eval.py",
     "chess_nnue.py",
     "chess_nnue_halfkp.py",
+    "chess_halfkp_int.py",
     "chess_search.py",
     "chess_movegen.py",
     "chess_state.py",

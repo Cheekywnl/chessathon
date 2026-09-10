@@ -26,13 +26,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 import chess
 
 from harness.referee import FAILED_TERMINATIONS, play_match
 from harness.rules import PLY_CAP
-from harness.sandbox import local
+from harness.sandbox import Agent, local
+from tools.platform_agent import local as platform_local
 
 FAST_BASE_MS = 20_000
 FAST_INCREMENT_MS = 300
@@ -72,6 +76,10 @@ def main() -> None:
     parser.add_argument("--base-ms", type=int, default=FAST_BASE_MS)
     parser.add_argument("--increment-ms", type=int, default=FAST_INCREMENT_MS)
     parser.add_argument("--ply-cap", type=int, default=PLY_CAP)
+    parser.add_argument("--platform-cpu", type=int,
+                        help="Pin to this core and suspend each agent outside its turn")
+    parser.add_argument("--engine-python", help="Pinned CPU interpreter for platform subprocesses")
+    parser.add_argument("--jsonl", type=Path, help="Write exact game records and PGNs")
     parser.add_argument(
         "--openings",
         nargs="+",
@@ -80,6 +88,11 @@ def main() -> None:
         help="Which named openings to play (default: all).",
     )
     arguments = parser.parse_args()
+
+    factory: Callable[[Path], Agent] = local
+    if arguments.platform_cpu is not None:
+        factory = partial(platform_local, cpu=arguments.platform_cpu,
+                          python=arguments.engine_python)
 
     agent = arguments.agent.resolve()
     opponent = arguments.opponent.resolve()
@@ -93,16 +106,31 @@ def main() -> None:
         for agent_plays_white in (True, False):
             game_num += 1
             white, black = (agent, opponent) if agent_plays_white else (opponent, agent)
+            white_process, black_process = factory(white), factory(black)
             outcome = play_match(
-                local(white),
-                local(black),
+                white_process,
+                black_process,
                 arguments.base_ms,
                 arguments.increment_ms,
                 ply_cap=arguments.ply_cap,
                 start_fen=fen,
             )
             terminations[outcome.termination] = terminations.get(outcome.termination, 0) + 1
-            if outcome.result == "draw" or outcome.result == "void":
+            if arguments.jsonl:
+                arguments.jsonl.parent.mkdir(parents=True, exist_ok=True)
+                with arguments.jsonl.open("a", encoding="utf8") as log:
+                    log.write(json.dumps({"game": game_num, "opening": name,
+                                          "agent_white": agent_plays_white,
+                                          "base_ms": arguments.base_ms,
+                                          "increment_ms": arguments.increment_ms,
+                                          "result": outcome.result,
+                                          "termination": outcome.termination, "pgn": outcome.pgn,
+                                          "white_log": white_process.stderr_tail,
+                                          "black_log": black_process.stderr_tail}) + "\n")
+            if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
+                print(white_process.stderr_tail, black_process.stderr_tail)
+                raise SystemExit(f"Invalid strength test: game {game_num} {outcome.termination}")
+            if outcome.result == "draw":
                 draws += 1
             elif (outcome.result == "white") == agent_plays_white:
                 wins += 1

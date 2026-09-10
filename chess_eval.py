@@ -346,20 +346,50 @@ def evaluate(
     mg += params[P_CASTLING_MG] * white_castling_rights
     mg -= params[P_CASTLING_MG] * black_castling_rights
 
-    # Only a rook or queen counts as "enough to mop up": the technique this term encodes
-    # (corner the bare king, bring your own king in) is specifically the rook/queen-vs-king
-    # technique. A pawn-only or minor-piece-only edge is a different kind of endgame (K+P vs K
-    # is opposition/key-squares, not cornering; K+B+N vs K needs a bishop-colour-specific
-    # corner) that this crude bonus would actively mislead rather than help -- confirmed as a
-    # real, not hypothetical, distinction: the initial version counted pawns as "material" too,
-    # which meant it fired on ordinary K+P vs K endgames and traded a modest strength cost
-    # there against the fix for the rook/queen mating bug.
+    eg += mop_up_bonus(pawns, knights, bishops, rooks, queens, kings, white, black, params)
+
+    phase = min(phase, MAX_PHASE)
+    tapered = (mg * phase + eg * (MAX_PHASE - phase)) // MAX_PHASE
+    return int(tapered)
+
+
+@njit(cache=False)
+def mop_up_bonus(
+    pawns: np.uint64,
+    knights: np.uint64,
+    bishops: np.uint64,
+    rooks: np.uint64,
+    queens: np.uint64,
+    kings: np.uint64,
+    white: np.uint64,
+    black: np.uint64,
+    params: np.ndarray,
+) -> int:
+    """White-relative endgame-technique bonus: corner a bare king and bring the winning king in
+    to help finish it off (rook/queen technique), or the bishop-colour-specific corner K+B+N vs K
+    needs. Split out of evaluate() so any eval backend -- classical PST/structure or a trained
+    network -- can add the same, already-tuned technique on top of its own positional judgement:
+    without it, a network trained mostly on ordinary game positions has little reason to have
+    learned this narrow, rare-in-training-data-but-critical-to-convert technique itself (this is
+    exactly what tools/endgame_regression.py caught: NN eval alone drew the Lucena position by
+    repetition instead of converting -- see viewer/activity_log.jsonl).
+
+    Only a rook or queen counts as "enough to mop up": the technique this term encodes (corner
+    the bare king, bring your own king in) is specifically the rook/queen-vs-king technique. A
+    pawn-only or minor-piece-only edge is a different kind of endgame (K+P vs K is
+    opposition/key-squares, not cornering; K+B+N vs K needs a bishop-colour-specific corner) that
+    this crude bonus would actively mislead rather than help -- confirmed as a real, not
+    hypothetical, distinction: the initial version counted pawns as "material" too, which meant
+    it fired on ordinary K+P vs K endgames and traded a modest strength cost there against the
+    fix for the rook/queen mating bug.
+    """
     major_pieces = rooks | queens
     losing_side_bare = pawns | knights | bishops | major_pieces
     white_has_mating_material = major_pieces & white
     black_has_mating_material = major_pieces & black
     white_is_bare = (losing_side_bare & white) == 0
     black_is_bare = (losing_side_bare & black) == 0
+    eg = 0
     # KBN vs K: famous even outside computer chess for being hard to convert without a
     # tablebase -- the mating net needs driving the bare king to a corner matching the
     # bishop's own square colour specifically (the other two corners are only a draw), not
@@ -424,10 +454,7 @@ def evaluate(
             eg += params[P_MOPUP_CORNER] * (3 - b_edge_dist) - params[P_MOPUP_KING_DIST] * king_dist
         else:
             eg -= params[P_MOPUP_CORNER] * (3 - w_edge_dist) - params[P_MOPUP_KING_DIST] * king_dist
-
-    phase = min(phase, MAX_PHASE)
-    tapered = (mg * phase + eg * (MAX_PHASE - phase)) // MAX_PHASE
-    return int(tapered)
+    return eg
 
 
 def _castling_rights_count(board: chess.Board, color: chess.Color) -> int:
