@@ -406,6 +406,10 @@ class Search:
         self.nodes = 0
         self.deadline = 0.0
         self.stop_event = stop_event
+        # 1: the referee ends the game after this root move; 2: the opponent
+        # can choose an immediate draw. Values agree with chess_draw constants.
+        self.root_draw_claims: dict[int, int] = {}
+        self.root_repeated_moves: set[int] = set()
 
     def classical_evaluate(self, state: State, mobility: int) -> int:
         white_count, black_count = _castling_rights_counts(state)
@@ -791,11 +795,14 @@ class Search:
 
         for i, (packed, _) in enumerate(ordered):
             f, t, p = cst.unpack_move(packed)
+            claim = self.root_draw_claims.get(packed, 0)
             child = apply_move(state, f, t, p)
             child_key = hash_of(child)
             self.seen[child_key] = self.seen.get(child_key, 0) + 1
             try:
-                if i == 0:
+                if claim == 1:
+                    score = -CONTEMPT
+                elif i == 0:
                     score = -self.negamax(
                         child, depth - 1, -beta, -window_alpha, 1, key=child_key
                     )
@@ -810,6 +817,15 @@ class Search:
             finally:
                 self.seen[child_key] -= 1
 
+            if claim == 2:
+                score = min(score, -CONTEMPT)
+            # Prefer another positive continuation before a second occurrence
+            # leaves only forced claims next turn. This is a root preference,
+            # not an assertion that twofold repetition is a drawn game. Apply
+            # it before updating alpha so alternatives are searched against
+            # the adjusted score, rather than choosing from fail-low bounds.
+            if packed in self.root_repeated_moves:
+                score = min(score, 50)
             move_obj = chess.Move(f, t, p if p else None)
             scored.append((move_obj, score))
             if score > best_score:

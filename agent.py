@@ -15,6 +15,7 @@ import chess
 import chess.polyglot
 import chess.syzygy
 
+import chess_draw as cd
 import chess_eval as ce
 import chess_movegen as mg
 import chess_search as cs
@@ -26,19 +27,9 @@ MAX_SEARCH_DEPTH = 64
 PONDER_TIME_CAP_S = 300.0
 PONDER_JOIN_TIMEOUT_S = 1.0
 
-# Real rated games showed the search choosing to repeat a position it was clearly winning --
-# not a close call needing contempt's small nudge, but a rook or more ahead (round 76: +500cp
-# the entire final stretch; round 80: as much as -641cp in our favour) thrown away for a draw.
-# Contempt scores the repeat as mildly bad once the search sees it, but the search runs a fresh,
-# time-boxed iterative deepening every move and isn't guaranteed to explore far enough down a
-# specific repeating line to discover that consequence before its clock runs out -- especially
-# when giving check keeps looking locally good move after move. This is a deterministic backstop
-# instead of hoping deeper search finds it: after search_root already scored every legal move
-# once, if the chosen move would create our own third occurrence of a position while we're
-# clearly ahead, take the next-best move that doesn't, as long as it's still clearly winning.
-# Costs no extra search time -- every candidate's score already exists in `scored`.
-REPETITION_AVOIDANCE_THRESHOLD = 150
-REPETITION_AVOIDANCE_MIN_SCORE = 50
+# Claim analysis is charged to this turn and bounded independently of the search.
+DRAW_SCAN_MAX_SECONDS = 0.25
+DRAW_SCAN_BUDGET_FRACTION = 0.20
 
 # Import time runs once per game, inside a 90 second budget, before your clock starts.
 # size_power=21 measures at ~1.0 GB fully populated plus ~0.12 GB baseline (interpreter,
@@ -121,6 +112,7 @@ _ponder_stop = threading.Event()
 ce.warm_up()
 mg.warm_up()
 cst.warm_up()
+cd.warm_up()
 
 
 def _time_budget(time_left_ms: float, fullmove_number: int) -> tuple[float, float]:
@@ -202,7 +194,9 @@ def _book_move(board: chess.Board) -> chess.Move | None:
         return None
 
 
-def _tablebase_move(board: chess.Board) -> chess.Move | None:
+def _tablebase_move(
+    board: chess.Board, claims: dict[int, int] | None = None,
+) -> chess.Move | None:
     """The provably best move by Syzygy WDL/DTZ, or None if this position isn't covered (too
     many pieces, castling rights still held -- Syzygy tables never contain those -- or a probe
     came back unreadable). Never guesses from a partial read: if any candidate move's outcome
@@ -210,9 +204,10 @@ def _tablebase_move(board: chess.Board) -> chess.Move | None:
 
     Picks the move giving the best reachable result category (win > cursed win > draw > blessed
     loss > loss, all from our side's perspective). Among moves tied on a real win, prefers
-    smaller |dtz| on the resulting (opponent-to-move) position -- fewer plies for them to reach
-    a zeroing move means faster progress for us; ties elsewhere don't matter game-theoretically,
-    so the first one found stands.
+    the shortest distance to a pawn move or capture, measured BEFORE our move.
+    An immediately zeroing move has distance one; a reversible move adds one to
+    the child's absolute DTZ. Checkmate is preferred immediately. Draw claims
+    take precedence over history-free tablebase WDL where applicable.
 
     Any exception falls back to None (plain search): a rare runtime read failure should cost
     this one lookup, not the game, and board.push/pop is wrapped in try/finally so a failure
@@ -229,8 +224,12 @@ def _tablebase_move(board: chess.Board) -> chess.Move | None:
         best_wdl = -3
         best_progress = 0
         for move in board.legal_moves:
+            zeroing = board.is_zeroing(move)
+            packed = cst.pack_move(move.from_square, move.to_square, move.promotion or 0)
             board.push(move)
             try:
+                if board.is_checkmate():
+                    return move
                 wdl = _TABLEBASE.get_wdl(board)
                 dtz = _TABLEBASE.get_dtz(board)
             finally:
@@ -238,20 +237,19 @@ def _tablebase_move(board: chess.Board) -> chess.Move | None:
             if wdl is None:
                 return None
             our_wdl = -wdl
-            progress = -abs(dtz) if (our_wdl > 0 and dtz is not None) else 0
+            claim = claims.get(packed, 0) if claims else 0
+            if claim == cd.IMMEDIATE:
+                our_wdl = 0
+            elif claim == cd.OPPONENT_CAN_DRAW:
+                our_wdl = min(our_wdl, 0)
+            distance = 1 if zeroing else abs(dtz) + 1 if dtz is not None else 1000
+            progress = -distance if our_wdl > 0 else 0
             if best_move is None or (our_wdl, progress) > (best_wdl, best_progress):
                 best_move, best_wdl, best_progress = move, our_wdl, progress
         return best_move
     except Exception as exc:
         print(f"tablebase probe failed, falling back to search: {exc}", file=sys.stderr)
         return None
-
-
-def _repeats_if_played(board: chess.Board, move: chess.Move) -> bool:
-    board.push(move)
-    key = cs.hash_of_board(board)
-    board.pop()
-    return _GAME_HISTORY.get(key, 0) >= 2
 
 
 def _record_our_move(board: chess.Board, move: chess.Move) -> None:
@@ -263,25 +261,15 @@ def _record_our_move(board: chess.Board, move: chess.Move) -> None:
     the one right after our own repeated check, which nothing was ever recording. Called once
     per real move we actually return (both here and from the tablebase path), this closes the
     gap by recording that position too, so a real recurrence of it is visible to
-    `_repeats_if_played` on a later move -- and to the search's own contempt-driven avoidance,
+    root draw-claim analysis on a later move -- and to the search's own draw detection,
     which seeds `self.seen` from this same dict and had the identical blind spot."""
+    irreversible = board.is_irreversible(move)
     board.push(move)
     key = cs.hash_of_board(board)
     board.pop()
+    if irreversible:
+        _GAME_HISTORY.clear()
     _GAME_HISTORY[key] = _GAME_HISTORY.get(key, 0) + 1
-
-
-def _avoid_needless_repetition(
-    board: chess.Board, best_move: chess.Move, best_score: int, scored: list[tuple[chess.Move, int]]
-) -> chess.Move:
-    if best_score < REPETITION_AVOIDANCE_THRESHOLD or not _repeats_if_played(board, best_move):
-        return best_move
-    for move, score in sorted(scored, key=lambda pair: -pair[1]):
-        if score < REPETITION_AVOIDANCE_MIN_SCORE:
-            break
-        if not _repeats_if_played(board, move):
-            return move
-    return best_move
 
 
 def _start_pondering(board: chess.Board, our_move: chess.Move) -> None:
@@ -332,9 +320,13 @@ def get_move(fen: str, time_left_ms: int) -> str:
     # from _GAME_HISTORY -- caught by tools/endgame_regression.py regressing on exactly the
     # kind of position (forced king/rook shuffles) most likely to depend on it.
     key = cs.hash_of_board(board)
+    if board.halfmove_clock == 0:
+        # The opponent just moved a pawn or captured; older positions cannot recur.
+        _GAME_HISTORY.clear()
     _GAME_HISTORY[key] = _GAME_HISTORY.get(key, 0) + 1
 
     if len(legal_moves) == 1:
+        _record_our_move(board, legal_moves[0])
         return legal_moves[0].uci()
 
     try:
@@ -350,6 +342,7 @@ def get_move(fen: str, time_left_ms: int) -> str:
         # itself is still always legal, just not necessarily good.
         traceback.print_exc(file=sys.stderr)
         print(f"get_move crashed ({exc}); falling back to first legal move", file=sys.stderr)
+        _record_our_move(board, legal_moves[0])
         return legal_moves[0].uci()
 
 
@@ -358,38 +351,51 @@ def _choose_move(board: chess.Board, legal_moves: list[chess.Move], time_left_ms
     # single-legal-move early return) -- this key is only for the TT probe below.
     key = cs.hash_of_board(board)
 
+    start = time.monotonic()
+    soft_ms, hard_ms = _time_budget(float(time_left_ms), board.fullmove_number)
+    deadline = start + hard_ms / 1000.0
+    soft_deadline = start + soft_ms / 1000.0
+    _, tt_move_packed = _TT.probe(key, 0, -cs.MATE, cs.MATE, 0)
+    tt_move = cs.packed_to_move(tt_move_packed)
+    ordered = sorted(legal_moves, key=lambda move: move != tt_move)
+    claims, complete = cd.root_claims(
+        board, _GAME_HISTORY, ordered,
+        start + min(DRAW_SCAN_MAX_SECONDS, hard_ms / 1000 * DRAW_SCAN_BUDGET_FRACTION),
+    )
+    if claims or not complete:
+        print(f"draw_claims={len(claims)} complete={int(complete)} "
+              f"ms={(time.monotonic() - start) * 1000:.1f}", file=sys.stderr)
+
     book_move = _book_move(board)
+    if book_move is not None and cst.pack_move(
+        book_move.from_square, book_move.to_square, book_move.promotion or 0,
+    ) in claims:
+        book_move = None
     if book_move is not None:
         print(f"move={book_move.uci()} source=book", file=sys.stderr)
         _record_our_move(board, book_move)
         _start_pondering(board, book_move)
         return book_move.uci()
 
-    tablebase_move = _tablebase_move(board)
+    tablebase_move = _tablebase_move(board, claims)
     if tablebase_move is not None:
         print(f"move={tablebase_move.uci()} source=tablebase", file=sys.stderr)
         _record_our_move(board, tablebase_move)
         _start_pondering(board, tablebase_move)
         return tablebase_move.uci()
 
-    start = time.monotonic()
-    soft_ms, hard_ms = _time_budget(float(time_left_ms), board.fullmove_number)
-    deadline = start + hard_ms / 1000.0
-    soft_deadline = start + soft_ms / 1000.0
-
-    _, tt_move_packed = _TT.probe(key, 0, -cs.MATE, cs.MATE, 0)
-    tt_move = cs.packed_to_move(tt_move_packed)
     best_move = tt_move if tt_move in legal_moves else legal_moves[0]
 
     search = cs.Search(_TT, _GAME_HISTORY)
+    search.root_draw_claims = claims
+    search.root_repeated_moves = cd.repeated_moves(board, _GAME_HISTORY, legal_moves)
     depth = 1
     completed_depth = 0
     last_score = 0
-    scored: list[tuple[chess.Move, int]] = []
     while depth <= MAX_SEARCH_DEPTH:
         prev_score = last_score if completed_depth > 0 else None
         try:
-            move, score, root_scores = search.search_root(
+            move, score, _ = search.search_root(
                 board, depth, deadline, prev_score=prev_score
             )
         except cs.TimeUp:
@@ -397,13 +403,9 @@ def _choose_move(board: chess.Board, legal_moves: list[chess.Move], time_left_ms
         best_move = move
         completed_depth = depth
         last_score = score
-        scored = root_scores
         if abs(score) >= cs.MATE_THRESHOLD or time.monotonic() >= soft_deadline:
             break
         depth += 1
-
-    if completed_depth > 0:
-        best_move = _avoid_needless_repetition(board, best_move, last_score, scored)
 
     # Safe per the rules: stdout is redirected away from the protocol stream before this
     # module is even imported, so print() can never corrupt it. Discarded in rated games,

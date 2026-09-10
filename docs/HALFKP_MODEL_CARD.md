@@ -103,9 +103,13 @@ completed game evidence and any remaining limitations. The clean original
 The subsequent 76-game draw investigation found that the existing repetition
 safeguard can act too late for automatic draw claims and that tablebase move
 selection can shuffle instead of making a winning pawn advance. These conversion
-defects remain in the released runtime. See `docs/DRAW_ANALYSIS.md` for the
+defects were found in the original released runtime. See `docs/DRAW_ANALYSIS.md` for the
 reproductions and phase-specific held-out error measurements. Training data alone
 cannot correct a repetition-history or tablebase-selection defect.
+
+This candidate implements the subsequent draw-handling corrections with the
+same model, blend, book and tablebases. See `docs/DRAW_HANDLING_20260910.md` for
+the behavior, correctness evidence and independent comparison status.
 
 The completed independent test accepted H1 after 53 paired openings. Including
 the remaining in-flight games, this unchanged build scored +62 =43 -7 in 112
