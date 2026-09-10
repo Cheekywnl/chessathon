@@ -407,3 +407,21 @@ selected lineage, source accounting, training commands and quantization checks.
 The original data and float/optimizer checkpoints remain local; no weight has
 yet been committed or promoted. The final sequential test and release checks
 continue with frozen runtime assets.
+
+The remaining staged checks completed: WAC again scored **228/300 at 1s/position**;
+the actual extracted release zip imported in **9.551s**, peaked at **207,826,944
+bytes** during its smoke, and returned three legal moves without fallback or
+traceback. A final unmodified `python -m tools.endgame_regression` rerun passed
+Lucena by checkmate. The earlier failed repeat remains in the record. Staged zip
+SHA-256: `055cb466b0e31425e38667f7298f346cf79496e87e7bbda2a569e55e4377c4f9`.
+The canonical contract and rules were fetched again successfully before the final
+handoff; the package and test constraints still agree with them.
+
+The first 128-wide model's full forty-game 120s+0.5s test finished **+24 =14 -2
+(77.5%)**, with 26 checkmates and 14 repetitions across twenty paired openings.
+The original six games, fourteen-game resume and twenty-game batch B were all
+retained. PGN replay and fixed-build audits passed, with zero candidate error or
+fallback markers and zero crash/illegal/flag/void outcomes. One baseline diagnostic
+after its final move before mate is retained explicitly. Peak observed working set
+was 259,158,016 bytes and maximum init 12.875s. This first model is distinct from
+the selected annealed model; its games are not pooled into the final SPRT.
