@@ -12,7 +12,7 @@ arena:
 	uv run python -m harness.arena --opponent baselines/greedy --games 20
 
 zip:
-	uv run python -m harness.package --include syzygy --include book
+	uv run python -m harness.package --include syzygy --include book --include movegen_data
 
 gate:
 	uv run ruff check .
