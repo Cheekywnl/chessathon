@@ -1,0 +1,14 @@
+{
+  "source_entries": 14794,
+  "retained_entries": 9103,
+  "removed_incomplete": 5691,
+  "original_entries": 3139,
+  "all_original_entries_identical": true,
+  "all_retained_policy_children_covered": true,
+  "source_edges_examined": 104763,
+  "source_sha256": "6c9fd08d2a7173c6f2a9a03049ca81dede2b11a21ec69050526128de14c37a36",
+  "sha256": "d7c1fa626fcdaafe9deb7ce2762a636a698c91d3820219e65f7bc632d485fde0",
+  "bytes": 31882,
+  "seconds": 3.6710000000020955,
+  "independent_check_pending": true
+}

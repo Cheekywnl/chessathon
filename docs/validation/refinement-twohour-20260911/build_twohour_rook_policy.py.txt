@@ -1,0 +1,128 @@
+"""Extend exact rook-and-pawn coverage without changing any existing policy entry."""
+import hashlib
+import json
+import random
+import shutil
+import time
+from collections import deque
+from pathlib import Path
+import chess
+import chess.syzygy
+import numpy as np
+import psutil
+
+work=Path(__file__).parent
+psutil.Process().cpu_affinity([0])
+base=work/'final-extracted-repacked'
+target=work/'twohour-rookwide'
+assert not target.exists()
+target.mkdir()
+for path in base.glob('*.py'):shutil.copy2(path,target/path.name)
+for name in ('weights','syzygy','book'):shutil.copytree(base/name,target/name)
+oracle=chess.syzygy.open_tablebase(str(base/'syzygy'))
+oracle.add_directory(str(work/'endgame-oracle'))
+hashes={name:digest for digest,name in
+        (line.split() for line in (work/'tablebase-sha256').read_text().splitlines())}
+sources={}
+for path in (work/'endgame-oracle').iterdir():
+    digest=hashlib.sha256(path.read_bytes()).hexdigest()
+    assert digest==hashes[path.name]
+    sources[path.name]=digest
+
+def exact(board):
+    return (board.turn and board.occupied.bit_count()==5
+            and len(board.pieces(chess.PAWN,True))==1
+            and len(board.pieces(chess.ROOK,True))==1
+            and len(board.pieces(chess.ROOK,False))==1)
+
+def encode(board):
+    pawn=board.pieces_mask(chess.PAWN,True).bit_length()-1
+    if chess.square_file(pawn)>=4:board=board.transform(chess.flip_horizontal)
+    squares=(board.king(True),next(iter(board.pieces(chess.ROOK,True))),
+             next(iter(board.pieces(chess.PAWN,True))),board.king(False),
+             next(iter(board.pieces(chess.ROOK,False))))
+    return sum(square<<(6*i) for i,square in enumerate(squares))
+
+def decode(key):
+    board=chess.Board(None)
+    for i,(kind,color) in enumerate(((chess.KING,True),(chess.ROOK,True),
+        (chess.PAWN,True),(chess.KING,False),(chess.ROOK,False))):
+        board.set_piece_at((key>>(6*i))&63,chess.Piece(kind,color))
+    return board
+
+with np.load(base/'syzygy/rook_wins.npz',allow_pickle=False) as data:
+    entries={int(k):(int(m),int(d)) for k,m,d in zip(data['keys'],data['moves'],data['dtz'],strict=True)}
+original=dict(entries)
+rng=random.Random(2026091107)
+seeds=[]
+attempts=0
+while len(seeds)<800 and attempts<40000:
+    attempts+=1
+    pawn=chess.square(rng.randrange(4),rng.choice((4,5,6)))
+    king_candidates=[sq for sq in chess.SQUARES if chess.square_distance(sq,pawn)<=2
+                     and chess.square_rank(sq)>=chess.square_rank(pawn)-1]
+    wk=rng.choice(king_candidates)
+    wr,bk,br=rng.sample(list(chess.SQUARES),3)
+    squares=(wk,wr,pawn,bk,br)
+    if len(set(squares))<5:continue
+    key=sum(sq<<(6*i) for i,sq in enumerate(squares))
+    board=decode(key)
+    if not board.is_valid() or board.is_game_over() or oracle.probe_wdl(board)!=2:continue
+    dtz=oracle.probe_dtz(board)
+    if not 0<dtz<60:continue
+    seeds.append((dtz,key,board.fen()))
+seeds=sorted(set(seeds))
+queue=deque(key for _,key,_ in seeds if key not in entries)
+seen=set(entries)|set(queue)
+started=time.monotonic()
+visited=skipped=0
+while queue and len(entries)<100000 and time.monotonic()-started<600:
+    key=queue.popleft();board=decode(key);visited+=1
+    assert board.is_valid() and exact(board)
+    if oracle.probe_wdl(board)!=2:
+        skipped+=1;continue
+    best=None
+    for move in board.legal_moves:
+        if move.promotion and move.promotion!=chess.QUEEN:continue
+        zeroing=board.is_zeroing(move)
+        board.push(move)
+        try:
+            if -oracle.probe_wdl(board)!=2:continue
+            distance=1 if zeroing else abs(oracle.probe_dtz(board))+1
+        finally:board.pop()
+        value=(distance,move.uci())
+        if best is None or value<best[0]:best=value,move
+    if best is None or not 0<best[0][0]<100:
+        skipped+=1;continue
+    distance=best[0][0];move=best[1]
+    entries[key]=(move.from_square|move.to_square<<6|(move.promotion or 0)<<12,distance)
+    board.push(move)
+    if board.occupied.bit_count()==5 and board.pawns:
+        for reply in board.legal_moves:
+            board.push(reply)
+            if exact(board) and not board.is_game_over():
+                child=encode(board)
+                if child not in seen:
+                    seen.add(child);queue.append(child)
+            board.pop()
+    if len(entries)%10000==0:
+        print(json.dumps({'entries':len(entries),'frontier':len(queue),
+              'seconds':time.monotonic()-started}),flush=True)
+for key,value in original.items():assert entries[key]==value
+keys=sorted(entries)
+out=target/'syzygy/rook_wins.npz'
+np.savez_compressed(out,keys=np.asarray(keys,dtype=np.uint32),
+    moves=np.asarray([entries[k][0] for k in keys],dtype=np.uint16),
+    dtz=np.asarray([entries[k][1] for k in keys],dtype=np.uint8),format_version=np.int32(1))
+result={'entries':len(entries),'original_entries':len(original),'old_entries_unchanged':True,
+        'visited':visited,'skipped':skipped,'unexpanded_frontier':len(queue),
+        'complete_for_seed_policy_graph':not queue,
+        'seed_generation':'seed 2026091107; random legal KRPvKR, pawn ranks5-7, king near pawn; WDL2 and DTZ<60',
+        'seeds':[fen for _,_,fen in seeds],'seed_attempts':attempts,'source_hashes':sources,
+        'runtime_missing_position_behavior':'normal search; existing complete Lucena policy retained',
+        'all_stored_moves_wdl2_and_dtz_progress':True,'validation_pending':True,
+        'seconds':time.monotonic()-started,'bytes':out.stat().st_size,
+        'sha256':hashlib.sha256(out.read_bytes()).hexdigest(),
+        'generator_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+(work/'twohour-rook-build.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({k:v for k,v in result.items() if k!='seeds'},indent=2),flush=True)

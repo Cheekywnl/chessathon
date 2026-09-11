@@ -1,0 +1,38 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    8000,
+    120
+  ],
+  "wins": 15,
+  "draws": 16,
+  "losses": 9,
+  "score": 0.575,
+  "terminations": {
+    "checkmate": 24,
+    "threefold_repetition": 16
+  },
+  "pair_score_counts": {
+    "0.5": 5,
+    "1.0": 7,
+    "2.0": 3,
+    "1.5": 5
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\two-hour-refinement\\data\\runs\\twohour-pruning-screen1.jsonl": "b583d9295197d9e089bba74c4ba2df6d39fc633d16244076caf338f12ecdf4c0"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "9bfad335d9c638013b2461419022e0d90b3aa4a753b1a2dd1a73ea850a8ef69e",
+      "99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 558764032,
+  "maximum_recorded_init_seconds": 54.31300000000192,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

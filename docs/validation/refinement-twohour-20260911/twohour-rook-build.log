@@ -1,0 +1,27 @@
+{"entries": 10000, "frontier": 36330, "seconds": 338.734000000004}
+{
+  "entries": 14794,
+  "original_entries": 3139,
+  "old_entries_unchanged": true,
+  "visited": 11655,
+  "skipped": 0,
+  "unexpanded_frontier": 51724,
+  "complete_for_seed_policy_graph": false,
+  "seed_generation": "seed 2026091107; random legal KRPvKR, pawn ranks5-7, king near pawn; WDL2 and DTZ<60",
+  "seed_attempts": 1408,
+  "source_hashes": {
+    "KQRvKR.rtbw": "13477ef681468dfb19d09ab8dbeb08d259f9db57a6e5e2c7cdb902880fc2166b",
+    "KQRvKR.rtbz": "6ed2eba7b9d5b7813a30751a0e1dd3561e499c1ffe76b5de98ea7ad5b006fdbd",
+    "KRPvKR.rtbw": "1100e6deaee14ca9a56b69441208462c02ef45b3f56daa3d75f687eb5cf12319",
+    "KRPvKR.rtbz": "184ce33fa4dcfa931f7a3b9955662e166287ec203224ae9681d527d3b8cd9c6f",
+    "KRRvKR.rtbw": "7897a69c7ad337adc93aa39c9d22dcf1a5e215908437b36d92db5e4bebf9217e",
+    "KRRvKR.rtbz": "dd0fe4d32ccbfc390e8d4468fa5a31484e26abdb45d712cdfe1b8b5fe0a05c14"
+  },
+  "runtime_missing_position_behavior": "normal search; existing complete Lucena policy retained",
+  "all_stored_moves_wdl2_and_dtz_progress": true,
+  "validation_pending": true,
+  "seconds": 600.2030000000013,
+  "bytes": 58636,
+  "sha256": "6c9fd08d2a7173c6f2a9a03049ca81dede2b11a21ec69050526128de14c37a36",
+  "generator_sha256": "c9b31de3e3f73fe6d84b4b78f387791cc4b1f6206b9361eaff71f77c30d6e53b"
+}

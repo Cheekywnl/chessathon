@@ -1,0 +1,23 @@
+import shutil
+from pathlib import Path
+work=Path(__file__).parent
+base=work/'final-extracted-repacked';target=work/'twohour-sparse'
+assert not target.exists();target.mkdir()
+for path in base.glob('*.py'):shutil.copy2(path,target/path.name)
+for directory in ('weights','syzygy','book'):shutil.copytree(base/directory,target/directory)
+path=target/'chess_halfkp_int.py';text=path.read_text()
+start=text.index('    """Dense inference using buffers owned exclusively by this Search context."""')
+end=text.index('\n\ndef warm_up',start)
+body=(work/'dense_sparse_variant.py').read_text()
+body=body[body.index('    width=len(own)'):]
+body='    """Skip zero activations using contiguous transposed dense-layer weights."""\n'+body
+path.write_text(text[:start]+body.rstrip()+'\n'+text[end:],newline='\n')
+path=target/'chess_search_compiled.py';text=path.read_text()
+old='self.w1, self.b1, self.w2, self.b2 = (w1, b1, w2, b2)'
+assert text.count(old)==1
+text=text.replace(old,'self.w1, self.b1, self.w2, self.b2 = (w1, b1, np.ascontiguousarray(w2.T), b2)')
+old='self.w3, self.b3, self.w4, self.b4 = (w3, b3, w4, b4)'
+assert text.count(old)==1
+text=text.replace(old,'self.w3, self.b3, self.w4, self.b4 = (np.ascontiguousarray(w3.T), b3, w4, b4)')
+path.write_text(text,newline='\n')
+print(target)

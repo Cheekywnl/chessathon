@@ -1,0 +1,405 @@
+move=c1c4 source=rook_policy
+move=c4d4 source=rook_policy
+move=b8c7 source=rook_policy
+move=c7b6 source=rook_policy
+move=b6a6 source=rook_policy
+move=d4a4 source=rook_policy
+move=a6a7 source=rook_policy
+move=b7b8q source=rook_policy
+move=b8b2 source=tablebase
+move=a4a5 source=tablebase
+move=b2g7 source=tablebase
+move=a5a6 source=tablebase
+move=a7b8 source=tablebase
+move=b8c8 source=tablebase
+move=c8d8 source=tablebase
+move=d8d7 source=tablebase
+move=d7e8 source=tablebase
+move=e8e7 source=tablebase
+move=e7f8 source=tablebase
+move=f8f7 source=tablebase
+move=a6h6 source=tablebase
+PASS original in 41 plies
+move=f1f4 source=rook_policy
+move=f4e4 source=rook_policy
+move=g8f7 source=rook_policy
+move=f7g6 source=rook_policy
+move=g6h6 source=rook_policy
+move=h6g5 source=rook_policy
+move=e4g4 source=rook_policy
+move=g7g8q source=rook_policy
+move=g8f7 source=tablebase
+move=f7c4 source=tablebase
+move=c4a4 source=tablebase
+move=a4a3 source=tablebase
+move=g5f5 source=tablebase
+move=a3e7 source=tablebase
+move=g4d4 source=tablebase
+move=d4d7 source=tablebase
+move=f5e6 source=tablebase
+move=d7c7 source=tablebase
+move=e6f6 source=tablebase
+move=f6g6 source=tablebase
+move=c7c8 source=tablebase
+PASS file_mirror in 41 plies
+move=c8c5 source=rook_policy
+move=c5d5 source=rook_policy
+move=b1c2 source=rook_policy
+move=c2b3 source=rook_policy
+move=b3a3 source=rook_policy
+move=d5a5 source=rook_policy
+move=a3a2 source=rook_policy
+move=b2b1q source=rook_policy
+move=a5h5 source=tablebase
+move=h5g5 source=tablebase
+move=g5g7 source=tablebase
+move=b1h7 source=tablebase
+PASS black in 23 plies
+move=f8f5 source=rook_policy
+move=f5e5 source=rook_policy
+move=g1f2 source=rook_policy
+move=f2g3 source=rook_policy
+move=g3h3 source=rook_policy
+move=h3g4 source=rook_policy
+move=e5g5 source=rook_policy
+move=g2g1q source=rook_policy
+move=g5d5 source=tablebase
+move=g1c5 source=tablebase
+move=c5b5 source=tablebase
+move=b5e8 source=tablebase
+move=e8b8 source=tablebase
+move=b8b3 source=tablebase
+move=g4f4 source=tablebase
+move=f4e4 source=tablebase
+move=d5d4 source=tablebase
+move=d4d3 source=tablebase
+move=e4e3 source=tablebase
+move=e3e2 source=tablebase
+move=d3d2 source=tablebase
+move=e2d1 source=tablebase
+move=d1c2 source=tablebase
+move=d2d3 source=tablebase
+move=d3a3 source=tablebase
+PASS black_file_mirror in 49 plies
+move=c8d8 source=rook_policy
+move=c7c8q source=rook_policy
+move=c8b7 source=tablebase
+move=b7g2 source=tablebase
+PASS new_1516282_dtz3 in 7 plies
+move=b7a6 source=rook_policy
+move=a7a8q source=rook_policy
+move=a6b5 source=tablebase
+move=a8g2 source=tablebase
+move=g2g7 source=tablebase
+move=g7f6 source=tablebase
+move=f6c3 source=tablebase
+move=f4f1 source=tablebase
+move=c3g3 source=tablebase
+move=b5c4 source=tablebase
+move=c4d4 source=tablebase
+move=g3g2 source=tablebase
+move=d4e3 source=tablebase
+move=g2d2 source=tablebase
+PASS new_16975729_dtz3 in 27 plies
+move=c8d8 source=rook_policy
+move=c7c8q source=rook_policy
+move=c8a8 source=tablebase
+move=a8g2 source=tablebase
+PASS new_18293498_dtz3 in 7 plies
+move=h5h1 source=rook_policy
+move=c7c8q source=rook_policy
+move=c8g8 source=tablebase
+move=g8b3 source=tablebase
+move=b3f7 source=tablebase
+move=f7f5 source=tablebase
+move=c5d5 source=tablebase
+move=h1e1 source=tablebase
+move=d5e5 source=tablebase
+move=e5f5 source=tablebase
+move=e1e8 source=tablebase
+move=e8e3 source=tablebase
+move=f5g4 source=tablebase
+move=e3f3 source=tablebase
+move=f3g3 source=tablebase
+move=g4f3 source=tablebase
+move=f3f2 source=tablebase
+move=g3h3 source=tablebase
+PASS new_18295266_dtz3 in 35 plies
+move=b7a6 source=rook_policy
+move=a7a8q source=rook_policy
+move=a6b5 source=tablebase
+move=a8d5 source=tablebase
+move=d5c6 source=tablebase
+move=c6h6 source=tablebase
+move=h6d6 source=tablebase
+move=d6d2 source=tablebase
+move=b5c4 source=tablebase
+move=f4d4 source=tablebase
+move=d4d3 source=tablebase
+move=c4c3 source=tablebase
+move=c3d2 source=tablebase
+move=d3e3 source=tablebase
+move=d2e2 source=tablebase
+move=e3d3 source=tablebase
+move=d3g3 source=tablebase
+move=e2f2 source=tablebase
+move=g3h3 source=tablebase
+PASS new_19072881_dtz3 in 37 plies
+move=b7a6 source=rook_policy
+move=a7a8q source=rook_policy
+move=a6b5 source=tablebase
+move=a8d5 source=tablebase
+move=d5c6 source=tablebase
+move=c6h6 source=tablebase
+move=h6d6 source=tablebase
+move=d6d2 source=tablebase
+move=b5c4 source=tablebase
+move=f4d4 source=tablebase
+move=d4d3 source=tablebase
+move=c4c3 source=tablebase
+move=c3d2 source=tablebase
+move=d3e3 source=tablebase
+move=d2e2 source=tablebase
+move=e3d3 source=tablebase
+move=d3g3 source=tablebase
+move=e2f2 source=tablebase
+move=g3h3 source=tablebase
+PASS new_21170033_dtz3 in 37 plies
+move=d7c7 source=rook_policy
+move=b7b8q source=rook_policy
+move=b8h8 source=tablebase
+move=h8g8 source=tablebase
+move=g8g1 source=tablebase
+move=c6h6 source=tablebase
+PASS new_26942131_dtz3 in 11 plies
+move=e5e1 source=rook_policy
+move=e1c1 source=rook_policy
+move=c7c8q source=tablebase
+move=c8g4 source=tablebase
+move=g4h3 source=tablebase
+move=c1g1 source=tablebase
+move=a6b7 source=tablebase
+move=b7c8 source=tablebase
+move=c8d8 source=tablebase
+move=d8e7 source=tablebase
+move=e7f6 source=tablebase
+move=f6f5 source=tablebase
+move=g1g8 source=tablebase
+move=f5f4 source=tablebase
+move=f4f3 source=tablebase
+move=f3f2 source=tablebase
+move=g8h8 source=tablebase
+PASS new_35596584_dtz3 in 33 plies
+move=g7c7 source=rook_policy
+move=b7b8q source=rook_policy
+move=b8b6 source=tablebase
+move=b6c5 source=tablebase
+move=c5c6 source=tablebase
+move=c6h1 source=tablebase
+move=c7f7 source=tablebase
+move=h1h5 source=tablebase
+move=f7g7 source=tablebase
+move=g7g3 source=tablebase
+move=c8d7 source=tablebase
+move=g3g8 source=tablebase
+move=d7e6 source=tablebase
+move=e6f5 source=tablebase
+move=g8g6 source=tablebase
+move=f5f6 source=tablebase
+move=f6f7 source=tablebase
+move=g6h6 source=tablebase
+PASS new_45292986_dtz3 in 35 plies
+move=c8d7 source=rook_policy
+move=c7c8q source=rook_policy
+move=c8g8 source=tablebase
+move=g8g2 source=tablebase
+PASS new_68887290_dtz3 in 7 plies
+move=h4e4 source=rook_policy
+move=e4e1 source=rook_policy
+move=a6a7 source=tablebase
+move=a7a8q source=tablebase
+move=a8g8 source=tablebase
+move=e1h1 source=tablebase
+PASS new_70420440_dtz3 in 11 plies
+move=e6f6 source=rook_policy
+move=f6f1 source=rook_policy
+move=b8c8 source=tablebase
+move=b7b8q source=tablebase
+move=b8g3 source=tablebase
+move=f1h1 source=tablebase
+PASS new_89594681_dtz3 in 11 plies
+move=h5g5 source=rook_policy
+move=c7c8q source=rook_policy
+move=g5g1 source=tablebase
+move=c8h8 source=tablebase
+PASS new_104540642_dtz3 in 7 plies
+move=d8h8 source=rook_policy
+move=h8h1 source=rook_policy
+move=c8d8 source=tablebase
+move=c7c8q source=tablebase
+move=d8e7 source=tablebase
+move=c8g4 source=tablebase
+PASS new_125775610_dtz3 in 11 plies
+move=d8c8 source=rook_policy
+move=d7d8q source=rook_policy
+move=d8d7 source=tablebase
+move=d7c7 source=tablebase
+move=c7h2 source=tablebase
+move=h2b8 source=tablebase
+move=c1a1 source=tablebase
+PASS new_195506363_dtz3 in 13 plies
+move=c8d7 source=rook_policy
+move=c7c8q source=rook_policy
+move=c8a8 source=tablebase
+move=a8g2 source=tablebase
+PASS new_337060602_dtz3 in 7 plies
+draw_claims=1 complete=1 ms=0.0
+move=c1c8 depth=9 score=210 nodes=113494 ms=141 time_left_ms=5000
+{
+  "passed": true,
+  "conversions": [
+    {
+      "name": "original",
+      "start_fen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",
+      "plies": 41,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rc4 Kd7 2. Rd4+ Ke7 3. Kc7 Rc2+ 4. Kb6 Rb2+ 5. Ka6 Kf7 6. Ra4 Kg8 7. Ka7 Kh8 8. b8=Q+ Kh7 9. Qxb2 Kh6 10. Ra5 Kh7 11. Qg7+ Kxg7 12. Ra6 Kh8 13. Kb8 Kh7 14. Kc8 Kg7 15. Kd8 Kf7 16. Kd7 Kg8 17. Ke8 Kg7 18. Ke7 Kh8 19. Kf8 Kh7 20. Kf7 Kh8 21. Rh6# 1-0"
+    },
+    {
+      "name": "file_mirror",
+      "start_fen": "4k1K1/6P1/8/8/8/8/7r/5R2 w - - 0 1",
+      "plies": 41,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"4k1K1/6P1/8/8/8/8/7r/5R2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rf4 Rh3 2. Re4+ Kd7 3. Kf7 Rf3+ 4. Kg6 Rg3+ 5. Kh6 Rh3+ 6. Kg5 Rg3+ 7. Rg4 Rh3 8. g8=Q Ra3 9. Qf7+ Kc6 10. Qc4+ Kd7 11. Qa4+ Ke7 12. Qxa3+ Kf7 13. Kf5 Ke8 14. Qe7+ Kxe7 15. Rd4 Kf7 16. Rd7+ Ke8 17. Ke6 Kf8 18. Rc7 Kg8 19. Kf6 Kh8 20. Kg6 Kg8 21. Rc8# 1-0"
+    },
+    {
+      "name": "black",
+      "start_fen": "2r5/R7/8/8/8/8/1p6/1k1K4 b - - 0 1",
+      "plies": 23,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"0-1\"]\n[FEN \"2r5/R7/8/8/8/8/1p6/1k1K4 b - - 0 1\"]\n[SetUp \"1\"]\n\n1... Rc5 2. Kd2 Rd5+ 3. Ke3 Kc2 4. Rc7+ Kb3 5. Rb7+ Ka3 6. Kf4 Ra5 7. Kg4 Ka2 8. Kh4 b1=Q 9. Rg7 Rh5+ 10. Kg4 Rg5+ 11. Kh4 Rxg7 12. Kh5 Qh7# 0-1"
+    },
+    {
+      "name": "black_file_mirror",
+      "start_fen": "5r2/7R/8/8/8/8/6p1/4K1k1 b - - 0 1",
+      "plies": 49,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"0-1\"]\n[FEN \"5r2/7R/8/8/8/8/6p1/4K1k1 b - - 0 1\"]\n[SetUp \"1\"]\n\n1... Rf5 2. Rh8 Re5+ 3. Kd2 Kf2 4. Rf8+ Kg3 5. Rg8+ Kh3 6. Rh8+ Kg4 7. Rg8+ Rg5 8. Rh8 g1=Q 9. Re8 Rd5+ 10. Kc3 Qc5+ 11. Kb3 Qb5+ 12. Kc3 Qxe8 13. Kc4 Qb8 14. Kc3 Qb3+ 15. Kxb3 Kf4 16. Kc4 Ke4 17. Kc3 Rd4 18. Kc2 Rd3 19. Kc1 Ke3 20. Kc2 Ke2 21. Kc1 Rd2 22. Kb1 Kd1 23. Ka1 Kc2 24. Ka2 Rd3 25. Ka1 Ra3# 0-1"
+    },
+    {
+      "name": "new_1516282_dtz3",
+      "start_fen": "2K5/2P5/8/8/8/8/3R4/r4k2 w - - 0 1",
+      "plies": 7,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"2K5/2P5/8/8/8/8/3R4/r4k2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Kd8 Kg1 2. c8=Q Kh1 3. Qb7+ Kg1 4. Qg2# 1-0"
+    },
+    {
+      "name": "new_16975729_dtz3",
+      "start_fen": "8/PK6/8/8/5R2/8/8/kr6 w - - 0 1",
+      "plies": 27,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/PK6/8/8/5R2/8/8/kr6 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Ka6 Rh1 2. a8=Q Rh6+ 3. Kb5+ Kb2 4. Qg2+ Kc3 5. Qg7+ Rf6 6. Qxf6+ Kd3 7. Qc3+ Ke2 8. Rf1 Kxf1 9. Qg3 Ke2 10. Kc4 Kf1 11. Kd4 Ke2 12. Qg2+ Ke1 13. Ke3 Kd1 14. Qd2# 1-0"
+    },
+    {
+      "name": "new_18293498_dtz3",
+      "start_fen": "2K5/2P5/8/8/8/8/3R4/1r3k2 w - - 0 1",
+      "plies": 7,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"2K5/2P5/8/8/8/8/3R4/1r3k2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Kd8 Kg1 2. c8=Q Kh1 3. Qa8+ Kg1 4. Qg2# 1-0"
+    },
+    {
+      "name": "new_18295266_dtz3",
+      "start_fen": "8/2P5/8/2K4R/8/8/8/1r3k2 w - - 0 1",
+      "plies": 35,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/2P5/8/2K4R/8/8/8/1r3k2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rh1+ Kg2 2. c8=Q Rb3 3. Qg8+ Kf3 4. Qxb3+ Kg4 5. Qf7 Kg5 6. Qf5+ Kxf5 7. Kd5 Kf4 8. Re1 Kg4 9. Ke5 Kg3 10. Kf5 Kf3 11. Re8 Kg3 12. Re3+ Kh2 13. Kg4 Kg2 14. Rf3 Kh2 15. Rg3 Kh1 16. Kf3 Kh2 17. Kf2 Kh1 18. Rh3# 1-0"
+    },
+    {
+      "name": "new_19072881_dtz3",
+      "start_fen": "8/PK6/8/8/5R2/8/k7/1r6 w - - 0 1",
+      "plies": 37,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/PK6/8/8/5R2/8/k7/1r6 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Ka6 Rh1 2. a8=Q Rh6+ 3. Kb5+ Kb3 4. Qd5+ Kc3 5. Qc6+ Kd3 6. Qxh6 Ke3 7. Qd6 Ke2 8. Qd2+ Kxd2 9. Kc4 Ke3 10. Rd4 Ke2 11. Rd3 Kf2 12. Kc3 Kg2 13. Kd2 Kf2 14. Re3 Kg1 15. Ke2 Kg2 16. Rd3 Kh1 17. Rg3 Kh2 18. Kf2 Kh1 19. Rh3# 1-0"
+    },
+    {
+      "name": "new_21170033_dtz3",
+      "start_fen": "8/PK6/8/8/5R2/k7/8/1r6 w - - 0 1",
+      "plies": 37,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/PK6/8/8/5R2/k7/8/1r6 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Ka6 Rh1 2. a8=Q Rh6+ 3. Kb5+ Kb3 4. Qd5+ Kc3 5. Qc6+ Kd3 6. Qxh6 Ke3 7. Qd6 Ke2 8. Qd2+ Kxd2 9. Kc4 Ke3 10. Rd4 Ke2 11. Rd3 Kf2 12. Kc3 Kg2 13. Kd2 Kf2 14. Re3 Kg1 15. Ke2 Kg2 16. Rd3 Kh1 17. Rg3 Kh2 18. Kf2 Kh1 19. Rh3# 1-0"
+    },
+    {
+      "name": "new_26942131_dtz3",
+      "start_fen": "8/1P1K4/2R5/6k1/8/8/8/1r6 w - - 0 1",
+      "plies": 11,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/1P1K4/2R5/6k1/8/8/8/1r6 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Kc7 Kh5 2. b8=Q Rg1 3. Qh8+ Kg5 4. Qg8+ Kh5 5. Qxg1 Kh4 6. Rh6# 1-0"
+    },
+    {
+      "name": "new_35596584_dtz3",
+      "start_fen": "8/2P5/K7/4R3/8/8/8/2r4k w - - 0 1",
+      "plies": 33,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/2P5/K7/4R3/8/8/8/2r4k w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Re1+ Kh2 2. Rxc1 Kh3 3. c8=Q+ Kg3 4. Qg4+ Kh2 5. Qh3+ Kxh3 6. Rg1 Kh4 7. Kb7 Kh3 8. Kc8 Kh4 9. Kd8 Kh5 10. Ke7 Kh6 11. Kf6 Kh5 12. Kf5 Kh4 13. Rg8 Kh3 14. Kf4 Kh2 15. Kf3 Kh1 16. Kf2 Kh2 17. Rh8# 1-0"
+    },
+    {
+      "name": "new_45292986_dtz3",
+      "start_fen": "2K5/1P4R1/4k3/8/8/8/8/2r5 w - - 0 1",
+      "plies": 35,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"2K5/1P4R1/4k3/8/8/8/8/2r5 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rc7 Kf6 2. b8=Q Rh1 3. Qb6+ Kf5 4. Qc5+ Kg6 5. Qc6+ Kh5 6. Qxh1+ Kg6 7. Rf7 Kg5 8. Qh5+ Kxh5 9. Rg7 Kh6 10. Rg3 Kh5 11. Kd7 Kh4 12. Rg8 Kh5 13. Ke6 Kh6 14. Kf5 Kh7 15. Rg6 Kh8 16. Kf6 Kh7 17. Kf7 Kh8 18. Rh6# 1-0"
+    },
+    {
+      "name": "new_68887290_dtz3",
+      "start_fen": "2K5/2P5/8/8/8/8/3R4/4r1k1 w - - 0 1",
+      "plies": 7,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"2K5/2P5/8/8/8/8/3R4/4r1k1 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Kd7 Kh1 2. c8=Q Kg1 3. Qg8+ Kh1 4. Qg2# 1-0"
+    },
+    {
+      "name": "new_70420440_dtz3",
+      "start_fen": "8/8/P7/8/K6R/8/4k3/4r3 w - - 0 1",
+      "plies": 11,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/8/P7/8/K6R/8/4k3/4r3 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Re4+ Kf3 2. Rxe1 Kg4 3. a7 Kh5 4. a8=Q Kh6 5. Qg8 Kh5 6. Rh1# 1-0"
+    },
+    {
+      "name": "new_89594681_dtz3",
+      "start_fen": "1K6/1P6/4R3/8/8/5k2/8/5r2 w - - 0 1",
+      "plies": 11,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"1K6/1P6/4R3/8/8/5k2/8/5r2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rf6+ Kg4 2. Rxf1 Kh5 3. Kc8 Kh6 4. b8=Q Kh7 5. Qg3 Kh8 6. Rh1# 1-0"
+    },
+    {
+      "name": "new_104540642_dtz3",
+      "start_fen": "8/2P5/8/2K4R/8/8/6k1/6r1 w - - 0 1",
+      "plies": 7,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"8/2P5/8/2K4R/8/8/6k1/6r1 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rg5+ Kh3 2. c8=Q+ Kh4 3. Rxg1 Kh5 4. Qh8# 1-0"
+    },
+    {
+      "name": "new_125775610_dtz3",
+      "start_fen": "2KR4/2P5/8/8/7k/8/8/7r w - - 0 1",
+      "plies": 11,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"2KR4/2P5/8/8/7k/8/8/7r w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rh8+ Kg5 2. Rxh1 Kg6 3. Kd8 Kg7 4. c8=Q Kg8 5. Ke7+ Kg7 6. Qg4# 1-0"
+    },
+    {
+      "name": "new_195506363_dtz3",
+      "start_fen": "3K4/3P4/1k6/8/8/8/3r4/2R5 w - - 0 1",
+      "plies": 13,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"3K4/3P4/1k6/8/8/8/3r4/2R5 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Kc8 Rh2 2. d8=Q+ Kb5 3. Qd7+ Kb6 4. Qc7+ Kb5 5. Qxh2 Kb6 6. Qb8+ Ka6 7. Ra1# 1-0"
+    },
+    {
+      "name": "new_337060602_dtz3",
+      "start_fen": "2K5/2P5/8/8/8/4r3/3R4/5k2 w - - 0 1",
+      "plies": 7,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"2K5/2P5/8/8/8/4r3/3R4/5k2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Kd7 Kg1 2. c8=Q Kh1 3. Qa8+ Kg1 4. Qg2# 1-0"
+    }
+  ],
+  "policy_repetition_claim_rejected": true,
+  "recorded_move": "c1c4",
+  "safe_move": "c1c8"
+}

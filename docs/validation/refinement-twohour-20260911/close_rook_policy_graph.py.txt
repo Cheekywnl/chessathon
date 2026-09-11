@@ -1,0 +1,71 @@
+"""Keep the largest subset whose winning move covers every legal defensive reply."""
+import hashlib,json,shutil,sys,time
+from collections import defaultdict,deque
+from pathlib import Path
+import chess
+import numpy as np
+import psutil
+work=Path(__file__).parent;psutil.Process().cpu_affinity([0])
+base=work/'final-extracted-repacked';wide=work/'twohour-rookwide'
+target=work/'twohour-rookclosed'
+assert not target.exists();target.mkdir()
+for path in base.glob('*.py'):shutil.copy2(path,target/path.name)
+for directory in ('weights','syzygy','book'):shutil.copytree(base/directory,target/directory)
+with np.load(wide/'syzygy/rook_wins.npz',allow_pickle=False) as data:
+    entries={int(k):(int(m),int(d)) for k,m,d in zip(data['keys'],data['moves'],data['dtz'],strict=True)}
+with np.load(base/'syzygy/rook_wins.npz',allow_pickle=False) as data:
+    old={int(k):(int(m),int(d)) for k,m,d in zip(data['keys'],data['moves'],data['dtz'],strict=True)}
+
+def decode(key):
+    board=chess.Board(None)
+    for i,(kind,color) in enumerate(((chess.KING,True),(chess.ROOK,True),
+        (chess.PAWN,True),(chess.KING,False),(chess.ROOK,False))):
+        board.set_piece_at((key>>(6*i))&63,chess.Piece(kind,color))
+    return board
+
+def encode(board):
+    pawn=board.pieces_mask(chess.PAWN,True).bit_length()-1
+    flip=7 if pawn%8>=4 else 0
+    squares=(board.king(True),next(iter(board.pieces(chess.ROOK,True))),pawn,
+             board.king(False),next(iter(board.pieces(chess.ROOK,False))))
+    return sum((sq^flip)<<(6*i) for i,sq in enumerate(squares))
+
+reverse=defaultdict(set);bad=set();edges=0;started=time.monotonic()
+for key,(packed,dtz) in entries.items():
+    board=decode(key)
+    move=chess.Move(packed&63,(packed>>6)&63,promotion=(packed>>12) or None)
+    assert move in board.legal_moves
+    board.push(move)
+    if board.occupied.bit_count()==5 and board.pawns:
+        for reply in board.legal_moves:
+            board.push(reply)
+            if board.occupied.bit_count()==5 and board.pawns and not board.is_game_over():
+                child=encode(board);edges+=1
+                if child not in entries:bad.add(key)
+                else:reverse[child].add(key)
+            board.pop()
+queue=deque(bad)
+while queue:
+    lost=queue.popleft()
+    for parent in reverse[lost]:
+        if parent not in bad:bad.add(parent);queue.append(parent)
+retained={k:v for k,v in entries.items() if k not in bad}
+assert all(retained.get(k)==v for k,v in old.items())
+keys=sorted(retained)
+out=target/'syzygy/rook_wins.npz'
+np.savez_compressed(out,keys=np.asarray(keys,dtype=np.uint32),
+    moves=np.asarray([retained[k][0] for k in keys],dtype=np.uint16),
+    dtz=np.asarray([retained[k][1] for k in keys],dtype=np.uint8),format_version=np.int32(1))
+result={'source_entries':len(entries),'retained_entries':len(retained),'removed_incomplete':len(bad),
+        'original_entries':len(old),'all_original_entries_identical':True,
+        'all_retained_policy_children_covered':True,'source_edges_examined':edges,
+        'source_sha256':hashlib.sha256((wide/'syzygy/rook_wins.npz').read_bytes()).hexdigest(),
+        'sha256':hashlib.sha256(out.read_bytes()).hexdigest(),'bytes':out.stat().st_size,
+        'seconds':time.monotonic()-started,'independent_check_pending':True}
+(work/'twohour-rook-closed.json').write_text(json.dumps(result,indent=2))
+text=(work/'check_rook_policy.py').read_text().replace('cpu_affinity([2])','cpu_affinity([0])')
+text=text.replace("root/'final-refinement'","root/'twohour-rookclosed'")
+text=text.replace("root/'final-refinement/syzygy'","root/'twohour-rookclosed/syzygy'")
+text=text.replace("root/'final-rook-policy-check.json'","root/'twohour-rook-closed-check.json'")
+(work/'check_closed_rook_policy.py').write_text(text)
+print(json.dumps(result,indent=2),flush=True)

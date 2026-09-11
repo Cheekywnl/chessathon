@@ -1,0 +1,30 @@
+{
+  "cases": 4000,
+  "real_position_cases": 3000,
+  "random_clipped_cases": 1000,
+  "all_output_and_hidden_activations_exact": true,
+  "real_feature_zero_fraction": 0.6183255208333334,
+  "records": {
+    "baseline": [
+      0.6200556999974651,
+      0.6222822999989148,
+      0.6275661999970907,
+      0.6021588000003248,
+      0.594941800001834,
+      0.5933074999993551
+    ],
+    "sparse": [
+      0.2579392999978154,
+      0.26074070000322536,
+      0.24371650000102818,
+      0.24236379999638302,
+      0.24225500000466127,
+      0.2432046000030823
+    ]
+  },
+  "median_seconds": {
+    "baseline": 0.611107249998895,
+    "sparse": 0.24346055000205524
+  },
+  "playing_strength_validated": false
+}

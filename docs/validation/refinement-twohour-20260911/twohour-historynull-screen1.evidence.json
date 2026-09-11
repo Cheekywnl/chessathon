@@ -1,0 +1,41 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    8000,
+    120
+  ],
+  "wins": 15,
+  "draws": 14,
+  "losses": 11,
+  "score": 0.55,
+  "terminations": {
+    "checkmate": 26,
+    "threefold_repetition": 12,
+    "fifty_moves": 1,
+    "insufficient_material": 1
+  },
+  "pair_score_counts": {
+    "0.5": 6,
+    "2.0": 5,
+    "1.0": 3,
+    "0.0": 2,
+    "1.5": 4
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\two-hour-refinement\\data\\runs\\twohour-historynull-screen1.jsonl": "4898c416d7595d5af1a0781d2d3f27a5474b2bdf582e7549d4d34eddd465dfe0"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "477d0d5d36eac59c39bd7252c800e4cfbc5265aa0840dd8e1c39c5a0e7a34106",
+      "99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 571691008,
+  "maximum_recorded_init_seconds": 54.70300000000134,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

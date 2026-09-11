@@ -1,0 +1,35 @@
+"""Exact sparse dense layers over transposed, contiguous weights."""
+import numpy as np
+from numba import njit
+from chess_halfkp_int import clip_dense
+
+@njit(cache=False)
+def forward_sparse(
+    own, other, w2, b2, w3, b3, w4, b4, scale2, scale3, output_divisor,
+    inverse2, inverse3, shift2, shift3, h1, h2,
+):
+    width=len(own)
+    sums=b2.copy()
+    for k in range(width):
+        value=np.int32(own[k])
+        if value:
+            for j in range(32):
+                sums[j]=np.int32(sums[j]+np.int32(w2[k,j])*value)
+        value=np.int32(other[k])
+        if value:
+            for j in range(32):
+                sums[j]=np.int32(sums[j]+np.int32(w2[width+k,j])*value)
+    for j in range(32):
+        h1[j]=clip_dense(sums[j],scale2,inverse2,shift2)
+        sums[j]=b3[j]
+    for k in range(32):
+        value=np.int32(h1[k])
+        if value:
+            for j in range(32):
+                sums[j]=np.int32(sums[j]+np.int32(w3[k,j])*value)
+    for j in range(32):
+        h2[j]=clip_dense(sums[j],scale3,inverse3,shift3)
+    output=b4
+    for k in range(32):
+        output+=int(w4[k])*int(h2[k])
+    return output/output_divisor

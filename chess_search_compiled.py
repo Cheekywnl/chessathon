@@ -146,8 +146,8 @@ class Context:
         self.stop_token = 0
         self.aborted = False
         self.params = params
-        self.w1, self.b1, self.w2, self.b2 = (w1, b1, w2, b2)
-        self.w3, self.b3, self.w4, self.b4 = (w3, b3, w4, b4)
+        self.w1, self.b1, self.w2, self.b2 = (w1, b1, np.ascontiguousarray(w2.T), b2)
+        self.w3, self.b3, self.w4, self.b4 = (np.ascontiguousarray(w3.T), b3, w4, b4)
         self.scale2, self.scale3, self.divisor, self.blend = (s2, s3, div, blend)
         self.acc_white = np.zeros(len(b1), dtype=np.int32)
         self.acc_black = np.zeros(len(b1), dtype=np.int32)

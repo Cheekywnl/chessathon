@@ -19,15 +19,18 @@ import chess_search_compiled as compiled
 from chess_nnue_halfkp import active_features_halfkp
 
 
-def check_position(board: chess.Board, ctx: Any) -> None:
+def check_position(board: chess.Board, ctx: Any, weights: qi.QuantizedWeights) -> None:
     state = cs.state_from_board(board)
     white = np.empty(30, dtype=np.int64)
     black = np.empty(30, dtype=np.int64)
     count = active_features_halfkp(*state[:8], white, black)
     expected_white = ctx.b1.astype(np.int32) + ctx.w1[white[:count]].sum(axis=0, dtype=np.int32)
     expected_black = ctx.b1.astype(np.int32) + ctx.w1[black[:count]].sum(axis=0, dtype=np.int32)
-    expected = qi.evaluate(*state[:9], ctx.w1, ctx.b1, ctx.w2, ctx.b2, ctx.w3, ctx.b3,
-                           ctx.w4, ctx.b4, ctx.scale2, ctx.scale3, ctx.divisor)
+    # Read the oracle's original tensor layout, independently of the cached
+    # backend's storage layout (which may transpose dense layers for speed).
+    expected = qi.evaluate(*state[:9], weights.w1, weights.b1, weights.w2, weights.b2,
+                           weights.w3, weights.b3, weights.w4, weights.b4,
+                           weights.scale2, weights.scale3, weights.output_divisor)
     actual = compiled.cached_neural(state, ctx)
     assert actual == expected, (board.fen(), "score", expected, actual)
     assert np.array_equal(ctx.acc_white, expected_white), (board.fen(), "white raw sum")
@@ -64,7 +67,7 @@ def main() -> None:
     position_checks = 0
     for board in boards:
         assert board.is_valid(), board.fen()
-        check_position(board, ctx)
+        check_position(board, ctx, weights)
         position_checks += 1
         for move in list(board.legal_moves):
             kind = ("castling" if board.is_castling(move) else
@@ -75,16 +78,16 @@ def main() -> None:
                     "king" if board.piece_type_at(move.from_square) == chess.KING else "quiet")
             mover = "white" if board.turn else "black"
             board.push(move)
-            check_position(board, ctx)
+            check_position(board, ctx, weights)
             board.pop()
-            check_position(board, ctx)
+            check_position(board, ctx, weights)
             transitions[f"{mover}_{kind}"] += 1
             position_checks += 2
         # Changing the side to move changes dense-input order, not raw sums.
         board.push(chess.Move.null())
-        check_position(board, ctx)
+        check_position(board, ctx, weights)
         board.pop()
-        check_position(board, ctx)
+        check_position(board, ctx, weights)
         position_checks += 2
     for color in ("white", "black"):
         for kind in ("castling", "en_passant", "capture_promotion", "promotion", "capture",

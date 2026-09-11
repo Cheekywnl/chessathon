@@ -51,8 +51,12 @@ def load_weights(path: str | Path) -> QuantizedWeights:
                 raise ValueError(f"invalid HalfKP tensor: {key}")
         scale2, scale3 = int(data["scale2"]), int(data["scale3"])
         divisor = float(data["output_divisor"])
-        if (min(scale2, scale3) < 1 or max(scale2, scale3) > 32768
-                or not np.isfinite(divisor) or divisor <= 0):
+        if (
+            min(scale2, scale3) < 1
+            or max(scale2, scale3) > 32768
+            or not np.isfinite(divisor)
+            or divisor <= 0
+        ):
             raise ValueError("invalid HalfKP quantization scales")
         bound = 30 * np.abs(w1.astype(np.int32)).max(axis=0)
         bound += np.abs(data["b1"].astype(np.int32))
@@ -64,11 +68,17 @@ def load_weights(path: str | Path) -> QuantizedWeights:
             if dense_bound.max() > np.iinfo(np.int32).max:
                 raise ValueError("HalfKP dense accumulator can overflow int32")
         return QuantizedWeights(
-            w1, np.ascontiguousarray(data["b1"]),
-            np.ascontiguousarray(data["W2"]), np.ascontiguousarray(data["b2"]),
-            np.ascontiguousarray(data["W3"]), np.ascontiguousarray(data["b3"]),
-            np.ascontiguousarray(data["W4"]), int(data["b4"]),
-            scale2, scale3, divisor,
+            w1,
+            np.ascontiguousarray(data["b1"]),
+            np.ascontiguousarray(data["W2"]),
+            np.ascontiguousarray(data["b2"]),
+            np.ascontiguousarray(data["W3"]),
+            np.ascontiguousarray(data["b3"]),
+            np.ascontiguousarray(data["W4"]),
+            int(data["b4"]),
+            scale2,
+            scale3,
+            divisor,
         )
 
 
@@ -85,10 +95,21 @@ def accumulate(indices: np.ndarray, count: int, w1: np.ndarray, b1: np.ndarray) 
 
 @njit(cache=False)
 def forward(
-    white: np.ndarray, black: np.ndarray, count: int, stm: bool,
-    w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray,
-    w3: np.ndarray, b3: np.ndarray, w4: np.ndarray, b4: int,
-    scale2: int, scale3: int, output_divisor: float,
+    white: np.ndarray,
+    black: np.ndarray,
+    count: int,
+    stm: bool,
+    w1: np.ndarray,
+    b1: np.ndarray,
+    w2: np.ndarray,
+    b2: np.ndarray,
+    w3: np.ndarray,
+    b3: np.ndarray,
+    w4: np.ndarray,
+    b4: int,
+    scale2: int,
+    scale3: int,
+    output_divisor: float,
 ) -> float:
     own = accumulate(white if stm else black, count, w1, b1)
     other = accumulate(black if stm else white, count, w1, b1)
@@ -99,8 +120,11 @@ def forward(
         for k in range(width):
             # Numba otherwise widens a scalar reduction to int64. The loader
             # proves each dense sum fits int32, allowing a narrower SIMD sum.
-            total = np.int32(total + np.int32(w2[j, k]) * np.int32(own[k])
-                             + np.int32(w2[j, width + k]) * np.int32(other[k]))
+            total = np.int32(
+                total
+                + np.int32(w2[j, k]) * np.int32(own[k])
+                + np.int32(w2[j, width + k]) * np.int32(other[k])
+            )
         h1[j] = min(255, max(0, int((np.int64(total) + scale2 // 2) // scale2)))
     h2 = np.empty(32, dtype=np.int16)
     for j in range(32):
@@ -116,9 +140,17 @@ def forward(
 
 @njit(cache=False)
 def forward_accumulators(
-    own: np.ndarray, other: np.ndarray, w2: np.ndarray, b2: np.ndarray,
-    w3: np.ndarray, b3: np.ndarray, w4: np.ndarray, b4: int,
-    scale2: int, scale3: int, output_divisor: float,
+    own: np.ndarray,
+    other: np.ndarray,
+    w2: np.ndarray,
+    b2: np.ndarray,
+    w3: np.ndarray,
+    b3: np.ndarray,
+    w4: np.ndarray,
+    b4: int,
+    scale2: int,
+    scale3: int,
+    output_divisor: float,
 ) -> float:
     """Dense network for cached sums; full-refresh keeps its measured fused body.
 
@@ -132,8 +164,11 @@ def forward_accumulators(
         for k in range(width):
             # Numba otherwise widens a scalar reduction to int64. The loader
             # proves each dense sum fits int32, allowing a narrower SIMD sum.
-            total = np.int32(total + np.int32(w2[j, k]) * np.int32(own[k])
-                             + np.int32(w2[j, width + k]) * np.int32(other[k]))
+            total = np.int32(
+                total
+                + np.int32(w2[j, k]) * np.int32(own[k])
+                + np.int32(w2[j, width + k]) * np.int32(other[k])
+            )
         h1[j] = min(255, max(0, int((np.int64(total) + scale2 // 2) // scale2)))
     h2 = np.empty(32, dtype=np.int16)
     for j in range(32):
@@ -149,19 +184,51 @@ def forward_accumulators(
 
 @njit(cache=False)
 def evaluate(
-    pawns: np.uint64, knights: np.uint64, bishops: np.uint64,
-    rooks: np.uint64, queens: np.uint64, kings: np.uint64,
-    white: np.uint64, black: np.uint64, stm: bool,
-    w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray,
-    w3: np.ndarray, b3: np.ndarray, w4: np.ndarray, b4: int,
-    scale2: int, scale3: int, output_divisor: float,
+    pawns: np.uint64,
+    knights: np.uint64,
+    bishops: np.uint64,
+    rooks: np.uint64,
+    queens: np.uint64,
+    kings: np.uint64,
+    white: np.uint64,
+    black: np.uint64,
+    stm: bool,
+    w1: np.ndarray,
+    b1: np.ndarray,
+    w2: np.ndarray,
+    b2: np.ndarray,
+    w3: np.ndarray,
+    b3: np.ndarray,
+    w4: np.ndarray,
+    b4: int,
+    scale2: int,
+    scale3: int,
+    output_divisor: float,
 ) -> int:
     white_indices = np.empty(30, dtype=np.int64)
     black_indices = np.empty(30, dtype=np.int64)
-    count = active_features_halfkp(pawns, knights, bishops, rooks, queens, kings,
-                                  white, black, white_indices, black_indices)
-    return round(forward(white_indices, black_indices, count, stm,
-                         w1, b1, w2, b2, w3, b3, w4, b4, scale2, scale3, output_divisor))
+    count = active_features_halfkp(
+        pawns, knights, bishops, rooks, queens, kings, white, black, white_indices, black_indices
+    )
+    return round(
+        forward(
+            white_indices,
+            black_indices,
+            count,
+            stm,
+            w1,
+            b1,
+            w2,
+            b2,
+            w3,
+            b3,
+            w4,
+            b4,
+            scale2,
+            scale3,
+            output_divisor,
+        )
+    )
 
 
 @njit(cache=False, inline="always")
@@ -203,25 +270,46 @@ def clip_dense(total: int | np.int32, scale: int, reciprocal: float, shift: int)
 
 @njit(cache=False)
 def forward_scratch(
-    own: np.ndarray, other: np.ndarray, w2: np.ndarray, b2: np.ndarray,
-    w3: np.ndarray, b3: np.ndarray, w4: np.ndarray, b4: int,
-    scale2: int, scale3: int, output_divisor: float,
-    inverse2: float, inverse3: float, shift2: int, shift3: int,
-    h1: np.ndarray, h2: np.ndarray,
+    own: np.ndarray,
+    other: np.ndarray,
+    w2: np.ndarray,
+    b2: np.ndarray,
+    w3: np.ndarray,
+    b3: np.ndarray,
+    w4: np.ndarray,
+    b4: int,
+    scale2: int,
+    scale3: int,
+    output_divisor: float,
+    inverse2: float,
+    inverse3: float,
+    shift2: int,
+    shift3: int,
+    h1: np.ndarray,
+    h2: np.ndarray,
 ) -> float:
-    """Dense inference using buffers owned exclusively by this Search context."""
+    """Skip zero activations using contiguous transposed dense-layer weights."""
     width = len(own)
+    sums = b2.copy()
+    for k in range(width):
+        value = np.int32(own[k])
+        if value:
+            for j in range(32):
+                sums[j] = np.int32(sums[j] + np.int32(w2[k, j]) * value)
+        value = np.int32(other[k])
+        if value:
+            for j in range(32):
+                sums[j] = np.int32(sums[j] + np.int32(w2[width + k, j]) * value)
     for j in range(32):
-        total = np.int32(b2[j])
-        for k in range(width):
-            total = np.int32(total + np.int32(w2[j, k]) * np.int32(own[k])
-                             + np.int32(w2[j, width + k]) * np.int32(other[k]))
-        h1[j] = clip_dense(total, scale2, inverse2, shift2)
+        h1[j] = clip_dense(sums[j], scale2, inverse2, shift2)
+        sums[j] = b3[j]
+    for k in range(32):
+        value = np.int32(h1[k])
+        if value:
+            for j in range(32):
+                sums[j] = np.int32(sums[j] + np.int32(w3[k, j]) * value)
     for j in range(32):
-        total = np.int32(b3[j])
-        for k in range(32):
-            total = np.int32(total + np.int32(w3[j, k]) * np.int32(h1[k]))
-        h2[j] = clip_dense(total, scale3, inverse3, shift3)
+        h2[j] = clip_dense(sums[j], scale3, inverse3, shift3)
     output = b4
     for k in range(32):
         output += int(w4[k]) * int(h2[k])
@@ -229,9 +317,25 @@ def forward_scratch(
 
 
 def warm_up(w: QuantizedWeights) -> None:
-    evaluate(np.uint64(0x00FF00000000FF00), np.uint64(0x4200000000000042),
-             np.uint64(0x2400000000000024), np.uint64(0x8100000000000081),
-             np.uint64(0x0800000000000008), np.uint64(0x1000000000000010),
-             np.uint64(0xFFFF), np.uint64(0xFFFF000000000000), True,
-             w.w1, w.b1, w.w2, w.b2, w.w3, w.b3, w.w4, w.b4,
-             w.scale2, w.scale3, w.output_divisor)
+    evaluate(
+        np.uint64(0x00FF00000000FF00),
+        np.uint64(0x4200000000000042),
+        np.uint64(0x2400000000000024),
+        np.uint64(0x8100000000000081),
+        np.uint64(0x0800000000000008),
+        np.uint64(0x1000000000000010),
+        np.uint64(0xFFFF),
+        np.uint64(0xFFFF000000000000),
+        True,
+        w.w1,
+        w.b1,
+        w.w2,
+        w.b2,
+        w.w3,
+        w.b3,
+        w.w4,
+        w.b4,
+        w.scale2,
+        w.scale3,
+        w.output_divisor,
+    )

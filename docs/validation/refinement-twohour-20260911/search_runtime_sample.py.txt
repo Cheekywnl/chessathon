@@ -1,0 +1,67 @@
+"""Run one frozen runtime's iterative fixed-depth sample in a fresh process."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+import time
+from pathlib import Path
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--positions", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--depth", type=int, default=9)
+    args = parser.parse_args()
+    sys.path.insert(0, str(args.root.resolve()))
+    started = time.perf_counter()
+    import agent
+    import chess
+    import chess_search as cs
+    import numpy as np
+    agent._stop_pondering()
+    assert Path(agent.__file__).parent == args.root.resolve()
+    initialization = time.perf_counter() - started
+    records = []
+    for index, row in enumerate(json.loads(args.positions.read_text())["positions"]):
+        board = chess.Board(row["fen"])
+        assert board.is_valid() and not board.is_game_over(claim_draw=True)
+        key = cs.hash_of_board(board)
+        search = cs.Search(cs.TranspositionTable(18), {key: 1})
+        previous = None
+        depths = []
+        started = time.perf_counter()
+        for depth in range(1, args.depth + 1):
+            move, score, ranked = search.search_root(board, depth, time.monotonic() + 180,
+                                                    previous)
+            assert move in board.legal_moves
+            previous = score
+            depths.append({"depth": depth, "move": move.uci(), "score": score,
+                           "nodes": search.nodes,
+                           "ranked": [(m.uci(), value) for m, value in ranked]})
+        elapsed = time.perf_counter() - started
+        assert {k: v for k, v in search.seen.items() if v} == {key: 1}
+        table = search._ctx.table
+        digest = hashlib.sha256()
+        for values in (table.keys, table.depths, table.scores, table.flags, table.moves,
+                       search._ctx.killers, search._ctx.history):
+            digest.update(np.asarray(values).tobytes())
+        result = {"index": index, "fen": board.fen(), "pieces": len(board.piece_map()),
+                  "seconds": elapsed, "nodes": search.nodes,
+                  "table_and_heuristics_sha256": digest.hexdigest(), "depths": depths}
+        records.append(result)
+        print(json.dumps({k: v for k, v in result.items() if k != "depths"}), flush=True)
+    result = {"root": str(args.root.resolve()), "depth": args.depth, "records": records,
+              "initialization_seconds": initialization,
+              "search_seconds": sum(r["seconds"] for r in records),
+              "nodes": sum(r["nodes"] for r in records), "playing_strength_validated": False}
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps({k: v for k, v in result.items() if k != "records"}), flush=True)
+
+
+if __name__ == "__main__":
+    main()

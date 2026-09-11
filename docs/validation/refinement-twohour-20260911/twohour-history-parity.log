@@ -1,0 +1,21 @@
+{"blend": 0, "index": 0, "fen": "r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10", "nodes": 26142, "python_seconds": 1.0090350000027684, "compiled_seconds": 0.06314779999956954}
+{"blend": 0, "index": 1, "fen": "r1bq1rk1/bppp1ppp/p1n2n2/4p3/4P3/1BPPBN2/PP3PPP/RN1Q1RK1 b - - 4 8", "nodes": 15538, "python_seconds": 0.5413129000007757, "compiled_seconds": 0.02516269999614451}
+{"blend": 0, "index": 2, "fen": "r1bqk2r/1ppn1ppp/p1pb4/4p3/4P3/3P1N2/PPP2PPP/RNBQ1RK1 w kq - 3 8", "nodes": 36119, "python_seconds": 1.2007974999942235, "compiled_seconds": 0.052325199998449534}
+{"blend": 0, "index": 3, "fen": "rnbqkb1r/1p3pp1/p2pp2p/8/3NP3/2N1n3/PPPQ1PPP/2KR1B1R w kq - 0 10", "nodes": 17027, "python_seconds": 0.577857700001914, "compiled_seconds": 0.025484700003289618}
+{"blend": 0, "index": 4, "fen": "rnbq1rk1/pp3pp1/5n1p/2bp4/8/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 0 9", "nodes": 25230, "python_seconds": 0.9426224999988335, "compiled_seconds": 0.043462200002977625}
+{"blend": 0, "index": 5, "fen": "rn1qkbnr/pp3ppb/2p1p2p/8/3P1N1P/3B2N1/PPP2PP1/R1BQK2R b KQkq - 3 9", "nodes": 11966, "python_seconds": 0.4682239000030677, "compiled_seconds": 0.02571409999654861}
+{"blend": 0, "index": 6, "fen": "r1bqr1k1/1p1nbpp1/p1p1pn1p/8/2BP3B/P1N1PN2/1PQ2PPP/2R1K2R b K - 0 12", "nodes": 48706, "python_seconds": 1.8257984000010765, "compiled_seconds": 0.07332150000002002}
+{"blend": 0, "index": 7, "fen": "r1bq1rk1/pp2ppb1/n1pp1npp/4P3/2PP3B/2N2N2/PP2BPPP/R2Q1RK1 b - - 0 11", "nodes": 8175, "python_seconds": 0.2961670000004233, "compiled_seconds": 0.014591699997254182}
+{"blend": 0, "index": 8, "fen": "r1bq1r1k/ppp1bppp/2n5/3np3/8/P1N1PN2/1PQPBPPP/R1B1K2R w KQ - 3 9", "nodes": 5851, "python_seconds": 0.24610830000165151, "compiled_seconds": 0.015158300004259218}
+{"blend": 0, "index": 9, "fen": "rnbq1rk1/p2p1ppp/1p2pn2/2b5/2P1P3/P1N2N2/1PQ2PPP/R1B1KB1R b KQ - 0 8", "nodes": 13388, "python_seconds": 0.5153692000021692, "compiled_seconds": 0.02351950000593206}
+Traceback (most recent call last):
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\run_runtime_check.py", line 11, in <module>
+    runpy.run_module(module, run_name='__main__')
+  File "<frozen runpy>", line 229, in run_module
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\two-hour-refinement\tools\compiled_search_check.py", line 232, in <module>
+    main()
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\two-hour-refinement\tools\compiled_search_check.py", line 135, in main
+    assert results["python"][field] == results["compiled"][field], (blend, index, field)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: (75, 0, 'history')

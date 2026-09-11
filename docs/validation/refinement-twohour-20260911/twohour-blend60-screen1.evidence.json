@@ -1,0 +1,39 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    8000,
+    120
+  ],
+  "wins": 13,
+  "draws": 14,
+  "losses": 13,
+  "score": 0.5,
+  "terminations": {
+    "insufficient_material": 2,
+    "checkmate": 26,
+    "threefold_repetition": 12
+  },
+  "pair_score_counts": {
+    "0.5": 3,
+    "1.0": 11,
+    "1.5": 5,
+    "0.0": 1
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\two-hour-refinement\\data\\runs\\twohour-blend60-screen1.jsonl": "cf915d3e72f9e9a3f1506b106d23e5100c963eec0c3e227755d6ce2d1dc367d1"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "b9a1cda5686e68d64de4168897273546a55c6bb4a3d0ebaf312a2dc878a87084",
+      "99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 563585024,
+  "maximum_recorded_init_seconds": 54.57800000000134,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

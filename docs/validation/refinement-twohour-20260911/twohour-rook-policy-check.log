@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "entries": 14794,
+  "colour_and_file_symmetry_cases": 59176,
+  "opponent_reply_edges_verified": 18532,
+  "queen_promotions": 6620,
+  "all_wdl_and_dtz_verified": true,
+  "all_policy_children_covered": false,
+  "missing_policy_child_edges": 86231,
+  "fifty_move_boundary_checks": 118352,
+  "seconds": 26.10899999999674
+}
