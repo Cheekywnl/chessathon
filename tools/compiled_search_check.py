@@ -5,6 +5,7 @@ import argparse
 import importlib.util
 import io
 import json
+import sys
 import threading
 import time
 from collections import Counter
@@ -28,6 +29,8 @@ def snapshot(search: Any) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument("--reference-backend", type=Path)
+    parser.add_argument("--reference-inference", type=Path)
     parser.add_argument("--openings", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -36,7 +39,28 @@ def main() -> None:
     assert spec is not None and spec.loader is not None
     reference: Any = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(reference)
+    if args.reference_backend:
+        backend_spec = importlib.util.spec_from_file_location(
+            "compiled_backend_reference", args.reference_backend,
+        )
+        assert backend_spec is not None and backend_spec.loader is not None
+        backend: Any = importlib.util.module_from_spec(backend_spec)
+        sys.modules[backend_spec.name] = backend
+        backend_spec.loader.exec_module(backend)
+        if args.reference_inference:
+            inference_spec = importlib.util.spec_from_file_location(
+                "integer_inference_reference", args.reference_inference,
+            )
+            assert inference_spec is not None and inference_spec.loader is not None
+            inference: Any = importlib.util.module_from_spec(inference_spec)
+            sys.modules[inference_spec.name] = inference
+            inference_spec.loader.exec_module(inference)
+            backend.qi = inference
+            reference.halfkp = inference
+        reference.compiled = backend
     reference.HALFKP_WEIGHTS = cs.HALFKP_WEIGHTS
+    if args.reference_backend:
+        reference.warm_up()
     cs.warm_up()
     boards: list[tuple[chess.Board, dict[int, int]]] = [(chess.Board(row["fen"]), {}) for row in
               json.loads(args.openings.read_text())["positions"][:10]]
@@ -128,7 +152,10 @@ def main() -> None:
                 if target.nodes > bound:
                     raise reference.TimeUp
 
-            before._time_check = stop_at_limit
+            if args.reference_backend:
+                before._ctx.limit = limit
+            else:
+                before._time_check = stop_at_limit
             after._ctx.limit = limit
             for search, exc in ((before, reference.TimeUp), (after, cs.TimeUp)):
                 try:

@@ -1,0 +1,1 @@
+{"positions": 10000, "cpu": 12, "median_seconds": {"features": 0.004620850000719656, "two_accumulators": 0.05600459999914165, "accumulators_and_dense": 0.07344784999986587, "complete_hybrid": 0.08723139999892737}, "note": "Stage timings are isolated compiled loops; not a playing-strength measurement."}

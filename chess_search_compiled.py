@@ -93,6 +93,10 @@ spec = [
     ("scale3", types.int64),
     ("divisor", types.float64),
     ("blend", types.int64),
+    ("acc_white", types.int32[::1]),
+    ("acc_black", types.int32[::1]),
+    ("previous", types.uint64[::1]),
+    ("acc_valid", types.boolean),
 ]
 
 
@@ -128,6 +132,10 @@ class Context:
         self.w1, self.b1, self.w2, self.b2 = (w1, b1, w2, b2)
         self.w3, self.b3, self.w4, self.b4 = (w3, b3, w4, b4)
         self.scale2, self.scale3, self.divisor, self.blend = (s2, s3, div, blend)
+        self.acc_white = np.zeros(len(b1), dtype=np.int32)
+        self.acc_black = np.zeros(len(b1), dtype=np.int32)
+        self.previous = np.zeros(8, dtype=np.uint64)
+        self.acc_valid = False
 
 
 @njit(cache=False)
@@ -275,28 +283,16 @@ def evaluate(s: State, mobility: int, ctx: Any) -> int:
         or (not nonking & s[7])
     ):
         return classical
-    neural = qi.evaluate(
-        s[0],
-        s[1],
-        s[2],
-        s[3],
-        s[4],
-        s[5],
-        s[6],
-        s[7],
-        s[8],
-        ctx.w1,
-        ctx.b1,
-        ctx.w2,
-        ctx.b2,
-        ctx.w3,
-        ctx.b3,
-        ctx.w4,
-        ctx.b4,
-        ctx.scale2,
-        ctx.scale3,
-        ctx.divisor,
-    )
+    # Full refresh is cheaper on sparse boards, where king moves and large
+    # changes between sibling leaves can erase the benefit of cached sums.
+    if ce._popcount(s[6] | s[7]) >= 24:
+        neural = cached_neural(s, ctx)
+    else:
+        neural = qi.evaluate(
+            s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8],
+            ctx.w1, ctx.b1, ctx.w2, ctx.b2, ctx.w3, ctx.b3, ctx.w4, ctx.b4,
+            ctx.scale2, ctx.scale3, ctx.divisor,
+        )
     bonus = int(ce.mop_up_bonus(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], ctx.params))
     neural = max(-20000, min(20000, neural)) + (bonus if s[8] else -bonus)
     return (
@@ -304,6 +300,68 @@ def evaluate(s: State, mobility: int, ctx: Any) -> int:
         if ctx.blend >= 100
         else round((classical * (100 - ctx.blend) + neural * ctx.blend) / 100)
     )
+
+
+@njit(cache=False)
+def cached_neural(s: State, ctx: Any) -> int:
+    """Update from the last evaluated board, even across siblings and null moves.
+
+    Exact piece-set differences make this independent of search-ply bookkeeping.
+    Each perspective refreshes when its king anchor changes. Int32 raw sums avoid
+    intermediate overflow; clipping happens only after every removal/addition.
+    The cache belongs to one Search, never the shared transposition table.
+    """
+    old = ctx.previous
+    white_king = cst._lsb_index(s[5] & s[6])
+    black_king = cst._lsb_index(s[5] & s[7]) ^ 56
+    refresh_white = not ctx.acc_valid or (old[5] & old[6]) != (s[5] & s[6])
+    refresh_black = not ctx.acc_valid or (old[5] & old[7]) != (s[5] & s[7])
+    width = len(ctx.b1)
+    if refresh_white:
+        for j in range(width):
+            ctx.acc_white[j] = ctx.b1[j]
+    if refresh_black:
+        for j in range(width):
+            ctx.acc_black[j] = ctx.b1[j]
+    pieces = (s[0], s[1], s[2], s[3], s[4])
+    for kind in range(5):
+        for color in range(2):
+            own = s[6] if color == 0 else s[7]
+            prior_own = old[6] if color == 0 else old[7]
+            now = pieces[kind] & own
+            prior = old[kind] & prior_own
+            changed = now ^ prior if ctx.acc_valid else now
+            visit = now | changed if refresh_white or refresh_black else changed
+            while visit:
+                square = cst._lsb_index(visit)
+                bit = U1 << np.uint64(square)
+                present = bool(now & bit)
+                delta = 1 if present else -1
+                white_delta = (1 if present else 0) if refresh_white else (
+                    delta if changed & bit else 0)
+                black_delta = (1 if present else 0) if refresh_black else (
+                    delta if changed & bit else 0)
+                if white_delta:
+                    feature = square + (kind * 2 + color + white_king * 10) * 64
+                    for j in range(width):
+                        ctx.acc_white[j] += white_delta * np.int32(ctx.w1[feature, j])
+                if black_delta:
+                    feature = (square ^ 56) + (kind * 2 + 1 - color + black_king * 10) * 64
+                    for j in range(width):
+                        ctx.acc_black[j] += black_delta * np.int32(ctx.w1[feature, j])
+                visit &= visit - U1
+    raw = (s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7])
+    for i in range(8):
+        old[i] = raw[i]
+    ctx.acc_valid = True
+    white = np.empty(width, dtype=np.int16)
+    black = np.empty(width, dtype=np.int16)
+    for j in range(width):
+        white[j] = min(255, max(0, ctx.acc_white[j]))
+        black[j] = min(255, max(0, ctx.acc_black[j]))
+    own_acc, other_acc = (white, black) if s[8] else (black, white)
+    return round(qi.forward_accumulators(own_acc, other_acc, ctx.w2, ctx.b2, ctx.w3, ctx.b3,
+                 ctx.w4, ctx.b4, ctx.scale2, ctx.scale3, ctx.divisor))
 
 
 @njit(cache=False)

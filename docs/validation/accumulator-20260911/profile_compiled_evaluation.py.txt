@@ -1,0 +1,85 @@
+"""Measure inference stages inside compiled loops without changing match runtime."""
+import csv
+import json
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+from numba import njit
+from numba.typed import List
+
+work=Path(__file__).resolve().parent
+sys.path.insert(0,str(work/'search-compiled-128'))
+import chess
+import psutil
+psutil.Process().cpu_affinity([12])
+import agent
+import chess_search as cs
+import chess_search_compiled as compiled
+import chess_halfkp_int as qi
+from chess_nnue_halfkp import active_features_halfkp
+
+
+@njit
+def feature_pass(states,white,black,counts):
+    for i in range(len(states)):
+        s=states[i]
+        counts[i]=active_features_halfkp(s[0],s[1],s[2],s[3],s[4],s[5],s[6],s[7],white[i],black[i])
+    return counts.sum()
+
+
+@njit
+def accumulate_pass(white,black,counts,ctx):
+    total=0
+    for i in range(len(counts)):
+        total+=qi.accumulate(white[i],counts[i],ctx.w1,ctx.b1)[0]
+        total+=qi.accumulate(black[i],counts[i],ctx.w1,ctx.b1)[0]
+    return total
+
+
+@njit
+def forward_pass(states,white,black,counts,ctx):
+    total=0.0
+    for i in range(len(counts)):
+        total+=qi.forward(white[i],black[i],counts[i],states[i][8],ctx.w1,ctx.b1,ctx.w2,ctx.b2,
+            ctx.w3,ctx.b3,ctx.w4,ctx.b4,ctx.scale2,ctx.scale3,ctx.divisor)
+    return total
+
+
+@njit
+def hybrid_pass(states,ctx):
+    total=0
+    for s in states:
+        total+=compiled.evaluate(s,30,ctx)
+    return total
+
+
+def main():
+    agent._stop_pondering()
+    states=List()
+    with (work/'halfkp-trial/data/full-cache/heldout_fens.csv').open() as stream:
+        for i,row in enumerate(csv.DictReader(stream)):
+            if i==10000:break
+            states.append(cs.state_from_board(chess.Board(row['fen'])))
+    white=np.empty((len(states),30),dtype=np.int64)
+    black=np.empty_like(white);counts=np.empty(len(states),dtype=np.int64)
+    ctx=cs.Search(cs.TranspositionTable(8),{})._ctx
+    calls=[('features',feature_pass,(states,white,black,counts)),
+           ('two_accumulators',accumulate_pass,(white,black,counts,ctx)),
+           ('accumulators_and_dense',forward_pass,(states,white,black,counts,ctx)),
+           ('complete_hybrid',hybrid_pass,(states,ctx))]
+    for _,fn,args in calls:fn(*args)
+    records={name:[] for name,_,_ in calls}
+    for repeat in range(6):
+        for name,fn,args in calls[::1 if repeat%2 else -1]:
+            start=time.perf_counter();checksum=fn(*args)
+            records[name].append({'seconds':time.perf_counter()-start,'checksum':float(checksum)})
+    result={'positions':len(states),'cpu':12,'median_seconds':{name:float(np.median(
+        [r['seconds'] for r in rows])) for name,rows in records.items()},'records':records,
+        'note':'Stage timings are isolated compiled loops; not a playing-strength measurement.'}
+    (work/'compiled-evaluation-profile.json').write_text(json.dumps(result,indent=2)+'\n')
+    print(json.dumps({k:v for k,v in result.items() if k!='records'}),flush=True)
+
+
+if __name__=='__main__':main()

@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\search-accumulator\\submission.zip",
+  "sha256": "e63d12e547a7f76f14a1e0ddb1928387173f84edf3346260f129963c862c4f3c",
+  "unzipped_bytes": 44998818,
+  "file_count": 109,
+  "integer_network": true,
+  "init_seconds": 43.986814899999445,
+  "peak_rss_bytes": 474075136,
+  "cpu_affinity": [
+    10
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.0006571000012627337
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c1g5",
+      "seconds": 0.20643639999980223
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.02679799999896204
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

@@ -1,0 +1,21 @@
+"""Keep the already fast full-refresh inference body unchanged in the trial."""
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+original=(work/'search-compiled-128/chess_halfkp_int.py').read_text()
+path=work/'search-accumulator/chess_halfkp_int.py'
+trial=path.read_text()
+(work/'search-accumulator/data/runs/inference-extracted-attempt.py.txt').write_text(trial)
+start=original.index('def forward(')
+end=original.index('\n\n@njit',start)
+trial_start=trial.index('def forward(')
+trial_end=trial.index('\n\n@njit',trial_start)
+trial=trial[:trial_start]+original[start:end]+trial[trial_end:]
+trial=trial.replace('    """The unchanged dense network, given already clipped accumulators."""',
+'''    """Dense network for cached sums; full-refresh keeps its measured fused body.
+
+    Factoring forward through this helper slowed sparse-position search on the
+    target local runtime. Both bodies are checked against the same integer oracle.
+    """''')
+path.write_text(trial,encoding='utf-8')
+print('Preserved original full-refresh body; cache still uses the exact dense helper.')

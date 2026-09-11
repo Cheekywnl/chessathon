@@ -1,0 +1,117 @@
+{
+  "positions": 10000,
+  "cpu": 12,
+  "median_seconds": {
+    "features": 0.004620850000719656,
+    "two_accumulators": 0.05600459999914165,
+    "accumulators_and_dense": 0.07344784999986587,
+    "complete_hybrid": 0.08723139999892737
+  },
+  "records": {
+    "features": [
+      {
+        "seconds": 0.004610899999534013,
+        "checksum": 208033.0
+      },
+      {
+        "seconds": 0.004727300001832191,
+        "checksum": 208033.0
+      },
+      {
+        "seconds": 0.0046308000019053,
+        "checksum": 208033.0
+      },
+      {
+        "seconds": 0.0045695000007981434,
+        "checksum": 208033.0
+      },
+      {
+        "seconds": 0.004600700001901714,
+        "checksum": 208033.0
+      },
+      {
+        "seconds": 0.004729899999802001,
+        "checksum": 208033.0
+      }
+    ],
+    "two_accumulators": [
+      {
+        "seconds": 0.05476410000119358,
+        "checksum": 253001.0
+      },
+      {
+        "seconds": 0.055956899999728194,
+        "checksum": 253001.0
+      },
+      {
+        "seconds": 0.05743820000134292,
+        "checksum": 253001.0
+      },
+      {
+        "seconds": 0.06029880000278354,
+        "checksum": 253001.0
+      },
+      {
+        "seconds": 0.05426830000214977,
+        "checksum": 253001.0
+      },
+      {
+        "seconds": 0.0560522999985551,
+        "checksum": 253001.0
+      }
+    ],
+    "accumulators_and_dense": [
+      {
+        "seconds": 0.07378249999965192,
+        "checksum": 83881.19215686276
+      },
+      {
+        "seconds": 0.08276509999996051,
+        "checksum": 83881.19215686276
+      },
+      {
+        "seconds": 0.07580539999980829,
+        "checksum": 83881.19215686276
+      },
+      {
+        "seconds": 0.07236780000312137,
+        "checksum": 83881.19215686276
+      },
+      {
+        "seconds": 0.0729752000006556,
+        "checksum": 83881.19215686276
+      },
+      {
+        "seconds": 0.07311320000007981,
+        "checksum": 83881.19215686276
+      }
+    ],
+    "complete_hybrid": [
+      {
+        "seconds": 0.08733239999855869,
+        "checksum": 136950.0
+      },
+      {
+        "seconds": 0.09458789999916917,
+        "checksum": 136950.0
+      },
+      {
+        "seconds": 0.09352149999904213,
+        "checksum": 136950.0
+      },
+      {
+        "seconds": 0.08289190000141389,
+        "checksum": 136950.0
+      },
+      {
+        "seconds": 0.08499989999836544,
+        "checksum": 136950.0
+      },
+      {
+        "seconds": 0.08713039999929606,
+        "checksum": 136950.0
+      }
+    ]
+  },
+  "note": "Stage timings are isolated compiled loops; not a playing-strength measurement."
+}

@@ -1,0 +1,85 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\tools\compiled_search_check.py", line 18, in <module>
+    import agent
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\agent.py", line 22, in <module>
+    import chess_draw as cd
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_draw.py", line 16, in <module>
+    import chess_search as cs
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search.py", line 986, in <module>
+    warm_up()
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search.py", line 980, in warm_up
+    search.search_root(board, 2, time.monotonic() + 120)
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search.py", line 960, in search_root
+    best_move, best_score, scored = self._search_root_pass(
+                                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search.py", line 895, in _search_root_pass
+    score = -self.negamax(
+             ^^^^^^^^^^^^^
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search.py", line 714, in negamax
+    score = compiled.negamax(
+            ^^^^^^^^^^^^^^^^^
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\cuda-env\Lib\site-packages\numba\core\dispatcher.py", line 422, in _compile_for_args
+    error_rewrite(e, 'typing')
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\cuda-env\Lib\site-packages\numba\core\dispatcher.py", line 363, in error_rewrite
+    raise e.with_traceback(None)
+numba.core.errors.TypingError: Failed in nopython mode pipeline (step: nopython frontend)
+Failed in nopython mode pipeline (step: nopython frontend)
+Failed in nopython mode pipeline (step: nopython frontend)
+Failed in nopython mode pipeline (step: nopython frontend)
+No implementation of function Function(<built-in function getitem>) found for signature:
+ 
+ >>> getitem(Tuple(uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, bool, uint64, int64, int64), int64)
+ 
+There are 22 candidate implementations:
+ - Of which 22 did not match due to:
+ Overload of function 'getitem': File: <numerous>: Line N/A.
+   With argument(s): '(Tuple(uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, bool, uint64, int64, int64), int64)':
+  No match.
+
+During: typing of intrinsic-call at C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search_compiled.py (345)
+
+File "chess_search_compiled.py", line 345:
+def cached_neural(s: State, ctx: Any) -> int:
+    <source elided>
+    for i in range(8):
+        old[i] = s[i]
+        ^
+
+During: Pass nopython_type_inference
+During: resolving callee type: type(CPUDispatcher(<function cached_neural at 0x0000020137A54EA0>))
+During: typing of call at C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search_compiled.py (286)
+
+File "chess_search_compiled.py", line 286:
+def evaluate(s: State, mobility: int, ctx: Any) -> int:
+    <source elided>
+        return classical
+    neural = cached_neural(s, ctx)
+    ^
+
+During: Pass nopython_type_inference
+During: resolving callee type: type(CPUDispatcher(<function evaluate at 0x0000020137A54C20>))
+During: typing of call at C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search_compiled.py (487)
+
+File "chess_search_compiled.py", line 487:
+def qsearch(
+    <source elided>
+    else:
+        stand = evaluate(s, n, ctx)
+        ^
+
+During: Pass nopython_type_inference
+During: resolving callee type: type(CPUDispatcher(<function qsearch at 0x0000020137A56020>))
+During: typing of call at C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search_compiled.py (534)
+During: resolving callee type: recursive(type(CPUDispatcher(<function qsearch at 0x0000020137A56020>)))
+During: typing of call at C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\search-accumulator\chess_search_compiled.py (503)
+
+File "chess_search_compiled.py", line 534:
+def negamax(
+    <source elided>
+    if depth <= 0:
+        return qsearch(s, alpha, beta, ply, key, incheck, ctx)
+        ^
+
+During: Pass nopython_type_inference

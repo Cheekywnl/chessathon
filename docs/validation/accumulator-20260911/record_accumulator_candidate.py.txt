@@ -1,0 +1,116 @@
+"""Checkpoint the tested cache candidate and freeze its short screen."""
+import datetime
+import hashlib
+import json
+import shutil
+import sys
+import time
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'search-accumulator'
+sys.path.insert(0,str(repo))
+from tools.match_evidence import build_manifest
+
+out=repo/'docs/validation/accumulator-20260911'
+out.mkdir(parents=True,exist_ok=True)
+parity=json.loads((repo/'data/runs/accumulator-preserved-vs-compiled.json').read_text())
+package=json.loads((repo/'data/runs/accumulator-final-package-audit.json').read_text())
+assert '274/300' in (repo/'data/runs/accumulator-final-wac.log').read_text()
+assert '1/1 endgame regression positions passed' in (repo/'data/runs/accumulator-final-endgame.log').read_text()
+assert len(parity['comparisons'])==56
+plan=json.loads((work/'search-compiled-128/data/runs/compiled-validation-plan.json').read_text())
+plan['prepared_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+plan['candidate']=build_manifest(repo)
+plan['opening_indices']=list(range(182,192))
+plan['worker_cpus']=[2,8,10,12,14]
+plan['change']='Cache exact HalfKP feature sums on boards with at least24 pieces; keep the released width128 weight and original full-refresh implementation elsewhere.'
+plan_path=repo/'data/runs/accumulator-validation-plan.json'
+assert not plan_path.exists()
+plan_path.write_text(json.dumps(plan,indent=2)+'\n')
+for pattern in ('accumulator-*.json','accumulator-*.log','accumulator128-*.json',
+                'accumulator128-*.log','accumulator256-*.json','accumulator256-*.log',
+                'inference-extracted-attempt.py.txt'):
+    for p in (repo/'data/runs').glob(pattern):
+        shutil.copyfile(p,out/p.name)
+for name in ('profile_compiled_evaluation.py','compiled-evaluation-profile.json',
+             'compiled-evaluation-profile.log','implement_accumulator_trial.py',
+             'preserve_refresh_path.py','record_accumulator_candidate.py'):
+    shutil.copyfile(work/name,out/(name+'.txt' if name.endswith('.py') else name))
+shutil.copyfile(work/'search-compiled-128/docs/COMPILED_SEARCH_20260911.md',
+                repo/'docs/COMPILED_SEARCH_20260911.md')
+shutil.copytree(work/'search-compiled-128/docs/validation/compiled-completed-quick-20260911',
+                repo/'docs/validation/compiled-completed-quick-20260911',dirs_exist_ok=True)
+blend=[r for r in parity['comparisons'] if r['blend']==75]
+ratio=sum(r['python_seconds'] for r in blend)/sum(r['compiled_seconds'] for r in blend)
+text=f'''# Exact feature-sum cache candidate
+
+This candidate follows the frozen compiled engine that scored +17 =2 -1 in20
+short games against released7eda0fa. It has not yet demonstrated an additional
+playing-strength gain. The next20-game paired screen uses unused indices182-191
+at20s+0.3s, with all results retained. Its opponent remains released7eda0fa.
+
+## Implementation
+
+One private cache per Search remembers the last evaluated board and both raw
+HalfKP feature sums. Exact piece-set differences update the sums across children,
+siblings, returns to parents, and null moves. A king-anchor change refreshes that
+perspective. Raw sums use int32; activations are clipped only after all changes.
+No cache state is shared with the background worker or the transposition table.
+
+Profiling found full transformer refresh expensive on unrelated held-out boards.
+Actual search measurements were less dramatic: an always-on cache helped crowded
+positions but slowed sparse ones, so the final path uses it only with at least24
+pieces. An attempted dense-helper extraction also slowed sparse positions. The
+final code preserves the original full-refresh function verbatim, with a separate
+dense helper for cached sums. Both are checked against the integer reference.
+The earlier ungated and extracted-helper logs are preserved as rejected attempts.
+
+## Verification
+
+- 50,111 legal transitions and105,643 parent/child/return/null position checks per
+  width128 and256: every raw sum and output matches full refresh. Both colours,
+  castling, en passant, promotions, capture promotions and king refreshes covered.
+- 10,000 independent integer-reference and bitboard inference checks pass.
+- Final code matches the preceding compiled runtime in all56 fixed-depth6 search
+  cases, every table slot, move/score/rank/node count, killer/history/repetition
+  entry,32 forced abort states, and1,944 mate/key/table boundary probes.
+- The older gated version also passed84 persistent-table/aspiration comparisons.
+  The final code restores the old full-refresh function and leaves cache logic,
+  persistent state and root search unchanged.
+- Final make gate and Lucena pass. Full one-second WAC is274/300 (parent273/300);
+  the earlier extracted-helper version scored263/300 and was superseded.
+- Final alternating-order timings: {parity['python_seconds']:.3f}s before versus
+  {parity['compiled_seconds']:.3f}s after across all blends ({parity['python_seconds']/parity['compiled_seconds']:.3f}x).
+  The actual blend75 subset is only{ratio:.3f}x. This is a modest speed improvement,
+  not a measured Elo gain. Some individual cases still ran slower.
+- Extracted package: {package['unzipped_bytes']:,} bytes,109 files,
+  {package['init_seconds']:.3f}s local one-core initialization,
+  {package['peak_rss_bytes']:,}-byte peak working set, legal smoke moves.
+- ZIP SHA256: {package['sha256']}
+- Runtime SHA256: {plan['candidate']['runtime_sha256']}
+
+The selected released width128 weight, all opening entries and96 tablebase files
+are unchanged. Width256 was used only as an extra correctness check; its unselected
+weight and raw training checkpoints stay outside Git. Main and the existing
+recommended upload are unchanged pending the agreed release process.
+'''
+# Keep the handoff readable without touching engine bytes.
+for old,new in {'in20':'in 20','released7':'released 7','next20':'next 20','indices182':'indices 182',
+               'at20s':'at 20s','least24':'least 24','and105':'and 105','width128':'width 128',
+               'and256':'and 256','all56':'all 56','fixed-depth6':'fixed-depth 6',
+               'entry,32':'entry, 32','and1,944':'and 1,944','passed84':'passed 84',
+               'is274':'is 274','parent273':'parent 273','scored263':'scored 263',
+               'blend75':'blend 75','only1.':'only 1.',',109':', 109','and96':'and 96',
+               'Width256':'Width 256'}.items(): text=text.replace(old,new)
+(repo/'docs/ACCUMULATOR_CANDIDATE_20260911.md').write_text(text,encoding='utf-8')
+with (repo/'viewer/activity_log.jsonl').open('a',encoding='utf-8') as stream:
+    stream.write(json.dumps({'time':time.time(),'status':'done','message':
+        'Candidate feature-sum cache: exact50,111 transitions/105,643 positions at each width, '
+        '10,000 integer oracle checks,56 exact search/32 abort/1944 TT checks. '
+        'Final gate/Lucena pass; WAC274/300. Modest blend75 speed ratio '
+        f'{ratio:.3f}x, not Elo proof. Frozen20-game screen planned vs7eda0fa, indices182-191.'})+'\n')
+(out/'SHA256.json').write_text(json.dumps({str(p.relative_to(out)):
+    hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*')
+    if p.is_file() and p.name!='SHA256.json'},indent=2)+'\n')
+print(plan['candidate']['runtime_sha256'])

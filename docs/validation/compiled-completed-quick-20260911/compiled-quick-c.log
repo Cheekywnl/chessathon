@@ -1,0 +1,8 @@
+game 1/4 [20260914_176_queens_gambit_declined, agent=white]: white by checkmate
+game 2/4 [20260914_176_queens_gambit_declined, agent=black]: draw by threefold_repetition
+game 3/4 [20260914_177_kings_indian, agent=white]: white by checkmate
+game 4/4 [20260914_177_kings_indian, agent=black]: black by checkmate
+
+. vs ..\halfkp-release over 4 games, 2 openings
++3 =1 -0, score 87.5%
+terminations: checkmate 3, threefold_repetition 1
