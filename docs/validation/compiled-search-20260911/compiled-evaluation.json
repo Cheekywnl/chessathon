@@ -1,0 +1,12 @@
+{
+  "positions": 10000,
+  "blends": [
+    0,
+    25,
+    75,
+    100
+  ],
+  "comparisons": 40000,
+  "mismatches": 0,
+  "playing_strength_validated": false
+}

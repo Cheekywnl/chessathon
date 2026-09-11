@@ -24,14 +24,17 @@ in, because they are the two things worth keeping alive across moves in the same
 AGENTS.md). Everything else here -- killers, history heuristic, node count -- is scoped to one
 `search_root` call and thrown away.
 
-A timeout unwinds through this file as a `TimeUp` exception raised deep in the recursion.
+Compiled recursion restores repetition counts while propagating a timeout flag.
+The Python root boundary raises TimeUp, so callers retain only completed depths.
+The Python recursion remains the classical fallback when the network is unavailable.
 """
 
-import math
 import sys
 import threading
 import time
+from collections.abc import Iterator, MutableMapping
 from pathlib import Path
+from typing import Any
 
 import chess
 import numpy as np
@@ -39,23 +42,12 @@ import numpy as np
 import chess_eval as ce
 import chess_halfkp_int as halfkp
 import chess_movegen as mg
+import chess_search_compiled as compiled
+import chess_search_limits as limits
 import chess_state as cst
 
-MATE = 32_000
-MATE_THRESHOLD = MATE - 1_000
-DRAW = 0
-MAX_PLY = 128
-NO_MOVE = -1
-# Contempt: a draw isn't valued at a flat 0 -- it's scored as mildly bad for us specifically,
-# not neutral, so the search prefers a continuation that keeps winning chances alive over one
-# that settles for a repetition when the two look otherwise equal. Motivated by this project's
-# own observed behaviour, not abstract theory: multiple real bugs this session (K+R vs K, 2Q vs
-# K, a Lucena position) were the engine settling for a draw-by-repetition instead of continuing
-# to press a won position, because a draw and "still winning but not yet resolved" scored the
-# same at 0. Small and one-sided by construction (see _draw_score) -- it only ever nudges among
-# moves that already look roughly equal, it can't override a real material/tactical verdict, and
-# it never discourages accepting a draw when we're actually worse off, which would be irrational.
-CONTEMPT = 20
+MATE, MATE_THRESHOLD, DRAW = limits.MATE, limits.MATE_THRESHOLD, limits.DRAW
+MAX_PLY, NO_MOVE, CONTEMPT = limits.MAX_PLY, limits.NO_MOVE, limits.CONTEMPT
 
 # Candidate blend, promoted only with a validated weight asset and real A/B evidence.
 # An absent or malformed asset retains the classical evaluator exactly.
@@ -71,35 +63,30 @@ if _halfkp_path.is_file():
         HALFKP_WEIGHTS = None
         print(f"HalfKP load failed; using classical evaluation: {_halfkp_error}", file=sys.stderr)
 
-FLAG_EXACT, FLAG_LOWER, FLAG_UPPER = 0, 1, 2
-
-PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
-PIECE_VALUES = np.array([100, 320, 330, 500, 900, 20_000], dtype=np.int64)
-
-NULL_MOVE_REDUCTION = 2
-NODES_PER_TIME_CHECK = 1024
-REVERSE_FUTILITY_DEPTH = 3
-REVERSE_FUTILITY_MARGIN_PER_PLY = 120
-DELTA_MARGIN = 200
-LATE_MOVE_PRUNING_DEPTH = 2
-LATE_MOVE_PRUNING_BASE = 6
-LATE_MOVE_PRUNING_PER_DEPTH = 3
-FUTILITY_DEPTH = 3
-FUTILITY_MARGIN_PER_PLY = 150
-ASPIRATION_INITIAL_MARGIN = 25
-
-# Late move reduction table: reduction grows with both depth and move index (log-product, the
-# standard formula -- see chessprogramming.org/Late_Move_Reductions), replacing the previous
-# flat "reduce by 1" rule. A move that's both late *and* found at a deep search gets reduced
-# more than a merely-late move at a shallow one; the flat rule couldn't tell those apart.
-# Precomputed once at import, not per-node -- log() in the hot loop would cost more than the
-# search-tree savings this buys.
-_LMR_MAX_DEPTH = 64
-_LMR_MAX_MOVE_INDEX = 96
-LMR_TABLE = np.zeros((_LMR_MAX_DEPTH + 1, _LMR_MAX_MOVE_INDEX + 1), dtype=np.int32)
-for _d in range(1, _LMR_MAX_DEPTH + 1):
-    for _m in range(1, _LMR_MAX_MOVE_INDEX + 1):
-        LMR_TABLE[_d, _m] = int(0.5 + math.log(_d) * math.log(_m) / 2.0)
+FLAG_EXACT = limits.FLAG_EXACT
+FLAG_LOWER = limits.FLAG_LOWER
+FLAG_UPPER = limits.FLAG_UPPER
+PAWN = limits.PAWN
+KNIGHT = limits.KNIGHT
+BISHOP = limits.BISHOP
+ROOK = limits.ROOK
+QUEEN = limits.QUEEN
+KING = limits.KING
+PIECE_VALUES = limits.PIECE_VALUES
+NULL_MOVE_REDUCTION = limits.NULL_MOVE_REDUCTION
+NODES_PER_TIME_CHECK = limits.NODES_PER_TIME_CHECK
+REVERSE_FUTILITY_DEPTH = limits.REVERSE_FUTILITY_DEPTH
+REVERSE_FUTILITY_MARGIN_PER_PLY = limits.REVERSE_FUTILITY_MARGIN_PER_PLY
+DELTA_MARGIN = limits.DELTA_MARGIN
+LATE_MOVE_PRUNING_DEPTH = limits.LATE_MOVE_PRUNING_DEPTH
+LATE_MOVE_PRUNING_BASE = limits.LATE_MOVE_PRUNING_BASE
+LATE_MOVE_PRUNING_PER_DEPTH = limits.LATE_MOVE_PRUNING_PER_DEPTH
+FUTILITY_DEPTH = limits.FUTILITY_DEPTH
+FUTILITY_MARGIN_PER_PLY = limits.FUTILITY_MARGIN_PER_PLY
+ASPIRATION_INITIAL_MARGIN = limits.ASPIRATION_INITIAL_MARGIN
+_LMR_MAX_DEPTH = limits._LMR_MAX_DEPTH
+_LMR_MAX_MOVE_INDEX = limits._LMR_MAX_MOVE_INDEX
+LMR_TABLE = limits.LMR_TABLE
 
 # One flat tuple describes the game state everywhere in this file:
 # (pawns, knights, bishops, rooks, queens, kings, white, black,
@@ -133,40 +120,78 @@ def _score_from_tt(score: int, ply: int) -> int:
 
 
 class TranspositionTable:
-    """A fixed-size, always-there hash table: no dict growth, so memory is bounded by
-    construction. Keyed directly by the 64-bit Zobrist hash (chess_state.hash_state) -- the
-    same industry-standard trade-off every real engine makes: a hash collision could in
-    principle cause a false TT hit, but at 2^64 possible values it is not a practical risk
-    within one game's search, and exact-key comparison (as the pre-rewrite table did, storing
-    python-chess's own hashable position tuple) is no longer available now that the search
-    never touches a chess.Board."""
+    """Fixed-capacity table shared by the root and compiled recursion.
+
+    The 2**21 default slots occupy 39,845,888 bytes, fully allocated at init.
+    Replacement and mate-distance normalization match the previous tuple table.
+    """
 
     def __init__(self, size_power: int = 21) -> None:
-        self.mask = (1 << size_power) - 1
-        self.table: list[TTEntry | None] = [None] * (1 << size_power)
+        self.storage: Any = compiled.Table(size_power)
+        self.mask: int = (1 << size_power) - 1
 
-    def probe(
-        self, key: int, depth: int, alpha: int, beta: int, ply: int
-    ) -> tuple[int | None, int]:
-        entry = self.table[key & self.mask]
-        if entry is None or entry[0] != key:
-            return None, NO_MOVE
-        _, e_depth, e_score, e_flag, e_move = entry
-        if e_depth >= depth:
-            score = _score_from_tt(e_score, ply)
-            if e_flag == FLAG_EXACT:
-                return score, e_move
-            if e_flag == FLAG_LOWER and score >= beta:
-                return score, e_move
-            if e_flag == FLAG_UPPER and score <= alpha:
-                return score, e_move
-        return None, e_move
+    def probe(self, key: int, depth: int, alpha: int, beta: int,
+              ply: int) -> tuple[int | None, int]:
+        score, move, hit = compiled.probe(self.storage, np.uint64(key), depth, alpha, beta, ply)
+        return (int(score) if hit else None), int(move)
 
     def store(self, key: int, depth: int, score: int, flag: int, move: int, ply: int) -> None:
-        index = key & self.mask
-        existing = self.table[index]
-        if existing is None or existing[0] == key or existing[1] <= depth:
-            self.table[index] = (key, depth, _score_to_tt(score, ply), flag, move)
+        compiled.put(self.storage, np.uint64(key), depth, score, flag, move, ply)
+
+    @property
+    def table(self) -> list[TTEntry | None]:
+        """Materialized diagnostic snapshot; never used during play."""
+        t = self.storage
+        return [None if t.flags[i] < 0 else
+                (int(t.keys[i]), int(t.depths[i]), int(t.scores[i]),
+                 int(t.flags[i]), int(t.moves[i])) for i in range(self.mask + 1)]
+
+
+class _SeenMapping(MutableMapping[int, int]):
+    """Cast uint64 keys exactly once at the Python/root boundary."""
+
+    def __init__(self, data: Any) -> None:
+        self.data = data
+
+    def __getitem__(self, key: int) -> int:
+        return int(self.data[np.uint64(key)])
+
+    def __setitem__(self, key: int, value: int) -> None:
+        self.data[np.uint64(key)] = np.int64(value)
+
+    def __delitem__(self, key: int) -> None:
+        del self.data[np.uint64(key)]
+
+    def __iter__(self) -> Iterator[int]:
+        return (int(key) for key in self.data)
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+
+class _HistoryMapping(MutableMapping[tuple[bool, int, int], int]):
+    def __init__(self, data: np.ndarray) -> None:
+        self.data = data
+
+    def __getitem__(self, key: tuple[bool, int, int]) -> int:
+        color, source, target = key
+        value = int(self.data[int(color), source, target])
+        if value == 0:
+            raise KeyError(key)
+        return value
+
+    def __setitem__(self, key: tuple[bool, int, int], value: int) -> None:
+        color, source, target = key
+        self.data[int(color), source, target] = value
+
+    def __delitem__(self, key: tuple[bool, int, int]) -> None:
+        self[key] = 0
+
+    def __iter__(self) -> Iterator[tuple[bool, int, int]]:
+        return ((bool(c), int(f), int(t)) for c, f, t in zip(*np.nonzero(self.data), strict=True))
+
+    def __len__(self) -> int:
+        return int(np.count_nonzero(self.data))
 
 
 def state_from_board(board: chess.Board) -> State:
@@ -414,9 +439,17 @@ class Search:
     ) -> None:
         self.tt = tt
         self.params = params if params is not None else ce.DEFAULT_PARAMS
-        self.seen: dict[int, int] = dict(game_history)
-        self.killers: list[list[int]] = [[NO_MOVE, NO_MOVE] for _ in range(MAX_PLY)]
-        self.history: dict[tuple[bool, int, int], int] = {}
+        self._ctx: Any = None
+        self.seen: MutableMapping[int, int] = dict(game_history)
+        self.killers = np.full((MAX_PLY, 2), NO_MOVE, dtype=np.int64)
+        self.history: MutableMapping[tuple[bool, int, int], int] = {}
+        if HALFKP_WEIGHTS is not None:
+            self._ctx = compiled.create_context(
+                tt.storage, game_history, self.params, HALFKP_WEIGHTS, HALFKP_BLEND, stop_event,
+            )
+            self.seen = _SeenMapping(self._ctx.seen)
+            self.killers = self._ctx.killers
+            self.history = _HistoryMapping(self._ctx.history)
         self.nodes = 0
         self.deadline = 0.0
         self.stop_event = stop_event
@@ -424,6 +457,27 @@ class Search:
         # can choose an immediate draw. Values agree with chess_draw constants.
         self.root_draw_claims: dict[int, int] = {}
         self.root_repeated_moves: set[int] = set()
+
+    @property
+    def nodes(self) -> int:
+        return int(self._ctx.nodes) if self._ctx is not None else self._nodes
+
+    @nodes.setter
+    def nodes(self, value: int) -> None:
+        self._nodes = value
+        if self._ctx is not None:
+            self._ctx.nodes = value
+
+    @property
+    def deadline(self) -> float:
+        return self._deadline
+
+    @deadline.setter
+    def deadline(self, value: float) -> None:
+        self._deadline = value
+        if self._ctx is not None:
+            self._ctx.deadline = value
+            self._ctx.aborted = False
 
     def classical_evaluate(self, state: State, mobility: int) -> int:
         white_count, black_count = _castling_rights_counts(state)
@@ -539,6 +593,15 @@ class Search:
         self, state: State, alpha: int, beta: int, ply: int, key: int | None = None,
         in_check: bool | None = None,
     ) -> int:
+        if self._ctx is not None:
+            if key is None:
+                key = hash_of(state)
+            if in_check is None:
+                in_check = is_in_check(state)
+            score = compiled.qsearch(state, alpha, beta, ply, np.uint64(key), in_check, self._ctx)
+            if self._ctx.aborted:
+                raise TimeUp
+            return int(score)
         self._time_check()
         # `key` lets a caller that already hashed this exact state (negamax falling through to
         # quiescence at depth<=0, or quiescence's own move loop just below) pass it straight
@@ -643,6 +706,17 @@ class Search:
         key: int | None = None,
         in_check: bool | None = None,
     ) -> int:
+        if self._ctx is not None:
+            if key is None:
+                key = hash_of(state)
+            if in_check is None:
+                in_check = is_in_check(state)
+            score = compiled.negamax(
+                state, depth, alpha, beta, ply, allow_null, np.uint64(key), in_check, self._ctx,
+            )
+            if self._ctx.aborted:
+                raise TimeUp
+            return int(score)
         self._time_check()
         # See quiescence's matching `key` parameter: a caller that already hashed this exact
         # state (the move loop below, or _search_root_pass) can pass it straight through.
@@ -896,3 +970,17 @@ class Search:
         self.tt.store(key, depth, best_score, FLAG_EXACT, best_move, 0)
         f, t, p = cst.unpack_move(best_move)
         return chess.Move(f, t, p if p else None), best_score, scored
+
+
+def warm_up() -> None:
+    """Compile root and recursive entry signatures inside the import budget."""
+    board = chess.Board()
+    state = state_from_board(board)
+    search = Search(TranspositionTable(8), {hash_of(state): 1})
+    search.search_root(board, 2, time.monotonic() + 120)
+    search.quiescence(state, -MATE, MATE, 0)
+    # Compile the uint64 boundary operations used by diagnostic mapping access.
+    assert search.seen[hash_of(state)] == 1
+
+
+warm_up()

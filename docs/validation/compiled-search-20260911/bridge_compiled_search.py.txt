@@ -1,0 +1,201 @@
+"""Connect the compiled recursion to the existing Python root and protocol."""
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'search-compiled-128'
+p=repo/'chess_search.py'
+s=p.read_text()
+s=s.replace('import math\n','')
+s=s.replace('from pathlib import Path\n','from pathlib import Path\nfrom collections.abc import Iterator, MutableMapping\nfrom typing import Any\n')
+s=s.replace('import chess_state as cst\n','import chess_state as cst\nimport chess_search_compiled as compiled\nimport chess_search_limits as limits\n')
+start=s.index('MATE = 32_000')
+end=s.index('# Candidate blend',start)
+s=s[:start]+'''MATE, MATE_THRESHOLD, DRAW = limits.MATE, limits.MATE_THRESHOLD, limits.DRAW
+MAX_PLY, NO_MOVE, CONTEMPT = limits.MAX_PLY, limits.NO_MOVE, limits.CONTEMPT
+
+'''+s[end:]
+start=s.index('FLAG_EXACT, FLAG_LOWER')
+end=s.index('# One flat tuple describes',start)
+constants=(repo/'chess_search_limits.py').read_text()
+import ast
+tree=ast.parse(constants)
+names=[]
+for node in tree.body:
+    if isinstance(node,ast.Assign):
+        for target in node.targets:
+            if isinstance(target,ast.Name): names.append(target.id)
+            elif isinstance(target,ast.Tuple): names += [t.id for t in target.elts]
+already={'MATE','MATE_THRESHOLD','DRAW','MAX_PLY','NO_MOVE','CONTEMPT'}
+s=s[:start]+''.join(f'{name} = limits.{name}\n' for name in names if name not in already)+'\n'+s[end:]
+start=s.index('class TranspositionTable:')
+end=s.index('\ndef state_from_board',start)
+s=s[:start]+'''class TranspositionTable:
+    """Fixed-capacity table shared by the root and compiled recursion.
+
+    The 2**21 default slots occupy 39,845,888 bytes, fully allocated at init.
+    Replacement and mate-distance normalization match the previous tuple table.
+    """
+
+    def __init__(self, size_power: int = 21) -> None:
+        self.storage: Any = compiled.Table(size_power)
+        self.mask: int = (1 << size_power) - 1
+
+    def probe(self, key: int, depth: int, alpha: int, beta: int,
+              ply: int) -> tuple[int | None, int]:
+        score, move, hit = compiled.probe(self.storage, np.uint64(key), depth, alpha, beta, ply)
+        return (int(score) if hit else None), int(move)
+
+    def store(self, key: int, depth: int, score: int, flag: int, move: int, ply: int) -> None:
+        compiled.put(self.storage, np.uint64(key), depth, score, flag, move, ply)
+
+    @property
+    def table(self) -> list[TTEntry | None]:
+        """Materialized diagnostic snapshot; never used during play."""
+        t = self.storage
+        return [None if t.flags[i] < 0 else
+                (int(t.keys[i]), int(t.depths[i]), int(t.scores[i]),
+                 int(t.flags[i]), int(t.moves[i])) for i in range(self.mask + 1)]
+
+
+class _SeenMapping(MutableMapping[int, int]):
+    """Cast uint64 keys exactly once at the Python/root boundary."""
+
+    def __init__(self, data: Any) -> None:
+        self.data = data
+
+    def __getitem__(self, key: int) -> int:
+        return int(self.data[np.uint64(key)])
+
+    def __setitem__(self, key: int, value: int) -> None:
+        self.data[np.uint64(key)] = np.int64(value)
+
+    def __delitem__(self, key: int) -> None:
+        del self.data[np.uint64(key)]
+
+    def __iter__(self) -> Iterator[int]:
+        return (int(key) for key in self.data)
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+
+class _HistoryMapping(MutableMapping[tuple[bool, int, int], int]):
+    def __init__(self, data: np.ndarray) -> None:
+        self.data = data
+
+    def __getitem__(self, key: tuple[bool, int, int]) -> int:
+        color, source, target = key
+        value = int(self.data[int(color), source, target])
+        if value == 0:
+            raise KeyError(key)
+        return value
+
+    def __setitem__(self, key: tuple[bool, int, int], value: int) -> None:
+        color, source, target = key
+        self.data[int(color), source, target] = value
+
+    def __delitem__(self, key: tuple[bool, int, int]) -> None:
+        self[key] = 0
+
+    def __iter__(self) -> Iterator[tuple[bool, int, int]]:
+        return ((bool(c), int(f), int(t)) for c, f, t in zip(*np.nonzero(self.data), strict=True))
+
+    def __len__(self) -> int:
+        return int(np.count_nonzero(self.data))
+
+''' + s[end:]
+s=s.replace('        self.seen: dict[int, int] = dict(game_history)\n        self.killers: list[list[int]] = [[NO_MOVE, NO_MOVE] for _ in range(MAX_PLY)]\n        self.history: dict[tuple[bool, int, int], int] = {}',
+'''        self._ctx: Any = None
+        self.seen: MutableMapping[int, int] = dict(game_history)
+        self.killers = np.full((MAX_PLY, 2), NO_MOVE, dtype=np.int64)
+        self.history: MutableMapping[tuple[bool, int, int], int] = {}
+        if HALFKP_WEIGHTS is not None:
+            self._ctx = compiled.create_context(
+                tt.storage, game_history, self.params, HALFKP_WEIGHTS, HALFKP_BLEND, stop_event,
+            )
+            self.seen = _SeenMapping(self._ctx.seen)
+            self.killers = self._ctx.killers
+            self.history = _HistoryMapping(self._ctx.history)''')
+needle='    def classical_evaluate(self, state: State, mobility: int) -> int:\n'
+assert needle in s
+s=s.replace(needle,'''    @property
+    def nodes(self) -> int:
+        return int(self._ctx.nodes) if self._ctx is not None else self._nodes
+
+    @nodes.setter
+    def nodes(self, value: int) -> None:
+        self._nodes = value
+        if self._ctx is not None:
+            self._ctx.nodes = value
+
+    @property
+    def deadline(self) -> float:
+        return self._deadline
+
+    @deadline.setter
+    def deadline(self, value: float) -> None:
+        self._deadline = value
+        if self._ctx is not None:
+            self._ctx.deadline = value
+            self._ctx.aborted = False
+
+'''+needle)
+needle='''        self._time_check()
+        # `key` lets'''
+assert needle in s
+s=s.replace(needle,'''        if self._ctx is not None:
+            if key is None:
+                key = hash_of(state)
+            if in_check is None:
+                in_check = is_in_check(state)
+            score = compiled.qsearch(state, alpha, beta, ply, np.uint64(key), in_check, self._ctx)
+            if self._ctx.aborted:
+                raise TimeUp
+            return int(score)
+        self._time_check()
+        # `key` lets''')
+needle='''        self._time_check()
+        # See quiescence'''
+assert needle in s
+s=s.replace(needle,'''        if self._ctx is not None:
+            if key is None:
+                key = hash_of(state)
+            if in_check is None:
+                in_check = is_in_check(state)
+            score = compiled.negamax(
+                state, depth, alpha, beta, ply, allow_null, np.uint64(key), in_check, self._ctx,
+            )
+            if self._ctx.aborted:
+                raise TimeUp
+            return int(score)
+        self._time_check()
+        # See quiescence''')
+s+='''
+
+def warm_up() -> None:
+    """Compile root and recursive entry signatures inside the import budget."""
+    board = chess.Board()
+    state = state_from_board(board)
+    search = Search(TranspositionTable(8), {hash_of(state): 1})
+    search.search_root(board, 2, time.monotonic() + 120)
+    search.quiescence(state, -MATE, MATE, 0)
+    # Compile the uint64 boundary operations used by diagnostic mapping access.
+    assert search.seen[hash_of(state)] == 1
+
+
+warm_up()
+'''
+s=s.replace('A timeout unwinds through this file as a `TimeUp` exception raised deep in the recursion.',
+'''Compiled recursion restores repetition counts while propagating a timeout flag.
+The Python root boundary raises TimeUp, so callers retain only completed depths.
+The Python recursion remains the classical fallback when the network is unavailable.''')
+p.write_text(s,encoding='utf-8')
+agent=repo/'agent.py'
+s=agent.read_text()
+start=s.index('# size_power=21 measures')
+end=s.index('_TT = ',start)
+s=s[:start]+'''# The fixed 2**21-slot array table occupies about38MB regardless of fill level.
+# Search compilation and asset loading complete before get_move is called.
+'''+s[end:]
+agent.write_text(s,encoding='utf-8')
+print('Connected compiled recursion, shared table/history, cancellation and import warm-up.')

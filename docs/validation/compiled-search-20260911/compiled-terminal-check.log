@@ -1,0 +1,3 @@
+usage: search_terminal_check.py [-h] --out OUT --reference-search
+                                REFERENCE_SEARCH
+search_terminal_check.py: error: the following arguments are required: --reference-search

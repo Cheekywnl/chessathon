@@ -1,0 +1,22 @@
+{
+  "referee_state_checks": 992,
+  "terminal_leaf_checks": 502,
+  "old_failures_reproduced": [
+    {
+      "fen": "7k/6Q1/5K2/8/8/8/8/8 b - - 100 90",
+      "before_score": 20,
+      "correct_score": -31999
+    },
+    {
+      "fen": "7k/5K2/6Q1/8/8/8/8/8 b - - 0 90",
+      "before_score": -1096,
+      "correct_score": 20
+    },
+    {
+      "fen": "6k1/8/8/8/8/8/3q4/6K1 w - - 99 50",
+      "before_score": -1074,
+      "correct_score": 20
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,19 @@
+Compiling fixed-depth prototype
+{"compile_seconds": 21.5041369999999, "warm_score": 40, "warm_nodes": 172}
+{"index": 0, "fen": "r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10", "before_score": 59, "after_score": 59, "before_nodes": 28460, "after_nodes": 28460, "before_seconds": 1.1023103000006813, "after_seconds": 0.2742651999978989}
+C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\cuda-env\Lib\site-packages\numba\typed\typeddict.py:39: NumbaTypeSafetyWarning: unsafe cast from int64 to uint64. Precision may be lost.
+  return d[key]
+{"index": 1, "fen": "r1bq1rk1/bppp1ppp/p1n2n2/4p3/4P3/1BPPBN2/PP3PPP/RN1Q1RK1 b - - 4 8", "before_score": 4, "after_score": 4, "before_nodes": 2278, "after_nodes": 2278, "before_seconds": 0.082360600001266, "after_seconds": 0.023423499998898478}
+{"index": 2, "fen": "r1bqk2r/1ppn1ppp/p1pb4/4p3/4P3/3P1N2/PPP2PPP/RNBQ1RK1 w kq - 3 8", "before_score": 2, "after_score": 2, "before_nodes": 16356, "after_nodes": 16356, "before_seconds": 0.8649082000010822, "after_seconds": 0.23494870000286028}
+{"index": 3, "fen": "rnbqkb1r/1p3pp1/p2pp2p/8/3NP3/2N1n3/PPPQ1PPP/2KR1B1R w kq - 0 10", "before_score": 3, "after_score": 3, "before_nodes": 5008, "after_nodes": 5008, "before_seconds": 0.21060189999843715, "after_seconds": 0.08369149999998626}
+{"index": 4, "fen": "rnbq1rk1/pp3pp1/5n1p/2bp4/8/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 0 9", "before_score": 16, "after_score": 16, "before_nodes": 25851, "after_nodes": 25851, "before_seconds": 0.9449636000026658, "after_seconds": 0.2301563000000897}
+{"index": 5, "fen": "rn1qkbnr/pp3ppb/2p1p2p/8/3P1N1P/3B2N1/PPP2PP1/R1BQK2R b KQkq - 3 9", "before_score": -9, "after_score": -9, "before_nodes": 16624, "after_nodes": 16624, "before_seconds": 0.6284157000009145, "after_seconds": 0.16054449999865028}
+{"index": 6, "fen": "r1bqr1k1/1p1nbpp1/p1p1pn1p/8/2BP3B/P1N1PN2/1PQ2PPP/2R1K2R b K - 0 12", "before_score": -14, "after_score": -14, "before_nodes": 16848, "after_nodes": 16848, "before_seconds": 0.626781499999197, "after_seconds": 0.15673530000276514}
+{"index": 7, "fen": "r1bq1rk1/pp2ppb1/n1pp1npp/4P3/2PP3B/2N2N2/PP2BPPP/R2Q1RK1 b - - 0 11", "before_score": -4, "after_score": -4, "before_nodes": 7347, "after_nodes": 7347, "before_seconds": 0.2854479000015999, "after_seconds": 0.07485180000003311}
+{"index": 8, "fen": "r1bq1r1k/ppp1bppp/2n5/3np3/8/P1N1PN2/1PQPBPPP/R1B1K2R w KQ - 3 9", "before_score": 50, "after_score": 50, "before_nodes": 5864, "after_nodes": 5864, "before_seconds": 0.2282003000000259, "after_seconds": 0.05524829999922076}
+{"index": 9, "fen": "rnbq1rk1/p2p1ppp/1p2pn2/2b5/2P1P3/P1N2N2/1PQ2PPP/R1B1KB1R b KQ - 0 8", "before_score": 30, "after_score": 30, "before_nodes": 6477, "after_nodes": 6477, "before_seconds": 0.2571208999979717, "after_seconds": 0.06707120000282885}
+{"index": 10, "fen": "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "before_score": 1206, "after_score": 1206, "before_nodes": 18491, "after_nodes": 18491, "before_seconds": 0.25838300000032177, "after_seconds": 0.02051959999880637}
+{"index": 11, "fen": "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1", "before_score": 39, "after_score": 39, "before_nodes": 1130, "after_nodes": 1130, "before_seconds": 0.019228499997552717, "after_seconds": 0.0014182999984768685}
+{"index": 12, "fen": "1r2k3/P7/8/8/8/8/7p/4K3 w - - 0 1", "before_score": 1119, "after_score": 1119, "before_nodes": 10230, "after_nodes": 10230, "before_seconds": 0.15586229999826173, "after_seconds": 0.011680999999953201}
+{"index": 13, "fen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1", "before_score": 210, "after_score": 210, "before_nodes": 17454, "after_nodes": 17454, "before_seconds": 0.3151876000010816, "after_seconds": 0.03798049999750219}
+{"index": 14, "fen": "7k/5K2/6Q1/8/8/8/8/8 b - - 0 90", "before_score": -20, "after_score": -20, "before_nodes": 1, "after_nodes": 1, "before_seconds": 2.4599998141638935e-05, "after_seconds": 1.1899999663000926e-05}

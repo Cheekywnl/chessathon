@@ -1,0 +1,23 @@
+"""Freeze this candidate and the next unused paired opening sample."""
+import datetime
+import json
+import sys
+from pathlib import Path
+
+work = Path(__file__).resolve().parent
+sys.path.insert(0, str(work/'search-compiled-128'))
+from tools.match_evidence import build_manifest
+
+plan = json.loads((work/'draw-fused/data/runs/forced-validation-plan.json').read_text())
+plan['prepared_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+plan['candidate'] = build_manifest(work/'search-compiled-128')
+plan['opening_indices'] = list(range(172, 182))
+plan['worker_cpus'] = [2, 4, 6, 8, 10]
+plan['change'] = ('Compile our own full recursive search and table operations with exact '
+    'completed/interrupted search comparisons; retain the released width128 model. '
+    'Also retain preceding forced-reply/terminal draw fixes and lossless book compression.')
+path = work/'search-compiled-128/data/runs/compiled-validation-plan.json'
+if path.exists():
+    raise SystemExit('Plan already exists')
+path.write_text(json.dumps(plan, indent=2)+'\n')
+print('candidate', plan['candidate']['runtime_sha256'])

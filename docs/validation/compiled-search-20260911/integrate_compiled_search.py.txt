@@ -1,0 +1,160 @@
+"""Create the reviewable compiled candidate from our parity-tested prototype."""
+import ast
+from pathlib import Path
+
+work = Path(__file__).resolve().parent
+repo = work/'search-compiled-128'
+source = (work/'compiled_search_probe.py').read_text()
+source = source[:source.index('\ndef context(')]
+source = source[source.index('spec = ['):]
+source = source.replace("    ('keys', types.uint64[::1]), ('depths', types.int16[::1]),\n    ('scores', types.int32[::1]), ('flags', types.int8[::1]), ('moves', types.int32[::1]),\n    ('mask', types.int64),", "    ('table', Table.class_type.instance_type),")
+source = source.replace("    ('nodes', types.int64), ('limit', types.int64), ('params', types.int32[::1]),", "    ('nodes', types.int64), ('limit', types.int64), ('params', types.int32[::1]),\n    ('deadline', types.float64), ('stop_token', types.int64), ('aborted', types.boolean),")
+source = source.replace('def __init__(self, power, seen,', 'def __init__(self, table, seen,')
+start=source.index('        n = 1 << power')
+end=source.index('        self.seen = seen',start)
+source=source[:start]+'        self.table = table\n'+source[end:]
+source=source.replace('        self.nodes, self.limit = 0, 100_000_000',
+    '        self.nodes, self.limit = 0, 2**62\n        self.deadline = 0.0\n        self.stop_token = 0\n        self.aborted = False')
+source=source.replace('ref.', 'limits.')
+source=source.replace('probe(ctx,key,depth,alpha,beta,ply)', 'probe(ctx.table,key,depth,alpha,beta,ply)')
+source=source.replace('def probe(ctx.table,', 'def probe(ctx,')
+source=source.replace('put(ctx,key,depth,best,flag,bestmove,ply)', 'put(ctx.table,key,depth,best,flag,bestmove,ply)')
+start=source.index('@njit\ndef tick(')
+end=source.index('@njit\ndef qsearch(',start)
+source=source[:start]+'''@njit
+def tick(ctx):
+    ctx.nodes += 1
+    if ctx.nodes > ctx.limit:
+        ctx.aborted = True
+    elif ctx.nodes % limits.NODES_PER_TIME_CHECK == 0:
+        deadline, token = ctx.deadline, ctx.stop_token
+        with objmode(expired="boolean"):
+            expired = should_stop(deadline, token)
+        if expired:
+            ctx.aborted = True
+    return ctx.aborted
+
+
+'''+source[end:]
+source=source.replace('    tick(ctx)\n', '    if tick(ctx):\n        return 0\n')
+source=source.replace('        ctx.seen[childkey] -= 1\n',
+    '        ctx.seen[childkey] -= 1\n        if ctx.aborted:\n            return 0\n')
+source=source.replace('            if score > alpha:\n', '            if not ctx.aborted and score > alpha:\n')
+source=source.replace('        if score >= beta:\n            return score\n    moves,caps,count',
+    '        if ctx.aborted:\n            return 0\n        if score >= beta:\n            return score\n    moves,caps,count')
+source=source.replace('@njit\ndef negamax', '@njit(nogil=True)\ndef negamax')
+source=source.replace('@njit\ndef qsearch', '@njit(nogil=True)\ndef qsearch')
+
+header='''"""Compiled recursion for this team's own alpha-beta search.
+
+The pruning, stable move order, evaluation, and replacement rules match the
+Python implementation at f666661. Source remains ordinary readable Python;
+Numba compiles it during import. No compiled cache or binary is shipped.
+
+Timeouts set an abort flag. Every caller restores its repetition count before
+propagating the flag, and no incomplete node updates the table or heuristics.
+Only the Python root boundary raises TimeUp. A periodic object-mode clock check
+also observes the optional worker cancellation event, with the GIL reacquired.
+"""
+from __future__ import annotations
+
+import threading
+import time
+import weakref
+from typing import Any
+
+import numpy as np
+from numba import njit, objmode, types
+from numba.experimental import jitclass
+from numba.typed import Dict
+
+import chess_eval as ce
+import chess_halfkp_int as qi
+import chess_movegen as mg
+import chess_search_limits as limits
+import chess_state as cst
+
+State = cst.RawState
+MATE, MATE_THRESHOLD, NO_MOVE = limits.MATE, limits.MATE_THRESHOLD, limits.NO_MOVE
+CONTEMPT, MAX_PLY = limits.CONTEMPT, limits.MAX_PLY
+VALUES, LMR = limits.PIECE_VALUES, limits.LMR_TABLE
+U1 = np.uint64(1)
+
+_STOP_EVENTS: weakref.WeakValueDictionary[int, threading.Event] = weakref.WeakValueDictionary()
+
+
+def register_stop(event: threading.Event | None) -> int:
+    if event is None:
+        return 0
+    token = id(event)
+    _STOP_EVENTS[token] = event
+    return token
+
+
+def should_stop(deadline: float, token: int) -> bool:
+    event = _STOP_EVENTS.get(token)
+    return time.monotonic() > deadline or (event is not None and event.is_set())
+
+
+@jitclass([
+    ('keys', types.uint64[::1]), ('depths', types.int16[::1]),
+    ('scores', types.int32[::1]), ('flags', types.int8[::1]), ('moves', types.int32[::1]),
+    ('mask', types.int64),
+])
+class Table:
+    def __init__(self, power: int) -> None:
+        n = 1 << power
+        self.keys = np.zeros(n, dtype=np.uint64)
+        self.depths = np.zeros(n, dtype=np.int16)
+        self.scores = np.zeros(n, dtype=np.int32)
+        self.flags = np.full(n, -1, dtype=np.int8)
+        self.moves = np.full(n, -1, dtype=np.int32)
+        self.mask = n - 1
+
+
+'''
+source=header+source
+source+='''
+
+def create_context(table: Any, history: dict[int, int], params: np.ndarray,
+                   weights: qi.QuantizedWeights, blend: int, stop: threading.Event | None) -> Any:
+    seen = Dict.empty(key_type=types.uint64, value_type=types.int64)
+    for key, count in history.items():
+        seen[np.uint64(key)] = np.int64(count)
+    ctx = Context(table, seen, params, weights.w1, weights.b1, weights.w2, weights.b2,
+                  weights.w3, weights.b3, weights.w4, weights.b4, weights.scale2,
+                  weights.scale3, weights.output_divisor, blend)
+    ctx.stop_token = register_stop(stop)
+    return ctx
+'''
+# Add real Python annotations to the jitted routines; Numba infers machine types.
+tree=ast.parse(source)
+array_names={'params','w1','b1','w2','b2','w3','b3','w4','f','t','p'}
+bool_names={'allow_null','incheck','qmode'}
+returns={'key_of':'np.uint64','legal':'tuple[np.ndarray, np.ndarray, np.ndarray, int]',
+    'check':'bool','after':'tuple[State, np.uint64, bool]','capture':'bool','piece_at':'int',
+    'victim_at':'int','see':'int','bare':'bool','insufficient_side':'bool','is_draw':'bool',
+    'draw_score':'int','evaluate':'int','pack':'int','unpack':'tuple[int, int, int]',
+    'ordered':'tuple[np.ndarray, np.ndarray, int]','probe':'tuple[int, int, bool]',
+    'put':'None','tick':'bool','qsearch':'int','negamax':'int','__init__':'None'}
+for node in ast.walk(tree):
+    if not isinstance(node,ast.FunctionDef) or node.name not in returns:
+        continue
+    if node.returns is None: node.returns=ast.parse(returns[node.name],mode='eval').body
+    for arg in node.args.args:
+        if arg.arg=='self' or arg.annotation is not None: continue
+        name=arg.arg
+        typename = ('State' if name=='s' else 'Any' if name in ('ctx','table','seen') else
+                    'bool' if name in bool_names else 'np.ndarray' if name in array_names and
+                    (node.name in ('__init__','ordered') or name in ('params','w1','b1','w2','b2','w3','b3','w4')) else
+                    'np.uint64' if name in ('key','own','other') else 'float' if name=='div' else 'int')
+        arg.annotation=ast.parse(typename,mode='eval').body
+# Unparse only the generated backend, then format with the repository formatter.
+(repo/'chess_search_compiled.py').write_text(ast.unparse(tree)+'\n',encoding='utf-8')
+
+cs=(repo/'chess_search.py').read_text()
+# Share search constants so future tuning cannot silently diverge across paths.
+constants=cs[cs.index('MATE = 32_000'):cs.index('# One flat tuple describes')]
+constants=constants[:constants.index('# Candidate blend')]+constants[constants.index('FLAG_EXACT,'):]
+(repo/'chess_search_limits.py').write_text('"""Shared parameters of this team\'s search."""\nimport math\nimport numpy as np\n\n'+constants)
+print('Wrote compiled recursion and shared constants; bridge is the next step.')

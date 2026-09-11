@@ -1,0 +1,121 @@
+"""Archive the compiled-search candidate's prerequisite evidence."""
+import hashlib
+import json
+import shutil
+import time
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'search-compiled-128'
+out=repo/'docs/validation/compiled-search-20260911'
+out.mkdir(parents=True,exist_ok=True)
+parity=json.loads((repo/'data/runs/compiled-parity.json').read_text())
+reuse=json.loads((repo/'data/runs/compiled-reuse.json').read_text())
+evaluation=json.loads((repo/'data/runs/compiled-evaluation.json').read_text())
+package=json.loads((repo/'data/runs/compiled-package-audit.json').read_text())
+assert evaluation['comparisons']==40000 and evaluation['mismatches']==0
+assert reuse['comparisons']==84 and len(parity['exact_abort_comparisons'])==32
+assert '273/300' in (repo/'data/runs/compiled-wac.log').read_text()
+for p in (repo/'data/runs').glob('compiled-*'):
+    if p.suffix in ('.log','.json'):
+        shutil.copyfile(p,out/p.name)
+for p in (work/'draw-wide256/data/runs').glob('compiled-probe*.log'):
+    shutil.copyfile(p,out/p.name)
+for name in ('compiled_search_probe.py','integrate_compiled_search.py',
+             'bridge_compiled_search.py','record_compiled_candidate.py','prepare_compiled_screen.py'):
+    shutil.copyfile(work/name,out/(name+'.txt'))
+shutil.copyfile(work/'compiled-search-probe.json',out/'prototype-warm-results.json')
+blend = [r for r in parity['comparisons'] if r['blend']==75]
+ratio = sum(r['python_seconds'] for r in blend)/sum(r['compiled_seconds'] for r in blend)
+text=f'''# Compile the team's own search, 11 September 2026
+
+Candidate only; the released neural engine 7eda0fa remains on main. The user's
+target is at least90% actual wins against that engine. No playing-strength result
+exists for this candidate yet. A predeclared20-game,20s+0.3s paired comparison will
+use untouched opening indices172-181 from the recorded pool, with all games kept.
+
+## Change
+
+The team's existing negamax, PVS, quiescence, pruning, move ordering, and hybrid
+evaluation are compiled together with Numba. This removes Python calls and boxed
+objects from the recursive path. The Python root retains draw scans, aspiration
+windows, book/tablebase choices, and the real game history. Shared constants keep
+both implementations aligned. The Python recursion remains a classical fallback
+if the network is unavailable. No third-party engine code or compiled binary ships.
+
+A fixed array transposition table replaces tuple slots, preserving collision
+replacement and mate-distance rules. Its default2**21 entries use39,845,888 bytes.
+Every recursive caller restores the child repetition count before propagating an
+abort flag. Only the root boundary raises TimeUp. A periodic monotonic-clock check
+also observes worker cancellation under the GIL. The source and runtime compile
+inside initialization; no native cache is packaged.
+
+The released width128 integer model is byte-identical (SHA256
+3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2).
+All96 Syzygy files remain. The preceding forced-reply/terminal draw corrections
+and exact gzip book storage are retained. There is no additional training or
+dataset change in this candidate.
+
+## Correctness and local performance
+
+- {len(parity['comparisons'])} fixed-depth6 search comparisons across blends0/75/100,
+  ordinary positions,19 recorded draw histories, castling, en passant, promotions,
+  Lucena, stalemate and fifty-move terminals: identical scores, moves, root ranks,
+  nodes, every table slot, killers, history, and repetition counts.
+- 84 iterative-deepening/persistent-table comparisons, depths1-7 across three
+  successive positions in four openings: identical complete state and decisions.
+- 1,944 table normalization/replacement probes include uint64 boundary keys,
+  mate-score thresholds, collisions, flags and different plies.
+- 32 exact abort-state comparisons against the Python reference at prescribed
+  node limits. No incomplete ancestor stores a bound; repetition state is restored.
+- Ten50ms deadline probes returned in at most{max(parity['deadline_seconds'])*1000:.1f}ms;
+  event cancellation returned in{parity['worker_cancellation_seconds']*1000:.1f}ms.
+- 40,000 direct hybrid evaluation comparisons over10,000 held-out positions and
+  four blends: zero mismatches. The inherited integer-kernel reference checks also
+  apply because the network and inference kernel are unchanged here.
+- make gate passes (ruff, strict mypy, two legal smoke-game mates). The final
+  tools-only lint/type pass covers55 files. Lucena reaches checkmate.
+- 3,468 referee comparisons,26 recorded roots,nine fifty-move roots,four forced
+  reply mirrors and four tablebase conversions pass. The separate terminal suite
+  passes992 referee states and502 terminal leaf comparisons.
+- Full one-second WAC:273/300. This is a tactical screen, not an Elo measurement.
+- Alternating-order depth6 comparisons total{parity['python_seconds']:.3f}s Python vs
+  {parity['compiled_seconds']:.3f}s compiled ({parity['python_seconds']/parity['compiled_seconds']:.2f}x).
+  The blend75 subset measures{ratio:.2f}x. Endgame-heavy samples inflate the overall
+  ratio relative to middlegames. No hardware-independent speed claim is made.
+
+The earlier isolated width256 prototype passed15 depth6 comparisons and measured
+4.17x after warm-up. Its first run included a signed/unsigned entry-signature
+compilation in one timing and was superseded by the warmed alternating-order run.
+The prototype's initial table-threshold boundary mismatch was corrected before
+integration; the1,944 boundary probes above cover it.
+
+## Package and next decision
+
+The exact extracted package passes source/permitted-assets and legal smoke checks:
+{package['unzipped_bytes']:,} unzipped bytes in{package['file_count']} files,
+{package['init_seconds']:.3f}s one-core local import, and
+{package['peak_rss_bytes']:,}-byte peak working set. These are local measurements;
+the platform's upload validator remains the authority for its CPU and environment.
+
+- ZIP SHA256: {package['sha256']}
+- Runtime SHA256: 7b70d2ba4e896ec9f699e0d098aaeaa7c2204502c847d273d2b5d8c93153cba8
+- Opponent runtime SHA256: d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c
+
+The short screen uses five distinct physical CPU cores and suspends the opponent
+between turns. Only >=70% score and >=60% actual wins clears its preliminary gate;
+that is not the90% objective or permission to promote a weak result. No long
+tournament is justified by correctness or speed evidence alone.
+'''
+(repo/'docs/COMPILED_SEARCH_20260911.md').write_text(text,encoding='utf-8')
+with (repo/'viewer/activity_log.jsonl').open('a',encoding='utf-8') as stream:
+    stream.write(json.dumps({'time':time.time(),'status':'done','message':
+        'Compiled own recursive search: exact56 fixed-depth,84 persistent/aspiration, '
+        '32 interrupted-state,1944 TT boundary,40000 heldout eval comparisons. '
+        'Gate/Lucena/draw suites pass; WAC273/300; package44,993,851 bytes,42.340s init. '
+        'Candidate only: no strength claim/promotion. Frozen20-game screen prepared vs7eda0fa.'})+'\n')
+manifest={str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest()
+          for p in out.rglob('*') if p.is_file() and p.name!='SHA256.json'}
+(out/'SHA256.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps({'files':len(manifest),'comparisons':len(parity['comparisons']),
+                  'blend75_speed_ratio':ratio}))

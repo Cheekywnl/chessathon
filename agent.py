@@ -36,10 +36,8 @@ DRAW_SCAN_MAX_SECONDS = 0.25
 DRAW_SCAN_BUDGET_FRACTION = 0.20
 
 # Import time runs once per game, inside a 90 second budget, before your clock starts.
-# size_power=21 measures at ~1.0 GB fully populated plus ~0.12 GB baseline (interpreter,
-# numpy/numba, python-chess) -- comfortably under the 2 GB cap with ~0.85 GB of margin left
-# for board copies, recursion, and the ponder thread's own local state. An OOM kill is an
-# instant loss, so this was re-measured empirically before raising it, not guessed.
+# The fixed 2**21-slot array table occupies about38MB regardless of fill level.
+# Search compilation and asset loading complete before get_move is called.
 _TT = cs.TranspositionTable(size_power=21)
 _GAME_HISTORY: dict[int, int] = {}
 
