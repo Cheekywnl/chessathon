@@ -1,0 +1,122 @@
+"""Publish the selected, byte-identical tested ZIP before the long-clock run."""
+import datetime
+import hashlib
+import json
+import shutil
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+research=work/'refinement-hour'
+selection=json.loads((research/'data/runs/refinement-selection.json').read_text())
+selected=work/selection['selected']
+sys.path.insert(0,str(research))
+from tools.match_evidence import build_manifest
+
+release=work/'hour-release'
+assert not release.exists(), 'Do not overwrite an existing release worktree.'
+base=subprocess.check_output(['git','-C',str(selected),'rev-parse','HEAD'],text=True).strip()
+subprocess.run(['git','-C',str(research),'worktree','add',str(release),'-b','hour-release',base],check=True)
+for p in selected.glob('*.py'):
+    shutil.copyfile(p,release/p.name)
+shutil.copytree(research/'docs',release/'docs',dirs_exist_ok=True)
+shutil.copyfile(research/'.gitattributes',release/'.gitattributes')
+(release/'data/runs').mkdir(parents=True,exist_ok=True)
+original=build_manifest(selected)
+frozen=build_manifest(release)
+assert original['files']==frozen['files'] and original['runtime_sha256']==frozen['runtime_sha256']
+plan=json.loads((research/'data/runs/full-clock-validation-plan.json').read_text())
+assert original==plan['candidates'][selection['selected']]
+plan['selected_candidate']=frozen
+plan['selected_source_branch']=selection['selected']
+plan['selected_source_commit']=base
+plan['stage']='Published candidate; full-clock test not started.'
+(release/'data/runs/full-clock-validation-plan.json').write_text(json.dumps(plan,indent=2)+'\n')
+shutil.copyfile(selected/'submission.zip',release/'submission.zip')
+zip_sha=hashlib.sha256((release/'submission.zip').read_bytes()).hexdigest()
+with zipfile.ZipFile(release/'submission.zip') as archive:
+    zipped={name:hashlib.sha256(archive.read(name)).hexdigest() for name in archive.namelist()}
+    assert zipped==frozen['files'], 'ZIP must contain the exact frozen runtime and assets.'
+quick=selection['release_opponent_screen'] if selection['selected']=='refinement-hour' else json.loads((selected/'data/runs/accumulator-quick-evidence.json').read_text())
+direct=selection['direct_parent_screen']
+assert quick['wins']/quick['games']>=0.9
+report=f'''# Refined engine: published before full-clock validation
+
+Use **submission-refined.zip** for this candidate.
+
+- Short screen against released 7eda0fa: **{quick['wins']} wins, {quick['draws']} draws,
+  {quick['losses']} losses in {quick['games']} games**: {quick['wins']/quick['games']:.1%}
+  actual wins and {quick['score']:.1%} score.
+- The combined refinement's direct screen against the strong cache parent:
+  **{direct['wins']} wins, {direct['draws']} draws, {direct['losses']} losses**,
+  {direct['score']:.1%} score. The predeclared rule selects **{selection['selected']}**.
+- All short-test PGNs replay legally. Runtime fingerprints stayed fixed; neither
+  side produced failures, fallback diagnostics, illegal moves or time losses.
+- Gate, endgame, neural equivalence, draw and package checks passed. The combined
+  candidate scored 270/300 WAC; its cache parent scored 274/300. Detailed results,
+  limitations and rejected trials are retained in the evidence archive.
+
+## What changed
+
+This release includes the team's compiled recursive search and corrected draw
+handling, plus the exact neural feature cache. The combined candidate also removes
+inactive repetition entries and disables pondering. The trained width-128 model,
+opening choices and Syzygy assets are unchanged. No published network is used.
+
+The measured short-game result meets the requested 90% actual-win fraction in
+this sample. It does not guarantee a future win rate or establish a platform Elo.
+
+## Full-clock validation: pending
+
+Published first at the user's request. The subsequent test uses fresh opening
+pairs 30-69, 120s+0.5s, one core per game and actual opponent-time suspension.
+It uses ordered complete-pair GSPRT hypotheses 0/50 local Elo, alpha/beta .05,
+at least 20 pairs and at most 80 games, retaining all already running pairs.
+Completed results will be appended after the run; they are not claimed here.
+
+## Reproducibility
+
+- GitHub branch: [hour-release](https://github.com/Cheekywnl/chess-codex-isolated-20260910/tree/hour-release)
+- Source commit before publication: `{base}`
+- Frozen runtime SHA256: `{frozen['runtime_sha256']}`
+- ZIP SHA256: `{zip_sha}`
+- ZIP contents were checked byte-for-byte against the selected tested runtime.
+- The original validated release remains available as rollback.
+'''
+(release/'docs/HOUR_RELEASE_20260911.md').write_text(report)
+readme=release/'README.md'
+readme.write_text('Current refined candidate: [release status and validation](docs/HOUR_RELEASE_20260911.md).\n\n'+readme.read_text())
+proof=release/'docs/validation/refinement-publication-20260911'
+proof.mkdir(parents=True,exist_ok=True)
+shutil.copyfile(release/'data/runs/full-clock-validation-plan.json',proof/'full-clock-validation-plan.json')
+shutil.copyfile(Path(__file__),proof/'publish_hour_release.py.txt')
+(proof/'release-runtime-manifest.json').write_text(json.dumps(frozen,indent=2)+'\n')
+(proof/'SHA256.json').write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest()
+    for p in proof.iterdir() if p.is_file() and p.name!='SHA256.json'},indent=2)+'\n')
+subprocess.run(['git','-C',str(release),'add','.gitattributes','README.md','docs'],check=True)
+subprocess.run(['git','-C',str(release),'commit','-m','Publish checked refined engine before requested full-clock validation'],check=True)
+subprocess.run(['git','-C',str(release),'push','origin','hour-release'],check=True)
+commit=subprocess.check_output(['git','-C',str(release),'rev-parse','HEAD'],text=True).strip()
+outputs=work.parent/'outputs'
+outputs.mkdir(exist_ok=True)
+shutil.copyfile(release/'submission.zip',outputs/'submission-refined.zip')
+(outputs/'REFINEMENT_VALIDATION.md').write_text(report+f'\nPublished commit: `{commit}`\n')
+with zipfile.ZipFile(outputs/'refinement-evidence.zip','w',zipfile.ZIP_DEFLATED) as archive:
+    for name in ('refinement-candidate-20260911','refinement-hour-20260911',
+                 'no-ponder-20260911','refinement-completed-20260911',
+                 'refinement-publication-20260911'):
+        for p in (release/'docs/validation'/name).rglob('*'):
+            if p.is_file(): archive.write(p,p.relative_to(release/'docs'))
+    for name in ('HOUR_RELEASE_20260911.md','REFINEMENT_HOUR_20260911.md',
+                 'ACCUMULATOR_CANDIDATE_20260911.md','NO_PONDER_20260911.md'):
+        archive.write(release/'docs'/name,name)
+files=('submission-refined.zip','REFINEMENT_VALIDATION.md','refinement-evidence.zip')
+(outputs/'REFINEMENT_SHA256SUMS.txt').write_text(''.join(hashlib.sha256((outputs/name).read_bytes()).hexdigest()+'  '+name+'\n' for name in files))
+publication=dict(published_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                 branch='hour-release',commit=commit,selected=selection['selected'],
+                 runtime_sha256=frozen['runtime_sha256'],zip_sha256=zip_sha,
+                 full_clock_testing='pending',outputs=[str(outputs/name) for name in files])
+(work/'hour-publication.json').write_text(json.dumps(publication,indent=2)+'\n')
+print(json.dumps(publication,indent=2))

@@ -1,3 +1,5 @@
+Current refined candidate: [release status and validation](docs/HOUR_RELEASE_20260911.md).
+
 # AI Chessathon starter
 
 Fork this to build an agent for [AI Chessathon](https://aichessathon.com). It gives you a working
