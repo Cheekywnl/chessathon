@@ -1,0 +1,8 @@
+game 1/4 [20260916_026_queens_gambit_declined, agent=white]: white by checkmate
+game 2/4 [20260916_026_queens_gambit_declined, agent=black]: black by checkmate
+game 3/4 [20260916_027_kings_indian, agent=white]: white by checkmate
+game 4/4 [20260916_027_kings_indian, agent=black]: white by checkmate
+
+. vs ..\search-accumulator over 4 games, 2 openings
++3 =0 -1, score 75.0%
+terminations: checkmate 4

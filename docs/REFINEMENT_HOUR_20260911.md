@@ -69,3 +69,29 @@ A scan of 171 already played games identified missing small tablebase classes.
 Difficult covered-material gaps require more than the available space; smaller
 additions mostly cover existing easy conversions. No new tables were added.
 No new training data was downloaded and no unselected weight was promoted.
+
+
+## Completed short screens and release choice
+
+Against released 7eda0fa: **19 wins, 1 draws,
+0 losses; 95.0% actual wins,
+97.5% score**, in all 20 games and ten colour pairs.
+Peak process memory was 479,227,904 bytes and
+maximum import 51.375s. Every PGN is legal,
+both sides have zero runtime diagnostics, and fingerprints stayed fixed.
+The one draw was recognized at -20cp with completed claim scans, rather than
+being evaluated as an unresolved win.
+
+Directly against the cache parent: **9 wins,
+4 draws, 7 losses; 55.0% score**.
+All 20 games and ten pairs are retained, with legal PGNs and zero diagnostics.
+This comparison uses fresh openings 20-29 and is not mixed with the weaker
+released-opponent results.
+
+The predeclared selection rule chooses **refinement-hour**. The actual model remains
+the previously validated team-trained width-128 model. An hour-release branch
+and exact ZIP will be published before the long test as the user requested.
+The full-clock test uses untouched openings 30-69, 120s+0.5s, ordered complete
+pairs, GSPRT hypotheses 0/50 local Elo, alpha/beta .05, at least 20 pairs and at
+most 80 games. Already running pairs are retained after a boundary. This tests
+playing strength and operational reliability; it establishes no platform rating.

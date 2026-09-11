@@ -1,0 +1,89 @@
+{
+  "selected": "refinement-hour",
+  "decision_utc": "2026-09-11T02:20:48.690714+00:00",
+  "reason": "Predeclared direct-match gate: require at least 50% score and zero errors.",
+  "release_opponent_screen": {
+    "games": 20,
+    "openings": 10,
+    "clock_ms": [
+      20000,
+      300
+    ],
+    "wins": 19,
+    "draws": 1,
+    "losses": 0,
+    "score": 0.975,
+    "terminations": {
+      "checkmate": 19,
+      "threefold_repetition": 1
+    },
+    "pair_score_counts": {
+      "2.0": 9,
+      "1.5": 1
+    },
+    "log_sha256": {
+      "data\\runs\\refinement-quick-a.jsonl": "275b1d19f93b2c9a3288efb5b421438af1645804f2a43780989a56f5cc1d7aed",
+      "data\\runs\\refinement-quick-b.jsonl": "fe44b720b0fdc0e4907158e6048b1ce6fe8d9f17c39bba5cf8862a5f86ddd81f",
+      "data\\runs\\refinement-quick-c.jsonl": "796c2eccc7ed6d613eaf371de5cf8e7d1e47132023492fb626111bd0be65b607",
+      "data\\runs\\refinement-quick-d.jsonl": "415f44ea65dc93d5c43014da923a63c60d56e776710f65b0c6b460abcb92c6f5",
+      "data\\runs\\refinement-quick-e.jsonl": "1c44627d1208aa680d7feb1195622a928f7668133c402fb47803449247476dfc"
+    },
+    "fingerprinted_logs": 5,
+    "runtime_fingerprints": [
+      [
+        "029bec79c7f2c75fdd0a1ca5badbee1c9aaa734c5a1675b0e6231871c46c776c",
+        "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c"
+      ]
+    ],
+    "maximum_recorded_peak_rss_bytes": 479227904,
+    "maximum_recorded_init_seconds": 51.375,
+    "legal_pgn_replay": true,
+    "candidate_failure_or_fallback_markers": 0,
+    "baseline_diagnostics": [],
+    "platform_elo_established": false
+  },
+  "direct_parent_screen": {
+    "games": 20,
+    "openings": 10,
+    "clock_ms": [
+      20000,
+      300
+    ],
+    "wins": 9,
+    "draws": 4,
+    "losses": 7,
+    "score": 0.55,
+    "terminations": {
+      "checkmate": 16,
+      "threefold_repetition": 3,
+      "insufficient_material": 1
+    },
+    "pair_score_counts": {
+      "1.0": 5,
+      "1.5": 1,
+      "0.0": 1,
+      "2.0": 2,
+      "0.5": 1
+    },
+    "log_sha256": {
+      "data\\runs\\refinement-incremental-a.jsonl": "a37bba510471b76c8dbae31495af9d9c6ca2c68b709161157314fe70ced373a4",
+      "data\\runs\\refinement-incremental-b.jsonl": "a4cba5eba1eb1e7b3ba260d00a15b91d294df02eef9d89b7a1e485d8ff7bae53",
+      "data\\runs\\refinement-incremental-c.jsonl": "ff51d0fb8171eedc9d944de792af9408f673a7b6918b782b98e413bc61e3bdbe",
+      "data\\runs\\refinement-incremental-d.jsonl": "f5519f4f992696ce0743ff2ba6574fa995e123e487bc9d6939ad61bb7aa23d83"
+    },
+    "fingerprinted_logs": 4,
+    "runtime_fingerprints": [
+      [
+        "029bec79c7f2c75fdd0a1ca5badbee1c9aaa734c5a1675b0e6231871c46c776c",
+        "79df5b2416394fbfc947307ee6208497f6c74429baf65942c76ca54dd2172e51"
+      ]
+    ],
+    "maximum_recorded_peak_rss_bytes": 812507136,
+    "maximum_recorded_init_seconds": 50.64099999999962,
+    "legal_pgn_replay": true,
+    "candidate_failure_or_fallback_markers": 0,
+    "baseline_diagnostics": [],
+    "platform_elo_established": false
+  },
+  "full_clock_testing": "Not started; after hour-end publication."
+}

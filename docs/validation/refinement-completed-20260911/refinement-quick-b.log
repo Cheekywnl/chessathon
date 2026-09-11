@@ -1,0 +1,8 @@
+game 1/4 [20260916_012_ruy_lopez, agent=white]: white by checkmate
+game 2/4 [20260916_012_ruy_lopez, agent=black]: black by checkmate
+game 3/4 [20260916_013_sicilian_najdorf, agent=white]: white by checkmate
+game 4/4 [20260916_013_sicilian_najdorf, agent=black]: black by checkmate
+
+. vs ..\halfkp-release over 4 games, 2 openings
++4 =0 -0, score 100.0%
+terminations: checkmate 4

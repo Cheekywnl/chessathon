@@ -1,0 +1,10 @@
+game 1/6 [20260916_020_startpos, agent=white]: white by checkmate
+game 2/6 [20260916_020_startpos, agent=black]: white by checkmate
+game 3/6 [20260916_021_italian, agent=white]: black by checkmate
+game 4/6 [20260916_021_italian, agent=black]: black by checkmate
+game 5/6 [20260916_022_ruy_lopez, agent=white]: black by checkmate
+game 6/6 [20260916_022_ruy_lopez, agent=black]: black by checkmate
+
+. vs ..\search-accumulator over 6 games, 3 openings
++3 =0 -3, score 50.0%
+terminations: checkmate 6

@@ -1,0 +1,63 @@
+"""Archive both complete short screens and bind the release choice to the plan."""
+import datetime
+import hashlib
+import json
+import shutil
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'refinement-hour'
+quick=json.loads((repo/'data/runs/refinement-quick-evidence.json').read_text())
+direct=json.loads((repo/'data/runs/refinement-incremental-evidence.json').read_text())
+for evidence in (quick,direct):
+    assert evidence['games']==20 and evidence['openings']==10
+    assert evidence['candidate_failure_or_fallback_markers']==0
+    assert evidence['baseline_diagnostics']==[] and evidence['legal_pgn_replay']
+selected='refinement-hour' if direct['score']>=0.5 else 'search-accumulator'
+selection=dict(selected=selected,decision_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    reason='Predeclared direct-match gate: require at least 50% score and zero errors.',
+    release_opponent_screen=quick,direct_parent_screen=direct,
+    full_clock_testing='Not started; after hour-end publication.')
+(repo/'data/runs/refinement-selection.json').write_text(json.dumps(selection,indent=2)+'\n')
+out=repo/'docs/validation/refinement-completed-20260911'
+out.mkdir(parents=True,exist_ok=True)
+for pattern in ('refinement-quick-*','refinement-incremental-*','refinement-selection.json',
+                'refinement-validation-plan.json','full-clock-validation-plan.json'):
+    for p in (repo/'data/runs').glob(pattern):
+        shutil.copyfile(p,out/p.name)
+for name in ('finalize_refinement_screens.py','prepare_full_clock_plan.py','audit_evidence_hashes.py'):
+    shutil.copyfile(work/name,out/(name+'.txt'))
+shutil.copyfile(work/'evidence-byte-audit.json',out/'earlier-evidence-byte-audit.json')
+p=repo/'docs/REFINEMENT_HOUR_20260911.md'
+s=p.read_text()
+s+=f'''
+
+## Completed short screens and release choice
+
+Against released 7eda0fa: **{quick['wins']} wins, {quick['draws']} draws,
+{quick['losses']} losses; {quick['wins']/20:.1%} actual wins,
+{quick['score']:.1%} score**, in all 20 games and ten colour pairs.
+Peak process memory was {quick['maximum_recorded_peak_rss_bytes']:,} bytes and
+maximum import {quick['maximum_recorded_init_seconds']:.3f}s. Every PGN is legal,
+both sides have zero runtime diagnostics, and fingerprints stayed fixed.
+The one draw was recognized at -20cp with completed claim scans, rather than
+being evaluated as an unresolved win.
+
+Directly against the cache parent: **{direct['wins']} wins,
+{direct['draws']} draws, {direct['losses']} losses; {direct['score']:.1%} score**.
+All 20 games and ten pairs are retained, with legal PGNs and zero diagnostics.
+This comparison uses fresh openings 20-29 and is not mixed with the weaker
+released-opponent results.
+
+The predeclared selection rule chooses **{selected}**. The actual model remains
+the previously validated team-trained width-128 model. An hour-release branch
+and exact ZIP will be published before the long test as the user requested.
+The full-clock test uses untouched openings 30-69, 120s+0.5s, ordered complete
+pairs, GSPRT hypotheses 0/50 local Elo, alpha/beta .05, at least 20 pairs and at
+most 80 games. Already running pairs are retained after a boundary. This tests
+playing strength and operational reliability; it establishes no platform rating.
+'''
+p.write_text(s)
+(out/'SHA256.json').write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest()
+    for p in out.iterdir() if p.is_file() and p.name!='SHA256.json'},indent=2)+'\n')
+print(json.dumps(selection,indent=2))

@@ -1,0 +1,20 @@
+[
+  {
+    "directory": "refinement-candidate-20260911",
+    "files": 49,
+    "disk_errors": [],
+    "git_errors": []
+  },
+  {
+    "directory": "refinement-hour-20260911",
+    "files": 31,
+    "disk_errors": [],
+    "git_errors": []
+  },
+  {
+    "directory": "no-ponder-20260911",
+    "files": 22,
+    "disk_errors": [],
+    "git_errors": []
+  }
+]

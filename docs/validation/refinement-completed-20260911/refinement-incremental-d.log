@@ -1,0 +1,8 @@
+game 1/4 [20260916_028_english, agent=white]: white by checkmate
+game 2/4 [20260916_028_english, agent=black]: black by checkmate
+game 3/4 [20260916_029_nimzo_indian, agent=white]: black by checkmate
+game 4/4 [20260916_029_nimzo_indian, agent=black]: draw by insufficient_material
+
+. vs ..\search-accumulator over 4 games, 2 openings
++2 =1 -1, score 62.5%
+terminations: checkmate 3, insufficient_material 1

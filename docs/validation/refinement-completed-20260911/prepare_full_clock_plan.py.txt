@@ -1,0 +1,33 @@
+"""Predeclare the post-publication full-clock test before screening finishes."""
+import datetime
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'refinement-hour'
+sys.path.insert(0,str(repo))
+from tools.match_evidence import build_manifest
+
+pool=work/'search-accumulator/data/runs/openings-refinement-fresh.json'
+plan=dict(prepared_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          stage='Planned, not launched. Launch only after hour-end ZIP/report publication.',
+          candidate_selection='Choose refinement-hour if both short screens are clean and the direct cache-parent screen scores at least 50%; otherwise retain the previously checked search-accumulator parent. Freeze the chosen runtime for the entire full-clock test.',
+          candidates={name:build_manifest(work/name) for name in ('refinement-hour','search-accumulator')},
+          opponent=build_manifest(work/'halfkp-release'),
+          opening_file=str(pool),opening_file_sha256=hashlib.sha256(pool.read_bytes()).hexdigest(),
+          opening_indices=list(range(30,70)),maximum_games=80,minimum_pairs=20,
+          base_ms=120000,increment_ms=500,ply_cap_total=600,
+          workers=[2,4,6,8,10,12,14],
+          statistics=dict(model='Ordered complete-pair pentanomial GSPRT',elo0=0,elo1=50,
+                          alpha=0.05,beta=0.05,
+                          rationale='Test for a substantial improvement over the released engine, after the large short-clock gain. These are local comparison hypotheses, not a platform rating or a claim that the gain is exactly 50 Elo.'),
+          completion='Respect the first statistical boundary after the minimum pair count; retain every already running pair. If the 80-game cap is reached without a boundary, report inconclusive.',
+          validity='One physical core per game, actual process suspension during opponent turns, fresh subprocesses, fixed runtime hashes, legal PGN replay and zero flags/crashes/illegal moves/fallback diagnostics.',
+          target='Report actual wins separately from score. The user asks for at least 90% actual wins; meeting that fraction in a sample does not guarantee a future win rate.',
+          report='Append completed evidence after the run; do not describe pending testing as passed.')
+path=repo/'data/runs/full-clock-validation-plan.json'
+assert not path.exists()
+path.write_text(json.dumps(plan,indent=2)+'\n')
+print('Prepared untouched opening pairs 30-69, 120s+0.5s, 20 minimum pairs / 80 maximum games.')

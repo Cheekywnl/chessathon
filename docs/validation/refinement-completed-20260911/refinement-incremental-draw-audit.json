@@ -1,0 +1,114 @@
+{
+  "games": 20,
+  "draw_count": 4,
+  "draw_terminations": {
+    "threefold_repetition": 3,
+    "insufficient_material": 1
+  },
+  "last_search_move_still_ge150": 0,
+  "last_search_move_scored_draw": 2,
+  "last_search_move_negative": 1,
+  "tablebase_draws": 1,
+  "logged_scan_count": 32,
+  "incomplete_scans": 0,
+  "max_logged_scan_ms": 16.0,
+  "note": "Diagnostic only. Opponent is the strong cache parent adc6288, not released 7eda0fa.",
+  "draw_details": [
+    {
+      "opening": "20260916_023_sicilian_najdorf",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/3bk2p/P4qp1/8/7Q/7P/6PK/8 w - - 17 64",
+      "last_logged_candidate_move": {
+        "move": "e6f6",
+        "depth": "7",
+        "score": "-20",
+        "nodes": "52651",
+        "ms": "250",
+        "time_left_ms": "3968"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 6,
+      "last_claim_scan": {
+        "draw_claims": "5",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 230
+    },
+    {
+      "opening": "20260916_025_caro_kann",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/2b3k1/6p1/1P3p1p/P1B5/3Q2PP/1q5K/8 w - - 9 61",
+      "last_logged_candidate_move": {
+        "move": "e2d3",
+        "depth": "8",
+        "score": "-20",
+        "nodes": "63775",
+        "ms": "313",
+        "time_left_ms": "5094"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "24",
+        "complete": "1",
+        "ms": "16.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 100
+    },
+    {
+      "opening": "20260916_025_caro_kann",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/R7/4p1Pk/8/4B3/p3P1K1/1b6/5r2 b - - 18 70",
+      "last_logged_candidate_move": {
+        "move": "g1f1",
+        "depth": "10",
+        "score": "-42",
+        "nodes": "105472",
+        "ms": "437",
+        "time_left_ms": "4314"
+      },
+      "last_search_score_cp": -42,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "7",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260916_029_nimzo_indian",
+      "candidate_white": false,
+      "termination": "insufficient_material",
+      "final_fen": "8/4k3/8/8/5Kb1/8/8/8 w - - 0 122",
+      "last_logged_candidate_move": {
+        "move": "d6e7",
+        "source": "tablebase"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "tablebase",
+      "claim_scans": 13,
+      "last_claim_scan": {
+        "draw_claims": "10",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": false,
+      "candidate_material_cp": 330
+    }
+  ]
+}

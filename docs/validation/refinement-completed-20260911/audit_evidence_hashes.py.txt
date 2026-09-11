@@ -1,0 +1,25 @@
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'refinement-hour'
+dirs=('refinement-candidate-20260911','refinement-hour-20260911','no-ponder-20260911')
+records=[]
+for name in dirs:
+    directory=repo/'docs/validation'/name
+    manifest=json.loads((directory/'SHA256.json').read_text())
+    disk_errors=[]
+    git_errors=[]
+    for filename,expected in manifest.items():
+        path=directory/filename
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
+            disk_errors.append(filename)
+        relative=path.relative_to(repo).as_posix()
+        committed=subprocess.check_output(['git','-C',str(repo),'show','HEAD:'+relative])
+        if hashlib.sha256(committed).hexdigest()!=expected:
+            git_errors.append(filename)
+    records.append(dict(directory=name,files=len(manifest),disk_errors=disk_errors,git_errors=git_errors))
+print(json.dumps(records,indent=2))
+(work/'evidence-byte-audit.json').write_text(json.dumps(records,indent=2)+'\n')
