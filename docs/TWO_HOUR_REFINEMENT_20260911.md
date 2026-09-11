@@ -50,8 +50,9 @@ The history-aware repetition override also passed. The rook asset SHA-256 is
 
 The foundation passed 277/300 WAC positions at one second each, the Lucena
 regression, and both required five-second random-opponent gate games by checkmate.
-Its paired comparison against the exact corrected starting engine is in progress.
-Search and new-training experiments remain isolated until their tests finish.
+Its completed quick paired comparison against the exact corrected starting engine
+is recorded below. The search and training variants stayed isolated throughout
+selection; their completed results and rejection decisions follow.
 
 Initial 40-game, 8s+0.12s selection results, all against the exact starting engine:
 
@@ -114,7 +115,7 @@ eight independent one-core workers, fresh processes every game, original referee
 and runner, 600 total plies, and unseen opening indices 20-43. The hypotheses are
 0 versus 50 Elo with 5% error bounds and at least 20 completed pairs; all in-flight
 pairs are retained. Opponent: the exact corrected starting ZIP, runtime `99807db7...`.
-This confirmation has not completed at this checkpoint.
+This confirmation is complete; all 24 predeclared pairs are retained below.
 
 ## Frozen candidate verification
 
@@ -129,7 +130,7 @@ The final frozen payload passes the full repository Ruff and strict mypy gates
 (61 source files), plus two fresh five-second gate games by checkmate. Private
 screening helpers have been archived outside executable source, so the final
 lint/type checks have no temporary tool exclusions. The original harness is
-unchanged. The full-clock result remains pending at this source checkpoint.
+unchanged. The full-clock result is recorded below.
 
 
 The final draw-regression run passed 3,468 referee comparisons, detected all 26
@@ -148,3 +149,46 @@ failure markers. A real missing-asset import reproduced that warning and the
 auditor rejected it; clean logs remain accepted. No such warnings occur in the
 existing selection or completed final-game records. This changes validation
 only; the frozen runtime and game protocol are unchanged. Ruff and mypy passed.
+
+## Completed final confirmation
+
+The exact final ZIP scored **13 wins, 27 draws and
+8 losses in 48 games**, **55.21% score**, against the exact
+corrected current engine (c1b6dc4), at 120s+0.5s. Every game used a fresh process,
+one CPU core and the unchanged referee. All 24 opening pairs and all in-flight
+games are retained. Paired GSPRT outcome: **inconclusive: opening/game cap**;
+final log-likelihood ratio 0.679013.
+
+All 48 PGNs replay legally. There were no flags, crashes, illegal moves, model
+load failures or fallback diagnostics. Maximum recorded initialization was
+56.50s; peak memory was
+498,843,648 bytes. Both runtime fingerprints
+stayed unchanged. The final frozen payload scored 277/300 WAC
+and passed the Lucena regression. These final checks ran on CPU0 only after its
+last assigned match pair completed, avoiding CPU contention with that worker.
+
+The draw audit finds 27 draws and 0
+incomplete logged claim scans. 3 draws finished through
+exact tablebase choices; 0 ended with the
+candidate's final search still claiming at least +150cp. Raw details are retained.
+
+The descriptive logistic conversion of this score is **+36.3 local comparison
+Elo**. This is a small, related-engine match estimate, not a platform rating or a
+confidence bound. Neither the 200 Elo target nor the 500 Elo aspiration is
+established. The 47.8% search-throughput increase is a separate timing result.
+Nine selection experiments completed 360 games before these 48 confirmation
+games; their different candidates, clocks and opponents are not pooled.
+
+Upload the separately built submission ZIP, not the GitHub repository archive.
+The baseline corrected ZIP remains available as a rollback. The organiser's
+remote build/validation log is the authority for platform acceptance; no remote
+validation success has been supplied for this new ZIP.
+
+The sole stalemate was independently checked after the match with the public
+seven-piece Syzygy service. Black's Rxc7 was the only drawing move; all sixteen
+alternatives lose, according to the [oracle query](https://tablebase.lichess.ovh/standard?fen=8%2Fp1R2r2%2FKp6%2F1P6%2F3k4%2F8%2F8%2F8%20b%20-%20-%206%2054).
+The runtime itself found the defence by search (depth21,
+score-20); it never queried a remote service. Raw oracle response, exact FEN and
+the distinction between the root and successor side-to-move categories are
+archived in twohour-stalemate-review.json. This is post-match diagnosis and was
+not used to train or change the frozen candidate.

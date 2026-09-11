@@ -1,0 +1,29 @@
+import datetime,hashlib,json
+from pathlib import Path
+import chess
+work=Path(__file__).parent
+fen='8/p1R2r2/Kp6/1P6/3k4/8/8/8 b - - 6 54'
+board=chess.Board(fen)
+path=work/'twohour-stalemate-oracle.json';data=json.loads(path.read_text())
+assert board.turn==chess.BLACK and data['category']=='draw'
+assert {move.uci() for move in board.legal_moves}=={row['uci'] for row in data['moves']}
+drawing=[row['uci'] for row in data['moves'] if row['category']=='draw']
+assert drawing==['f7c7']
+assert all(row['category']=='win' for row in data['moves'] if row['uci']!='f7c7')
+board.push_uci('f7c7');assert board.is_stalemate()
+other=chess.Board(fen);other.push_uci('f7f1')
+alternative=json.loads((work/'twohour-stalemate-alternative-oracle.json').read_text())
+assert other.turn==chess.WHITE and alternative['category']=='win'
+result={'source':'Public Lichess seven-piece Syzygy API, queried offline after the frozen match completed',
+        'request_url':'https://tablebase.lichess.ovh/standard?fen=8%2Fp1R2r2%2FKp6%2F1P6%2F3k4%2F8%2F8%2F8%20b%20-%20-%206%2054',
+        'queried_at_utc':datetime.datetime.fromtimestamp(path.stat().st_mtime,datetime.timezone.utc).isoformat(),
+        'fen':fen,'side_to_move':'black','root_category':'draw','legal_moves':len(data['moves']),
+        'category_semantics':'Move categories describe the successor position, with White to move; win means White wins.',
+        'drawing_moves':drawing,'alternatives_that_lose_for_black':len(data['moves'])-1,
+        'selected_move':'f7c7','selected_move_is_stalemate':True,'selected_move_is_only_nonlosing_move':True,
+        'runtime_search_depth':21,'runtime_search_score_cp':-20,
+        'alternative_white_to_move_fen':other.fen(),'alternative_direct_query_category':alternative['category'],
+        'raw_response_sha256':hashlib.sha256(path.read_bytes()).hexdigest(),
+        'used_for_training_or_candidate_changes':False,'queried_by_runtime':False}
+(work/'twohour-stalemate-review.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf8')
+print(json.dumps(result,indent=2))

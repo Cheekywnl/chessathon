@@ -1,0 +1,16 @@
+{
+  "games": 48,
+  "draw_count": 27,
+  "draw_terminations": {
+    "threefold_repetition": 26,
+    "stalemate": 1
+  },
+  "last_search_move_still_ge150": 0,
+  "last_search_move_scored_draw": 21,
+  "last_search_move_negative": 3,
+  "tablebase_draws": 3,
+  "logged_scan_count": 125,
+  "incomplete_scans": 0,
+  "max_logged_scan_ms": 16.0,
+  "note": "Logged root scores diagnose decisions; neither scores nor draw rate alone prove strength. Exact candidate and opponent identities are in each input log build manifest."
+}

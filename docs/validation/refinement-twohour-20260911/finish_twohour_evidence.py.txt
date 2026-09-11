@@ -1,0 +1,100 @@
+"""Finalize completed evidence only; does not alter either frozen test runtime."""
+import hashlib,json,math,shutil,subprocess,sys
+from pathlib import Path
+work=Path(__file__).parent;repo=work/'two-hour-refinement'
+prefix=repo/'data/runs/twohour-final-vs-current-fullclock'
+result=json.loads(prefix.with_suffix('.result.json').read_text())
+checks=json.loads((work/'twohour-final-late-checks.json').read_text())
+assert result['games']==48 and result['pairs']==24
+assert result['score']>0.5,'A nonpositive result requires an explicit review before promotion'
+assert checks['endgame_regression_passed'] and checks['wac_passed']>=270
+expected='dc545883006320731603675f07c9f75263a60268fb3cc4be7ed9234498204adf'
+baseline='99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900'
+assert result['configuration']['builds']['agent']['runtime_sha256']==expected
+assert result['configuration']['builds']['opponent']['runtime_sha256']==baseline
+for module,suffix in (('tools.match_evidence','.evidence.json'),(str(work/'audit_draw_matches.py'),'.draws.json')):
+    if prefix.with_suffix(suffix).exists():
+        continue
+    cmd=[sys.executable,'-m',module] if module.startswith('tools.') else [sys.executable,module]
+    with (work/f'twohour-final{suffix}.log').open('w') as log:
+        subprocess.run([*cmd,str(prefix.with_suffix('.jsonl')),'--out',str(prefix.with_suffix(suffix))],cwd=repo,stdout=log,stderr=subprocess.STDOUT,check=True)
+evidence=json.loads(prefix.with_suffix('.evidence.json').read_text())
+draws=json.loads(prefix.with_suffix('.draws.json').read_text())
+assert hashlib.sha256(prefix.with_suffix('.jsonl').read_bytes()).hexdigest() in evidence['log_sha256'].values()
+assert draws['games']==result['games']
+assert evidence['candidate_failure_or_fallback_markers']==0 and evidence['legal_pgn_replay']
+assert evidence['maximum_recorded_init_seconds']<90
+assert evidence['maximum_recorded_peak_rss_bytes']<2_000_000_000
+rows=[json.loads(line) for line in prefix.with_suffix('.jsonl').read_text().splitlines() if line]
+assert not any(row.get('screening_only') for row in rows)
+assert all(row['base_ms']==120000 and row['increment_ms']==500 for row in rows)
+assert not any(row.get(side+'_init_diagnostics',{}).get('screening_process_reused') for row in rows for side in ('white','black'))
+archive=repo/'docs/validation/refinement-twohour-20260911'
+for path in prefix.parent.glob(prefix.name+'.*'):shutil.copy2(path,archive/path.name)
+for name in ('twohour-final-fullclock.log','twohour-final-wac.log','twohour-final-endgame.log','twohour-final-late-checks.json','twohour-final-late-checks.log','twohour-final.evidence.json.log','twohour-final.draws.json.log'):
+    shutil.copy2(work/name,archive/name)
+for name in ('twohour-stalemate-oracle.json','twohour-stalemate-review.json','twohour-stalemate-alternative-oracle.json'):
+    shutil.copy2(work/name,archive/name)
+shutil.copy2(work/'record_twohour_stalemate_review.py',archive/'record_twohour_stalemate_review.py.txt')
+shutil.copy2(Path(__file__),archive/(Path(__file__).name+'.txt'))
+score=result['score'];elo=400*math.log10(score/(1-score))
+summary={'engine_source_commit':'e3a99a808e49374ce130182849448d4724dce588','games':result['games'],'pairs':result['pairs'],'wins':result['wins'],'draws':result['draws'],'losses':result['losses'],'score':score,'descriptive_score_equivalent_elo':elo,'decision':result['decision'],'runtime_sha256':expected,'opponent_runtime_sha256':baseline,'all_fresh_processes':True,'maximum_init_seconds':evidence['maximum_recorded_init_seconds'],'maximum_peak_rss_bytes':evidence['maximum_recorded_peak_rss_bytes'],'final_wac':checks['wac_passed'],'endgame_regression_passed':True,'draw_audit':{k:v for k,v in draws.items() if k!='draw_details'},'platform_elo_established':False,'requested_200_to_500_gain_established':False}
+(work/'twohour-final-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+(archive/'final-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+doc=repo/'docs/TWO_HOUR_REFINEMENT_20260911.md';text=doc.read_text()
+text=text.replace('The foundation passed 277/300 WAC positions at one second each, the Lucena','The foundation passed 277/300 WAC positions at one second each, the Lucena')
+text=text.replace('Its paired comparison against the exact corrected starting engine is in progress.', 'Its completed quick paired comparison against the exact corrected starting engine is recorded below.')
+text=text.replace('Its paired comparison against the exact corrected starting engine is in progress.','Its completed quick paired comparison is recorded below.')
+text=text.replace('This confirmation has not completed at this checkpoint.','This confirmation is complete; all 24 predeclared pairs are retained below.')
+text=text.replace('The full-clock result remains pending at this source checkpoint.','The full-clock result is recorded below.')
+text=text.replace('The full-clock result remains pending at this source checkpoint.', 'The full-clock result is recorded below.')
+text+=f'''
+## Completed final confirmation
+
+The exact final ZIP scored **{result['wins']} wins, {result['draws']} draws and
+{result['losses']} losses in 48 games**, **{score:.2%} score**, against the exact
+corrected current engine (c1b6dc4), at 120s+0.5s. Every game used a fresh process,
+one CPU core and the unchanged referee. All 24 opening pairs and all in-flight
+games are retained. Paired GSPRT outcome: **{result['decision']['verdict']}**;
+final log-likelihood ratio {result['llr_including_inflight']:.6f}.
+
+All 48 PGNs replay legally. There were no flags, crashes, illegal moves, model
+load failures or fallback diagnostics. Maximum recorded initialization was
+{evidence['maximum_recorded_init_seconds']:.2f}s; peak memory was
+{evidence['maximum_recorded_peak_rss_bytes']:,} bytes. Both runtime fingerprints
+stayed unchanged. The final frozen payload scored {checks['wac_passed']}/300 WAC
+and passed the Lucena regression. These final checks ran on CPU0 only after its
+last assigned match pair completed, avoiding CPU contention with that worker.
+
+The draw audit finds {draws['draw_count']} draws and {draws['incomplete_scans']}
+incomplete logged claim scans. {draws['tablebase_draws']} draws finished through
+exact tablebase choices; {draws['last_search_move_still_ge150']} ended with the
+candidate's final search still claiming at least +150cp. Raw details are retained.
+
+The descriptive logistic conversion of this score is **{elo:+.1f} local comparison
+Elo**. This is a small, related-engine match estimate, not a platform rating or a
+confidence bound. Neither the 200 Elo target nor the 500 Elo aspiration is
+established. The 47.8% search-throughput increase is a separate timing result.
+Nine selection experiments completed 360 games before these 48 confirmation
+games; their different candidates, clocks and opponents are not pooled.
+
+Upload the separately built submission ZIP, not the GitHub repository archive.
+The baseline corrected ZIP remains available as a rollback. The organiser's
+remote build/validation log is the authority for platform acceptance; no remote
+validation success has been supplied for this new ZIP.
+
+The sole stalemate was independently checked after the match with the public
+seven-piece Syzygy service. Black's Rxc7 was the only drawing move; all sixteen
+alternatives lose. The runtime itself found the defence by search (depth21,
+score-20); it never queried a remote service. Raw oracle response, exact FEN and
+the distinction between the root and successor side-to-move categories are
+archived in twohour-stalemate-review.json. This is post-match diagnosis and was
+not used to train or change the frozen candidate.
+'''
+doc.write_text(text,newline='\n')
+readme=repo/'README.md';text=readme.read_text()
+text=text.replace('The 48-game comparison against the previous corrected upload is\nin progress; measured search speed is not an Elo result.', f'The final 48-game comparison against the previous corrected upload finished\n{result["wins"]}W/{result["draws"]}D/{result["losses"]}L ({score:.2%} score) at 120s+0.5s.\nMeasured search speed is separate from playing-strength evidence.')
+readme.write_text(text,newline='\n')
+hashes={p.relative_to(archive).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(archive.rglob('*')) if p.is_file() and p.name!='SHA256.json'}
+(archive/'SHA256.json').write_text(json.dumps(hashes,indent=2)+'\n')
+print(json.dumps(summary,indent=2))

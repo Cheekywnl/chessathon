@@ -1,0 +1,8 @@
+{
+  "wac_passed": 277,
+  "wac_total": 300,
+  "endgame_regression_passed": true,
+  "cpu": 0,
+  "began_after_cpu_final_pair_index": 16,
+  "seconds": 364.6156573295593
+}

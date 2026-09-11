@@ -1,0 +1,24 @@
+{
+  "source": "Public Lichess seven-piece Syzygy API, queried offline after the frozen match completed",
+  "request_url": "https://tablebase.lichess.ovh/standard?fen=8%2Fp1R2r2%2FKp6%2F1P6%2F3k4%2F8%2F8%2F8%20b%20-%20-%206%2054",
+  "queried_at_utc": "2026-09-11T08:54:38.844945+00:00",
+  "fen": "8/p1R2r2/Kp6/1P6/3k4/8/8/8 b - - 6 54",
+  "side_to_move": "black",
+  "root_category": "draw",
+  "legal_moves": 17,
+  "category_semantics": "Move categories describe the successor position, with White to move; win means White wins.",
+  "drawing_moves": [
+    "f7c7"
+  ],
+  "alternatives_that_lose_for_black": 16,
+  "selected_move": "f7c7",
+  "selected_move_is_stalemate": true,
+  "selected_move_is_only_nonlosing_move": true,
+  "runtime_search_depth": 21,
+  "runtime_search_score_cp": -20,
+  "alternative_white_to_move_fen": "8/p1R5/Kp6/1P6/3k4/8/8/5r2 w - - 7 55",
+  "alternative_direct_query_category": "win",
+  "raw_response_sha256": "7c6944c2ca9b3ccfe2b4ee196859af06ab3137843250c48c59690b2e34a07a5c",
+  "used_for_training_or_candidate_changes": false,
+  "queried_by_runtime": false
+}

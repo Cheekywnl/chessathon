@@ -4,8 +4,9 @@ This fork contains the team's own compiled alpha-beta/PVS engine and a HalfKP
 network trained from random initialization. The current candidate adds exact
 sparse neural inference, reusable scratch storage and a verified 9,103-position
 rook-and-pawn winning policy. Its actual submission ZIP expands recursively to
-49,042,751 bytes. The 48-game comparison against the previous corrected upload is
-in progress; measured search speed is not an Elo result.
+49,042,751 bytes. The final 48-game comparison against the previous corrected
+upload finished 13W/27D/8L (55.21% score) at 120s+0.5s.
+Measured search speed is separate from playing-strength evidence.
 
 Upload the packaged submission, not GitHub's repository ZIP. The repository also
 contains tools, baselines and validation records that are not submission files.
