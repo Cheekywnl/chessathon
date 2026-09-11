@@ -1,0 +1,163 @@
+{
+  "games": 20,
+  "draw_count": 6,
+  "draw_terminations": {
+    "threefold_repetition": 6
+  },
+  "last_search_move_still_ge150": 0,
+  "last_search_move_scored_draw": 5,
+  "last_search_move_negative": 0,
+  "tablebase_draws": 1,
+  "logged_scan_count": 23,
+  "incomplete_scans": 0,
+  "max_logged_scan_ms": 16.0,
+  "note": "Logged root scores diagnose decisions; neither scores nor draw rate alone prove strength. Exact candidate and opponent identities are in each input log build manifest.",
+  "draw_details": [
+    {
+      "opening": "20260917_160_ruy_lopez",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/b2rk3/p3br2/6Q1/8/3p4/PP3PPP/4R1K1 w - - 8 33",
+      "last_logged_candidate_move": {
+        "move": "g7g5",
+        "depth": "11",
+        "score": "-20",
+        "nodes": "145408",
+        "ms": "672",
+        "time_left_ms": "9269"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "7",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 40
+    },
+    {
+      "opening": "20260917_160_ruy_lopez",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/4k3/R2N1p2/2p1p2K/4P2r/2P5/PP3b2/8 w - - 11 52",
+      "last_logged_candidate_move": {
+        "move": "g4h4",
+        "depth": "13",
+        "score": "-20",
+        "nodes": "68668",
+        "ms": "297",
+        "time_left_ms": "4023"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 4,
+      "last_claim_scan": {
+        "draw_claims": "2",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -90
+    },
+    {
+      "opening": "20260917_163_kings_indian",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "5k2/1b6/1ppN2R1/4PB2/p1P5/P3bp1P/5r2/5K2 w - - 14 46",
+      "last_logged_candidate_move": {
+        "move": "e2f2",
+        "depth": "9",
+        "score": "-20",
+        "nodes": "75193",
+        "ms": "281",
+        "time_left_ms": "5231"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 2,
+      "last_claim_scan": {
+        "draw_claims": "7",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 10
+    },
+    {
+      "opening": "20260917_167_kings_indian",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "1R6/8/8/8/1b6/1k1K4/p7/8 w - - 8 78",
+      "last_logged_candidate_move": {
+        "move": "a3b4",
+        "depth": "19",
+        "score": "-20",
+        "nodes": "297984",
+        "ms": "313",
+        "time_left_ms": "2998"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 3,
+      "last_claim_scan": {
+        "draw_claims": "2",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -70
+    },
+    {
+      "opening": "20260917_168_startpos",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/5p2/4pk2/8/5P2/2R2K2/5P2/6r1 b - - 24 59",
+      "last_logged_candidate_move": {
+        "move": "c5c3",
+        "depth": "16",
+        "score": "-20",
+        "nodes": "144129",
+        "ms": "171",
+        "time_left_ms": "3376"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 5,
+      "last_claim_scan": {
+        "draw_claims": "6",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260917_168_startpos",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "6k1/8/8/5pK1/8/8/8/8 b - - 10 94",
+      "last_logged_candidate_move": {
+        "move": "h8g8",
+        "source": "tablebase"
+      },
+      "last_search_score_cp": 237,
+      "last_move_source": "tablebase",
+      "claim_scans": 5,
+      "last_claim_scan": {
+        "draw_claims": "3",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 100
+    }
+  ]
+}

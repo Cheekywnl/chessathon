@@ -1,0 +1,32 @@
+{"elo0": 0.0, "elo1": 50.0, "alpha": 0.05, "beta": 0.05, "min_pairs": 10, "cpus": [0, 10], "model": "pentanomial constrained MLE; 0.001 count per cell", "bounds": [-2.9444389791664403, 2.9444389791664403], "selfcheck": false}
+game finished: pair 2 20260917_161_french agent=white: white by checkmate
+game finished: pair 1 20260917_160_ruy_lopez agent=white: draw by threefold_repetition
+game finished: pair 2 20260917_161_french agent=black: black by checkmate
+game finished: pair 1 20260917_160_ruy_lopez agent=black: draw by threefold_repetition
+pair 1/10 20260917_160_ruy_lopez: [0.5, 0.5]; +0 =2 -0; LLR=-0.1493
+pair 2/10 20260917_161_french: [1.0, 1.0]; +2 =2 -0; LLR=0.2672
+game finished: pair 3 20260917_162_queens_gambit_declined agent=white: white by checkmate
+game finished: pair 4 20260917_163_kings_indian agent=white: black by checkmate
+game finished: pair 3 20260917_162_queens_gambit_declined agent=black: black by checkmate
+pair 3/10 20260917_162_queens_gambit_declined: [1.0, 1.0]; +4 =2 -0; LLR=0.4010
+game finished: pair 4 20260917_163_kings_indian agent=black: draw by threefold_repetition
+pair 4/10 20260917_163_kings_indian: [0.0, 0.5]; +4 =3 -1; LLR=0.4361
+game finished: pair 6 20260917_165_startpos agent=white: white by checkmate
+game finished: pair 5 20260917_164_nimzo_indian agent=white: white by checkmate
+game finished: pair 5 20260917_164_nimzo_indian agent=black: black by checkmate
+pair 5/10 20260917_164_nimzo_indian: [1.0, 1.0]; +6 =3 -1; LLR=0.6591
+game finished: pair 6 20260917_165_startpos agent=black: white by checkmate
+pair 6/10 20260917_165_startpos: [1.0, 0.0]; +7 =3 -2; LLR=0.7772
+game finished: pair 7 20260917_166_french agent=white: white by checkmate
+game finished: pair 8 20260917_167_kings_indian agent=white: white by checkmate
+game finished: pair 8 20260917_167_kings_indian agent=black: draw by threefold_repetition
+game finished: pair 7 20260917_166_french agent=black: white by checkmate
+pair 7/10 20260917_166_french: [1.0, 0.0]; +8 =3 -3; LLR=0.8849
+pair 8/10 20260917_167_kings_indian: [1.0, 0.5]; +9 =4 -3; LLR=1.0557
+game finished: pair 9 20260917_168_startpos agent=white: draw by threefold_repetition
+game finished: pair 10 20260917_169_italian agent=white: black by checkmate
+game finished: pair 9 20260917_168_startpos agent=black: draw by threefold_repetition
+pair 9/10 20260917_168_startpos: [0.5, 0.5]; +9 =6 -3; LLR=1.1713
+game finished: pair 10 20260917_169_italian agent=black: black by checkmate
+pair 10/10 20260917_169_italian: [0.0, 1.0]; +10 =6 -4; LLR=1.2768
+{"decision": {"verdict": "inconclusive: opening/game cap"}, "games": 20, "pairs": 10, "wins": 10, "draws": 6, "losses": 4, "score": 0.65, "llr_including_inflight": 1.2768279620240612, "terminations": {"threefold_repetition": 6, "checkmate": 14}, "platform_elo_established": false}

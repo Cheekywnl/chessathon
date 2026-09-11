@@ -9,7 +9,7 @@ leaving 1,000,004 bytes under the 50 MB limit. Runtime fingerprint:
 **The larger-book full-clock test finished at 29 wins, 20 draws and 7 losses
 (69.64% score). Its predeclared SPRT accepted H1 after 23 pairs; all 28 started
 pairs were retained. All 56 PGNs replay legally with zero runtime failures.
-The corrected smaller-book ZIP is still completing its separate quick test.
+The exact corrected smaller-book ZIP finished 20 games at 15s+0.2s: 10 wins, 6 draws and 4 losses (65% score). This small test was statistically inconclusive; all games replay legally and neither engine logged a runtime failure.
 An additional 300-500 Elo or a 90% actual
 win rate over the penultimate engine has not been established.**
 
@@ -31,8 +31,11 @@ from 84 to 67. This changes some opening decisions, so the prior larger-book
 full-clock result is supporting evidence, not an exact corrected-ZIP result.
 
 The actual corrected ZIP passed a fresh one-core import and legal-move check.
-A separate 20-game fresh-process test at 15s+0.2s on unused opening indices
-160-169 compares this exact corrected ZIP against the penultimate engine.
+A separate completed 20-game fresh-process test at 15s+0.2s on unused opening indices
+160-169 compared this exact corrected ZIP against the penultimate engine. Its result
+was 10 wins, 6 draws and 4 losses; all 10 colour pairs were retained. Maximum recorded
+initialization was 62.75s and peak memory was 484,732,928 bytes. All six draws were
+repetitions; every logged draw scan completed.
 
 The user supplied a subsequent platform log confirming the corrected archive's
 size check passed at 45,431,701 bytes. Docker then failed at

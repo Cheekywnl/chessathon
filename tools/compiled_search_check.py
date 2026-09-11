@@ -22,9 +22,12 @@ import chess_search as cs
 
 
 def snapshot(search: Any) -> dict[str, Any]:
+    # Dense history iteration omits zero cells; the Python dictionary can keep
+    # explicit zeros after a bonus and penalty cancel. Both score them as zero.
     return {"seen": {key: count for key, count in search.seen.items() if count},
             "killers": np.asarray(search.killers).tolist(),
-            "history": dict(search.history), "tt": search.tt.table, "nodes": search.nodes}
+            "history": {key: value for key, value in search.history.items() if value},
+            "tt": search.tt.table, "nodes": search.nodes}
 
 
 def main() -> None:
