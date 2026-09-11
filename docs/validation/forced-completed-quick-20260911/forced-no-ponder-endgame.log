@@ -1,0 +1,48 @@
+Diagnostic: forced-reply draw fix, pondering disabled
+move=c1d1 depth=6 score=216 nodes=16963 ms=359 time_left_ms=20000
+move=b8c7 depth=8 score=227 nodes=19800 ms=437 time_left_ms=20000
+move=c7b6 depth=10 score=227 nodes=21645 ms=516 time_left_ms=20000
+move=b6c6 depth=9 score=227 nodes=32768 ms=718 time_left_ms=20000
+move=c6b5 depth=11 score=227 nodes=26428 ms=609 time_left_ms=20000
+move=b5a6 depth=7 score=217 nodes=33792 ms=750 time_left_ms=20000
+move=a6b6 depth=12 score=227 nodes=33792 ms=766 time_left_ms=20000
+move=b6c7 depth=12 score=227 nodes=32653 ms=734 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c7b8 depth=7 score=227 nodes=22193 ms=422 time_left_ms=20000
+draw_claims=2 complete=1 ms=0.0
+move=d1c1 depth=8 score=216 nodes=23083 ms=469 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c1c7 depth=10 score=216 nodes=30672 ms=672 time_left_ms=20000
+move=c7c8 depth=9 score=216 nodes=38912 ms=844 time_left_ms=20000
+move=c8c5 depth=9 score=217 nodes=26062 ms=531 time_left_ms=20000
+move=c5c7 depth=9 score=217 nodes=22920 ms=469 time_left_ms=20000
+move=c7c1 depth=10 score=228 nodes=35032 ms=750 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c1c4 depth=11 score=228 nodes=28928 ms=625 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c4d4 depth=11 score=228 nodes=27275 ms=625 time_left_ms=20000
+move=b8c7 depth=11 score=228 nodes=32326 ms=734 time_left_ms=20000
+move=c7b6 depth=10 score=228 nodes=43008 ms=984 time_left_ms=20000
+move=b6c6 depth=11 score=235 nodes=39984 ms=890 time_left_ms=20000
+move=d4a4 depth=8 score=525 nodes=30582 ms=703 time_left_ms=20000
+move=c6c7 depth=10 score=591 nodes=36814 ms=813 time_left_ms=20000
+move=c7b6 depth=11 score=595 nodes=31107 ms=593 time_left_ms=20000
+move=b6a7 depth=11 score=597 nodes=68608 ms=1125 time_left_ms=20000
+move=b7b8q depth=10 score=603 nodes=68608 ms=1156 time_left_ms=20000
+move=a7b8 source=tablebase
+move=a4a5 source=tablebase
+move=a5h5 source=tablebase
+move=b8c8 source=tablebase
+move=c8d8 source=tablebase
+move=d8e8 source=tablebase
+move=e8f7 source=tablebase
+move=h5h6 source=tablebase
+move=f7e8 source=tablebase
+move=e8d8 source=tablebase
+Lucena position: PASS (checkmate)
+move=d8d7 source=tablebase
+move=d7c6 source=tablebase
+move=h6h8 source=tablebase
+move=h8a8 source=tablebase
+
+1/1 endgame regression positions passed

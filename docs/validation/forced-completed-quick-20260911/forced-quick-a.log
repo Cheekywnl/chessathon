@@ -1,0 +1,8 @@
+game 1/4 [20260914_142_ruy_lopez, agent=white]: draw by threefold_repetition
+game 2/4 [20260914_142_ruy_lopez, agent=black]: black by checkmate
+game 3/4 [20260914_143_sicilian_najdorf, agent=white]: black by checkmate
+game 4/4 [20260914_143_sicilian_najdorf, agent=black]: draw by threefold_repetition
+
+. vs ..\halfkp-release over 4 games, 2 openings
++1 =2 -1, score 50.0%
+terminations: threefold_repetition 2, checkmate 2

@@ -1,7 +1,7 @@
 # Forced-reply draw fix and targeted training, 11 September 2026
 
 Status: correctness screens passed for the updated draw-fused candidate. The short real-clock
-comparison is in progress. This remains an experimental branch, not a promoted release.
+comparison completed at 60% score and failed its promising gate. This remains an experimental branch, not a promoted release.
 The target is 90% actual wins against released neural 7eda0fa; it has not been demonstrated.
 
 ## Concrete draw failure and fix
@@ -79,3 +79,17 @@ mirror's SHA256 list, and used after engine decisions for diagnostic labels. The
 agent does not access that directory. Existing shipped tablebases and book are unchanged.
 Sources: https://tablebase.lichess.ovh/tables/standard/ and the canonical competition rules
 https://aichessathon.com/docs/rules.md (freshly fetched for this refinement).
+
+## Completed short comparison
+
+All 20 games and 10 colour pairs completed at 20s+0.3s against frozen released neural
+7eda0fa. Result: **+7 =10 -3,
+60.0% score, 35.0% actual wins**.
+Every PGN replays legally, all runtime fingerprints remain fixed, and neither engine
+logged runtime failure/fallback diagnostics. Peak working set was
+248,160,256 bytes; maximum import time was
+14.469 seconds.
+
+This fails the declared promising gate and is far short of the 90% actual-win objective.
+No long tournament is launched. Main and the recommended upload remain the validated
+7eda0fa release. A selected short opening sample is not a platform rating measurement.

@@ -1,0 +1,256 @@
+{
+  "games": 20,
+  "draw_count": 10,
+  "draw_terminations": {
+    "threefold_repetition": 9,
+    "insufficient_material": 1
+  },
+  "last_search_move_still_ge150": 0,
+  "last_search_move_scored_draw": 7,
+  "last_search_move_negative": 1,
+  "tablebase_draws": 2,
+  "logged_scan_count": 21,
+  "incomplete_scans": 0,
+  "max_logged_scan_ms": 16.0,
+  "note": "Logged root scores diagnose decisions; neither scores nor draw rate alone prove strength. The opponent is the previous neural release, unlike the earlier classical draw study.",
+  "draw_details": [
+    {
+      "opening": "20260914_142_ruy_lopez",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/2B2K2/kP4p1/7p/4b2P/8/8/8 b - - 29 78",
+      "last_logged_candidate_move": {
+        "move": "g7f7",
+        "depth": "8",
+        "score": "-20",
+        "nodes": "12364",
+        "ms": "297",
+        "time_left_ms": "3928"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 4,
+      "last_claim_scan": {
+        "draw_claims": "14",
+        "complete": "1",
+        "ms": "16.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_143_sicilian_najdorf",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/8/6p1/4K1P1/6kP/8/2b5/4B3 b - - 18 63",
+      "last_logged_candidate_move": {
+        "move": "f3g4",
+        "depth": "9",
+        "score": "-178",
+        "nodes": "30720",
+        "ms": "500",
+        "time_left_ms": "4690"
+      },
+      "last_search_score_cp": -178,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "12",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -100
+    },
+    {
+      "opening": "20260914_145_caro_kann",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/8/1b5p/8/8/P2N2P1/2K1pk2/8 b - - 9 61",
+      "last_logged_candidate_move": {
+        "move": "e5d3",
+        "depth": "11",
+        "score": "-20",
+        "nodes": "7327",
+        "ms": "312",
+        "time_left_ms": "4525"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "1",
+        "complete": "1",
+        "ms": "15.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -10
+    },
+    {
+      "opening": "20260914_145_caro_kann",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/4pk2/8/1P2p3/R7/5PP1/pr2K3/8 w - - 7 51",
+      "last_logged_candidate_move": {
+        "move": "b3b2",
+        "depth": "8",
+        "score": "-20",
+        "nodes": "13969",
+        "ms": "406",
+        "time_left_ms": "5188"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "3",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_147_kings_indian",
+      "candidate_white": true,
+      "termination": "insufficient_material",
+      "final_fen": "8/8/8/2k5/8/2K5/8/8 w - - 0 79",
+      "last_logged_candidate_move": {
+        "move": "c4c5",
+        "source": "tablebase"
+      },
+      "last_search_score_cp": 300,
+      "last_move_source": "tablebase",
+      "claim_scans": 0,
+      "last_claim_scan": null,
+      "actual_third_occurrence": false,
+      "claimable_repetition": false,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_147_kings_indian",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/8/2k2PK1/2P5/8/2R5/4r3/8 w - - 9 54",
+      "last_logged_candidate_move": {
+        "move": "f2e2",
+        "depth": "11",
+        "score": "-20",
+        "nodes": "10023",
+        "ms": "234",
+        "time_left_ms": "4613"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 2,
+      "last_claim_scan": {
+        "draw_claims": "7",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -200
+    },
+    {
+      "opening": "20260914_148_english",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "3K3k/8/4p3/7P/8/7r/8/8 w - - 19 59",
+      "last_logged_candidate_move": {
+        "move": "e8d8",
+        "source": "tablebase"
+      },
+      "last_search_score_cp": -733,
+      "last_move_source": "tablebase",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "3",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -500
+    },
+    {
+      "opening": "20260914_148_english",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "8/8/p3kp2/P1n2N1p/4K2P/6P1/8/8 w - - 7 51",
+      "last_logged_candidate_move": {
+        "move": "d3c5",
+        "depth": "13",
+        "score": "-20",
+        "nodes": "9429",
+        "ms": "281",
+        "time_left_ms": "5179"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "7",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_150_startpos",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "1R6/p7/6p1/2kp3p/2p1p3/4P3/5Pr1/r2B1K1R b - - 19 49",
+      "last_logged_candidate_move": {
+        "move": "e1f1",
+        "depth": "10",
+        "score": "-20",
+        "nodes": "11851",
+        "ms": "453",
+        "time_left_ms": "5764"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "1",
+        "complete": "1",
+        "ms": "16.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -70
+    },
+    {
+      "opening": "20260914_150_startpos",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "3q2k1/pb3pp1/4pn1p/2p1N3/2B5/1P2PP2/P4QPP/6K1 w - - 7 27",
+      "last_logged_candidate_move": {
+        "move": "d5f6",
+        "depth": "5",
+        "score": "-20",
+        "nodes": "20480",
+        "ms": "766",
+        "time_left_ms": "12941"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "1",
+        "complete": "1",
+        "ms": "16.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    }
+  ]
+}
