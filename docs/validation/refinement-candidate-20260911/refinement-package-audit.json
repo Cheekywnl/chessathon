@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\refinement-hour\\submission.zip",
+  "sha256": "409c48e8f4aeae994be2add38f4d09a46a0e4c234d99253f01eebe18d65b4188",
+  "unzipped_bytes": 44998813,
+  "file_count": 109,
+  "integer_network": true,
+  "init_seconds": 42.194437500002095,
+  "peak_rss_bytes": 476282880,
+  "cpu_affinity": [
+    10
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.0005685000032826792
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c1g5",
+      "seconds": 0.19201310000062222
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.015016099998319987
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

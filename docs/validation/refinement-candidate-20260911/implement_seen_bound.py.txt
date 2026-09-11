@@ -1,0 +1,24 @@
+"""Discard inactive search-path repetition counts in an isolated candidate."""
+from pathlib import Path
+
+work = Path(__file__).resolve().parent
+repo = work/'search-seen-bound'
+p = repo/'chess_search_compiled.py'
+s = p.read_text()
+old = '        ctx.seen[childkey] -= 1'
+assert s.count(old) == 2
+s = s.replace(old, '''        # Only real history and the active path affect repetition. Keeping a
+        # zero entry for every explored leaf grows memory for no future benefit.
+        remaining = ctx.seen[childkey] - 1
+        if remaining:
+            ctx.seen[childkey] = remaining
+        else:
+            del ctx.seen[childkey]''')
+p.write_text(s)
+p = repo/'tools/compiled_search_check.py'
+s = p.read_text()
+old = 'return {"seen": dict(search.seen),'
+assert s.count(old) == 1
+s = s.replace(old, 'return {"seen": {key: count for key, count in search.seen.items() if count},')
+p.write_text(s)
+(repo/'data/runs').mkdir(parents=True, exist_ok=True)

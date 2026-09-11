@@ -1,0 +1,25 @@
+move=c1d1 depth=12 score=225 nodes=137936 ms=359 time_left_ms=20000
+move=d1d4 depth=12 score=231 nodes=370688 ms=703 time_left_ms=20000
+move=b8c7 depth=12 score=514 nodes=258018 ms=515 time_left_ms=20000
+move=c7b6 depth=13 score=620 nodes=374784 ms=718 time_left_ms=20000
+move=d4b4 depth=11 score=610 nodes=171535 ms=375 time_left_ms=20000
+move=b6c6 depth=13 score=642 nodes=414720 ms=750 time_left_ms=20000
+move=c6c7 depth=13 score=648 nodes=570759 ms=672 time_left_ms=20000
+move=b7b8q depth=12 score=652 nodes=289456 ms=438 time_left_ms=20000
+move=c7b8 source=tablebase
+move=b4b5 source=tablebase
+move=b5h5 source=tablebase
+move=b8c8 source=tablebase
+move=c8d8 source=tablebase
+move=h5a5 source=tablebase
+move=d8c7 source=tablebase
+move=a5a6 source=tablebase
+move=c7d8 source=tablebase
+move=a6a7 source=tablebase
+move=d8e8 source=tablebase
+move=e8f7 source=tablebase
+move=a7a6 source=tablebase
+move=a6h6 source=tablebase
+Lucena position: PASS (checkmate)
+
+1/1 endgame regression positions passed

@@ -1,0 +1,37 @@
+"""Compare deep-search repetition storage and speed in isolated processes."""
+import json
+import sys
+import time
+from pathlib import Path
+
+import psutil
+
+repo = Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(repo))
+import agent
+import chess
+import chess_search as cs
+
+process = psutil.Process()
+pool = json.loads((repo.parent/'halfkp-trial/data/runs/openings-final-20260914.json').read_text())['positions']
+records = []
+for index in (0, 4, 8):
+    board = chess.Board(pool[index]['fen'])
+    search = cs.Search(cs.TranspositionTable(21), {cs.hash_of_board(board): 1})
+    before = process.memory_info().rss
+    started = time.perf_counter()
+    prior = None
+    completed = 0
+    for depth in range(1, 12):
+        try:
+            move, score, _ = search.search_root(board, depth, time.monotonic()+30,
+                                               prev_score=prior)
+        except cs.TimeUp:
+            break
+        completed, prior = depth, score
+    records.append(dict(index=index, depth=completed, score=prior, move=move.uci(),
+                        nodes=search.nodes, seconds=time.perf_counter()-started,
+                        repetition_entries=len(search.seen), rss_before=before,
+                        rss_after=process.memory_info().rss))
+    print(json.dumps(records[-1]), flush=True)
+Path(sys.argv[2]).write_text(json.dumps(records, indent=2)+'\n')

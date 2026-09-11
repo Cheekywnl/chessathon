@@ -1,0 +1,47 @@
+diff --git a/chess_search.py b/chess_search.py
+index dc11060..c18c9a7 100644
+--- a/chess_search.py
++++ b/chess_search.py
+@@ -746,7 +746,9 @@ class Search:
+                 if static_eval - margin >= beta:
+                     return static_eval - margin
+ 
+-        if allow_null and not in_check and depth >= 3 and has_non_pawn_material(state):
++        if (allow_null and not in_check and depth >= 3
++                and static_eval is not None and static_eval >= beta
++                and has_non_pawn_material(state)):
+             null_state = apply_null(state)
+             null_depth = depth - 1 - NULL_MOVE_REDUCTION
+             null_score = -self.negamax(
+@@ -817,6 +819,7 @@ class Search:
+                 and not is_capture
+                 and not p
+                 and not is_killer
++                and not child_in_check
+             ):
+                 d_idx = depth if depth < _LMR_MAX_DEPTH else _LMR_MAX_DEPTH
+                 m_idx = i if i < _LMR_MAX_MOVE_INDEX else _LMR_MAX_MOVE_INDEX
+diff --git a/chess_search_compiled.py b/chess_search_compiled.py
+index 8ce740c..5bc8a9f 100644
+--- a/chess_search_compiled.py
++++ b/chess_search_compiled.py
+@@ -495,7 +495,10 @@ def negamax(
+             if static - margin >= beta:
+                 return static - margin
+     own = s[6] if s[8] else s[7]
+-    if allow_null and (not incheck) and (depth >= 3) and own & ~s[0] & ~s[5]:
++    # A null move is a cutoff probe: only try it when the static score already
++    # reaches beta. Preserve real search effort in positions that need improving.
++    if (allow_null and not incheck and depth >= 3 and static >= beta
++            and own & ~s[0] & ~s[5]):
+         null = (s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], not s[8], s[9], -1, s[11] + 1)
+         score = -negamax(
+             null,
+@@ -558,6 +561,7 @@ def negamax(
+             and (not cap)
+             and (not pp)
+             and (not killer)
++            and (not childcheck)
+         ):
+             reduction = min(
+                 int(LMR[min(depth, limits._LMR_MAX_DEPTH), min(i, limits._LMR_MAX_MOVE_INDEX)]),

@@ -1,0 +1,24 @@
+diff --git a/chess_search.py b/chess_search.py
+index dc11060..a232067 100644
+--- a/chess_search.py
++++ b/chess_search.py
+@@ -817,6 +817,7 @@ class Search:
+                 and not is_capture
+                 and not p
+                 and not is_killer
++                and not child_in_check
+             ):
+                 d_idx = depth if depth < _LMR_MAX_DEPTH else _LMR_MAX_DEPTH
+                 m_idx = i if i < _LMR_MAX_MOVE_INDEX else _LMR_MAX_MOVE_INDEX
+diff --git a/chess_search_compiled.py b/chess_search_compiled.py
+index 8ce740c..f375e9e 100644
+--- a/chess_search_compiled.py
++++ b/chess_search_compiled.py
+@@ -558,6 +558,7 @@ def negamax(
+             and (not cap)
+             and (not pp)
+             and (not killer)
++            and (not childcheck)
+         ):
+             reduction = min(
+                 int(LMR[min(depth, limits._LMR_MAX_DEPTH), min(i, limits._LMR_MAX_MOVE_INDEX)]),

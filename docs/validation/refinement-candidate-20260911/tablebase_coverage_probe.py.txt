@@ -1,0 +1,43 @@
+"""Count missing small endgames from already played games, without new engine play."""
+import io
+import json
+from collections import Counter
+from pathlib import Path
+
+import chess
+import chess.pgn
+import chess.syzygy
+
+work=Path(__file__).resolve().parent
+repo=work/'search-accumulator'
+paths=[work/'halfkp-trial/data/runs/final-anneal75-sprt.jsonl']
+paths+=list((work/'search-compiled-128/data/runs').glob('compiled-quick-?.jsonl'))
+paths+=list((repo/'data/runs').glob('accumulator-quick-?.jsonl'))
+paths+=list((work/'search-no-ponder/data/runs').glob('no-ponder-quick-?.jsonl'))
+counts=Counter()
+game_counts=Counter()
+examples={}
+games=0
+for path in paths:
+    for line in path.read_text().splitlines():
+        row=json.loads(line)
+        game=chess.pgn.read_game(io.StringIO(row['pgn']))
+        board=game.board()
+        seen=set()
+        games+=1
+        for move in game.mainline_moves():
+            board.push(move)
+            if chess.popcount(board.occupied)>5 or board.is_game_over():
+                continue
+            name=chess.syzygy.normalize_tablename(chess.syzygy.calc_key(board))
+            if not (repo/'syzygy'/f'{name}.rtbw').exists() or not (repo/'syzygy'/f'{name}.rtbz').exists():
+                counts[name]+=1
+                seen.add(name)
+                examples.setdefault(name,board.fen())
+        game_counts.update(seen)
+sizes={name:int(size) for size,name in (line.split() for line in (work/'tablebase-bytes.tsv').read_text().splitlines())}
+rows=[dict(name=n,positions=v,games=game_counts[n],pair_bytes=sum(sizes.get(n+'.'+e,0) for e in ('rtbw','rtbz')),
+           example=examples[n]) for n,v in counts.most_common()]
+out=dict(games_scanned=games,missing_classes=rows)
+(work/'tablebase-coverage-probe.json').write_text(json.dumps(out,indent=2)+'\n')
+print(json.dumps(out,indent=2))

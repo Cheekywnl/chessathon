@@ -1,0 +1,3 @@
+{"index": 0, "depth": 11, "score": 30, "move": "f1e2", "nodes": 1721183, "seconds": 10.748138499999186, "repetition_entries": 796615, "rss_before": 513122304, "rss_after": 555651072}
+{"index": 4, "depth": 11, "score": -28, "move": "c3b5", "nodes": 1862767, "seconds": 10.93429379999725, "repetition_entries": 868871, "rss_before": 555651072, "rss_after": 597549056}
+{"index": 8, "depth": 11, "score": -2, "move": "b2b4", "nodes": 866656, "seconds": 5.654388700000709, "repetition_entries": 409059, "rss_before": 597549056, "rss_after": 618524672}

@@ -1,0 +1,25 @@
+import datetime
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'refinement-hour'
+sys.path.insert(0,str(repo))
+from tools.match_evidence import build_manifest
+
+pool=work/'search-accumulator/data/runs/openings-refinement-fresh.json'
+plan=dict(prepared_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          candidate=build_manifest(repo),opponent=build_manifest(work/'halfkp-release'),
+          opening_file=str(pool),opening_file_sha256=hashlib.sha256(pool.read_bytes()).hexdigest(),
+          opening_indices=list(range(10,20)),clock_ms=[20000,300],games=20,pairs=10,
+          workers=[dict(cpu=c,opening_start=s,opening_count=2,name=n) for c,s,n in
+                   [(2,10,'a'),(10,12,'b'),(12,14,'c'),(14,16,'d'),(4,18,'e')]],
+          selection='Keep every game and complete colour pairs. Zero failure/fallback diagnostics required. Screen against released 7eda0fa; 90% actual wins is the requested sample target, with score reported separately.',
+          changes='Exact feature cache, removal of inactive repetition entries, disabled ponder startup; unchanged model, book, tablebases and pruning.',
+          short_screen_only=True,full_clock_validation='After the requested hour-end publication.')
+path=repo/'data/runs/refinement-validation-plan.json'
+assert not path.exists()
+path.write_text(json.dumps(plan,indent=2)+'\n')
+print(plan['candidate']['runtime_sha256'])

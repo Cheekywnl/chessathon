@@ -1,0 +1,12 @@
+uv run ruff check .
+E501 Line too long (128 > 100)
+  --> tools\compiled_search_check.py:25:101
+   |
+24 | def snapshot(search: Any) -> dict[str, Any]:
+25 |     return {"seen": {key: count for key, count in search.seen.items() if count}, "killers": np.asarray(search.killers).tolist(),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+26 |             "history": dict(search.history), "tt": search.tt.table, "nodes": search.nodes}
+   |
+
+Found 1 error.
+make: *** [Makefile:18: gate] Error 1

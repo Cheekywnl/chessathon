@@ -1,0 +1,25 @@
+import datetime
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'refinement-hour'
+sys.path.insert(0,str(repo))
+from tools.match_evidence import build_manifest
+
+pool=work/'search-accumulator/data/runs/openings-refinement-fresh.json'
+plan=dict(prepared_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          candidate=build_manifest(repo),opponent=build_manifest(work/'search-accumulator'),
+          opening_file=str(pool),opening_file_sha256=hashlib.sha256(pool.read_bytes()).hexdigest(),
+          opening_indices=list(range(20,30)),clock_ms=[20000,300],games=20,pairs=10,
+          workers=[dict(cpu=c,opening_start=s,opening_count=k,name=n) for c,s,k,n in
+                   [(6,20,3,'a'),(8,23,3,'b'),(2,26,2,'c'),(10,28,2,'d')]],
+          decision='Keep every game and complete pair. Compare directly with the 18-win cache parent. A tiny score difference is not a precise Elo estimate; retain original parent as rollback. Require zero failures and at least 50% score to advance.',
+          changes='Bounded repetition storage and disabled ponder startup, atop the identical accumulator cache.',
+          short_screen_only=True)
+path=repo/'data/runs/refinement-incremental-plan.json'
+assert not path.exists()
+path.write_text(json.dumps(plan,indent=2)+'\n')
+print(plan['candidate']['runtime_sha256'],plan['opponent']['runtime_sha256'])

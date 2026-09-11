@@ -1,0 +1,13 @@
+from pathlib import Path
+
+work = Path(__file__).resolve().parent
+s = (work/'draw-wide256/chess_search.py').read_text()
+old = '        if allow_null and not in_check and depth >= 3 and has_non_pawn_material(state):'
+assert s.count(old) == 1
+s = s.replace(old, '''        if (allow_null and not in_check and depth >= 3
+                and static_eval is not None and static_eval >= beta
+                and has_non_pawn_material(state)):''')
+old = '                and not is_killer\n            ):\n                d_idx ='
+assert s.count(old) == 1
+s = s.replace(old, '                and not is_killer\n                and not child_in_check\n            ):\n                d_idx =')
+(work/'pruning-python-reference.py').write_text(s)

@@ -1,0 +1,28 @@
+from pathlib import Path
+
+repo = Path(__file__).resolve().parent / 'search-pruning'
+p = repo / 'chess_search_compiled.py'
+s = p.read_text()
+old = '    if allow_null and (not incheck) and (depth >= 3) and own & ~s[0] & ~s[5]:'
+assert s.count(old) == 1
+s = s.replace(old, '''    # A null move is a cutoff probe: only try it when the static score already
+    # reaches beta. Preserve real search effort in positions that need improving.
+    if (allow_null and not incheck and depth >= 3 and static >= beta
+            and own & ~s[0] & ~s[5]):''')
+old = '            and (not killer)\n        ):\n            reduction = min('
+assert s.count(old) == 1
+s = s.replace(old, '            and (not killer)\n            and (not childcheck)\n        ):\n            reduction = min(')
+p.write_text(s)
+p = repo / 'chess_search.py'
+s = p.read_text()
+old = '        if allow_null and not in_check and depth >= 3 and has_non_pawn_material(state):'
+assert s.count(old) == 1
+s = s.replace(old, '''        if (allow_null and not in_check and depth >= 3
+                and static_eval is not None and static_eval >= beta
+                and has_non_pawn_material(state)):''')
+old = '                and not is_killer\n            ):\n                d_idx ='
+assert s.count(old) == 1
+s = s.replace(old, '                and not is_killer\n                and not child_in_check\n            ):\n                d_idx =')
+p.write_text(s)
+(repo / 'data/runs').mkdir(parents=True, exist_ok=True)
+print('Created bounded null-move and checking-move trial in isolated worktree.')

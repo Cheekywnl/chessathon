@@ -1,0 +1,10 @@
+game 1/6 [20260916_003_sicilian_najdorf, agent=white]: draw by threefold_repetition
+game 2/6 [20260916_003_sicilian_najdorf, agent=black]: white by checkmate
+game 3/6 [20260916_004_french, agent=white]: white by checkmate
+game 4/6 [20260916_004_french, agent=black]: draw by threefold_repetition
+game 5/6 [20260916_005_caro_kann, agent=white]: draw by threefold_repetition
+game 6/6 [20260916_005_caro_kann, agent=black]: draw by threefold_repetition
+
+. vs ..\search-compiled-128 over 6 games, 3 openings
++1 =4 -1, score 50.0%
+terminations: threefold_repetition 4, checkmate 2

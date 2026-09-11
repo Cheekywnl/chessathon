@@ -1,0 +1,17 @@
+import json
+import shutil
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'refinement-hour'
+for path in (work/'search-accumulator').glob('*.py'):
+    shutil.copyfile(path,repo/path.name)
+shutil.copyfile(work/'search-no-ponder/agent.py',repo/'agent.py')
+shutil.copyfile(work/'search-seen-bound/chess_search_compiled.py',repo/'chess_search_compiled.py')
+shutil.copyfile(work/'search-seen-bound/tools/compiled_search_check.py',repo/'tools/compiled_search_check.py')
+(repo/'data/runs').mkdir(parents=True,exist_ok=True)
+audit=work/'search-no-ponder/data/runs/no-ponder-draw-audit.json'
+d=json.loads(audit.read_text())
+d['note']='Diagnostic only. This screen compares against compiled parent 4c657b9, not released 7eda0fa.'
+audit.write_text(json.dumps(d,indent=2)+'\n')
+print('Combined exact accumulator cache, bounded repetition storage, and disabled pondering.')

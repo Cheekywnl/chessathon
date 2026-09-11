@@ -1,0 +1,117 @@
+{
+  "games_scanned": 171,
+  "missing_classes": [
+    {
+      "name": "KQRPvK",
+      "positions": 12,
+      "games": 1,
+      "pair_bytes": 2078432,
+      "example": "8/5k2/8/1p6/4K3/5q2/5r2/8 w - - 0 71"
+    },
+    {
+      "name": "KQNPvK",
+      "positions": 12,
+      "games": 1,
+      "pair_bytes": 1943968,
+      "example": "8/8/6p1/1K2nk2/8/6q1/8/8 w - - 0 51"
+    },
+    {
+      "name": "KQPvKP",
+      "positions": 11,
+      "games": 2,
+      "pair_bytes": 3461920,
+      "example": "8/8/8/p7/k6K/8/6P1/1q6 b - - 0 64"
+    },
+    {
+      "name": "KBPvKP",
+      "positions": 11,
+      "games": 1,
+      "pair_bytes": 20993888,
+      "example": "8/8/6k1/8/Pp1B4/6K1/8/8 w - - 0 54"
+    },
+    {
+      "name": "KQQPvK",
+      "positions": 10,
+      "games": 3,
+      "pair_bytes": 1308960,
+      "example": "8/8/1Q6/8/6P1/3Q3K/5k2/8 b - - 0 59"
+    },
+    {
+      "name": "KQPPvK",
+      "positions": 8,
+      "games": 1,
+      "pair_bytes": 387808,
+      "example": "1k4Q1/8/8/P7/8/8/5PK1/8 b - - 0 59"
+    },
+    {
+      "name": "KPPvKR",
+      "positions": 7,
+      "games": 1,
+      "pair_bytes": 14183200,
+      "example": "8/4k3/8/r5P1/5KP1/8/8/8 b - - 0 66"
+    },
+    {
+      "name": "KQBPvK",
+      "positions": 7,
+      "games": 1,
+      "pair_bytes": 2171872,
+      "example": "8/8/8/8/7p/8/8/kq3bK1 w - - 0 135"
+    },
+    {
+      "name": "KQQvKP",
+      "positions": 6,
+      "games": 1,
+      "pair_bytes": 2251232,
+      "example": "5k2/8/4K3/4P3/8/4q3/8/q7 w - - 0 68"
+    },
+    {
+      "name": "KNPvKP",
+      "positions": 5,
+      "games": 1,
+      "pair_bytes": 27590368,
+      "example": "8/8/5K2/8/6P1/2nkp3/8/8 b - - 0 64"
+    },
+    {
+      "name": "KQQNvK",
+      "positions": 4,
+      "games": 1,
+      "pair_bytes": 1106912,
+      "example": "8/8/K7/4nk2/8/2q5/8/6q1 w - - 0 57"
+    },
+    {
+      "name": "KQBvKP",
+      "positions": 4,
+      "games": 1,
+      "pair_bytes": 10370016,
+      "example": "Q7/5k2/8/8/1p6/6K1/8/B7 b - - 0 59"
+    },
+    {
+      "name": "KQQRvK",
+      "positions": 2,
+      "games": 1,
+      "pair_bytes": 858208,
+      "example": "8/5k2/8/1K6/8/2q5/4r3/1q6 w - - 0 77"
+    },
+    {
+      "name": "KBPPvK",
+      "positions": 2,
+      "games": 1,
+      "pair_bytes": 390752,
+      "example": "8/8/8/8/7p/8/1p5K/k4b2 w - - 0 134"
+    },
+    {
+      "name": "KRNvKN",
+      "positions": 1,
+      "games": 1,
+      "pair_bytes": 22656544,
+      "example": "4k3/8/1R6/8/1N6/3n3K/8/8 b - - 0 54"
+    },
+    {
+      "name": "KPPPvK",
+      "positions": 1,
+      "games": 1,
+      "pair_bytes": 78752,
+      "example": "1k6/6P1/8/P7/8/8/5PK1/8 w - - 0 59"
+    }
+  ]
+}

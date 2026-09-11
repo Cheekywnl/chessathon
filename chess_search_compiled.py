@@ -511,7 +511,13 @@ def qsearch(
         child, childkey, childcheck = after(s, key, ff, tt, pp)
         ctx.seen[childkey] = ctx.seen.get(childkey, 0) + 1
         score = -qsearch(child, -beta, -alpha, ply + 1, childkey, childcheck, ctx)
-        ctx.seen[childkey] -= 1
+        # Only real history and the active path affect repetition. Keeping a
+        # zero entry for every explored leaf grows memory for no future benefit.
+        remaining = ctx.seen[childkey] - 1
+        if remaining:
+            ctx.seen[childkey] = remaining
+        else:
+            del ctx.seen[childkey]
         if ctx.aborted:
             return 0
         best = max(best, score)
@@ -658,7 +664,13 @@ def negamax(
                     childcheck,
                     ctx,
                 )
-        ctx.seen[childkey] -= 1
+        # Only real history and the active path affect repetition. Keeping a
+        # zero entry for every explored leaf grows memory for no future benefit.
+        remaining = ctx.seen[childkey] - 1
+        if remaining:
+            ctx.seen[childkey] = remaining
+        else:
+            del ctx.seen[childkey]
         if ctx.aborted:
             return 0
         if score > best:

@@ -1,0 +1,31 @@
+diff --git a/chess_search.py b/chess_search.py
+index dc11060..051ca35 100644
+--- a/chess_search.py
++++ b/chess_search.py
+@@ -746,7 +746,9 @@ class Search:
+                 if static_eval - margin >= beta:
+                     return static_eval - margin
+ 
+-        if allow_null and not in_check and depth >= 3 and has_non_pawn_material(state):
++        if (allow_null and not in_check and depth >= 3
++                and static_eval is not None and static_eval >= beta
++                and has_non_pawn_material(state)):
+             null_state = apply_null(state)
+             null_depth = depth - 1 - NULL_MOVE_REDUCTION
+             null_score = -self.negamax(
+diff --git a/chess_search_compiled.py b/chess_search_compiled.py
+index 8ce740c..c1d7d21 100644
+--- a/chess_search_compiled.py
++++ b/chess_search_compiled.py
+@@ -495,7 +495,10 @@ def negamax(
+             if static - margin >= beta:
+                 return static - margin
+     own = s[6] if s[8] else s[7]
+-    if allow_null and (not incheck) and (depth >= 3) and own & ~s[0] & ~s[5]:
++    # A null move is a cutoff probe: only try it when the static score already
++    # reaches beta. Preserve real search effort in positions that need improving.
++    if (allow_null and not incheck and depth >= 3 and static >= beta
++            and own & ~s[0] & ~s[5]):
+         null = (s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], not s[8], s[9], -1, s[11] + 1)
+         score = -negamax(
+             null,

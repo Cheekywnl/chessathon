@@ -1,0 +1,34 @@
+move=c1d1 depth=14 score=225 nodes=330355 ms=531 time_left_ms=20000
+move=b8c7 depth=14 score=225 nodes=431104 ms=703 time_left_ms=20000
+move=c7b6 depth=16 score=225 nodes=442368 ms=703 time_left_ms=20000
+move=b6a7 depth=17 score=225 nodes=398336 ms=718 time_left_ms=20000
+move=a7b6 depth=18 score=225 nodes=463872 ms=734 time_left_ms=20000
+move=b6c7 depth=18 score=225 nodes=460800 ms=750 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c7b8 depth=14 score=242 nodes=490496 ms=765 time_left_ms=20000
+draw_claims=2 complete=1 ms=0.0
+move=d1d4 depth=12 score=522 nodes=267478 ms=437 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=b8c7 depth=14 score=589 nodes=318082 ms=562 time_left_ms=20000
+move=c7b6 depth=16 score=589 nodes=373276 ms=531 time_left_ms=20000
+move=b6a6 depth=16 score=603 nodes=393890 ms=578 time_left_ms=20000
+move=d4a4 depth=15 score=606 nodes=354598 ms=531 time_left_ms=20000
+move=a6a7 depth=14 score=615 nodes=537583 ms=718 time_left_ms=20000
+move=b7b8q depth=14 score=621 nodes=556892 ms=594 time_left_ms=20000
+move=a4c4 source=tablebase
+move=a7b8 source=tablebase
+move=c4h4 source=tablebase
+move=h4h5 source=tablebase
+move=b8c8 source=tablebase
+move=c8d8 source=tablebase
+move=d8e8 source=tablebase
+move=e8f7 source=tablebase
+move=h5h6 source=tablebase
+move=f7e8 source=tablebase
+move=e8d7 source=tablebase
+move=d7c8 source=tablebase
+move=c8c7 source=tablebase
+move=h6a6 source=tablebase
+Lucena position: PASS (checkmate)
+
+1/1 endgame regression positions passed

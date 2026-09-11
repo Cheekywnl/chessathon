@@ -22,7 +22,8 @@ import chess_search as cs
 
 
 def snapshot(search: Any) -> dict[str, Any]:
-    return {"seen": dict(search.seen), "killers": np.asarray(search.killers).tolist(),
+    return {"seen": {key: count for key, count in search.seen.items() if count},
+            "killers": np.asarray(search.killers).tolist(),
             "history": dict(search.history), "tt": search.tt.table, "nodes": search.nodes}
 
 
