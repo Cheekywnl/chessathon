@@ -6,7 +6,11 @@ ZIP/NPZ and gzip archive gives 48,999,996 bytes,
 leaving 1,000,004 bytes under the 50 MB limit. Runtime fingerprint:
 `99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900`.
 
-**Full-clock testing is in progress. An additional 300-500 Elo or a 90% actual
+**The larger-book full-clock test finished at 29 wins, 20 draws and 7 losses
+(69.64% score). Its predeclared SPRT accepted H1 after 23 pairs; all 28 started
+pairs were retained. All 56 PGNs replay legally with zero runtime failures.
+The corrected smaller-book ZIP is still completing its separate quick test.
+An additional 300-500 Elo or a 90% actual
 win rate over the penultimate engine has not been established.**
 
 
@@ -34,7 +38,18 @@ The user supplied a subsequent platform log confirming the corrected archive's
 size check passed at 45,431,701 bytes. Docker then failed at
 `FROM aichessathon/agent-base:latest` with pull-access denied, before importing
 our agent. Platform execution has therefore not yet been validated; the base
-image availability/access needs repair by the platform operator.
+image was unavailable to that builder. The user subsequently reported that the
+organisers confirmed their error. A successful platform validation log has not
+yet been supplied here.
+
+An additional archive audit compared this ZIP with both previous releases:
+all CRCs passed, paths were portable, no duplicate or symbolic-link entries
+were present, and all Python imports were local, standard-library or supplied
+by the platform. `tools.portable_submission` can rebuild the same 114 payloads
+with normalized ZIP metadata, and verifies their byte identity. The resulting
+diagnostic `submission-final-rebuilt.zip` has SHA-256
+`c376a7005be604836c282b93d35a5186e33f0d552fadcf8db676d75c37bfa0da`;
+it changes no engine or asset bytes and is not a claimed Docker-image fix.
 
 ## Exact comparison
 
