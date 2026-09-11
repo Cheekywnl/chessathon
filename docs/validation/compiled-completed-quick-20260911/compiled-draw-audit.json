@@ -1,0 +1,67 @@
+{
+  "games": 20,
+  "draw_count": 2,
+  "draw_terminations": {
+    "threefold_repetition": 2
+  },
+  "last_search_move_still_ge150": 0,
+  "last_search_move_scored_draw": 2,
+  "last_search_move_negative": 0,
+  "tablebase_draws": 0,
+  "logged_scan_count": 7,
+  "incomplete_scans": 0,
+  "max_logged_scan_ms": 0.0,
+  "note": "Logged root scores diagnose decisions; neither scores nor draw rate alone prove strength. The opponent is the previous neural release, unlike the earlier classical draw study.",
+  "draw_details": [
+    {
+      "opening": "20260914_176_queens_gambit_declined",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "r7/1p6/1Pp3k1/3p2p1/1P1P2P1/p3P3/2K5/R7 w - - 7 37",
+      "last_logged_candidate_move": {
+        "move": "f6g6",
+        "depth": "11",
+        "score": "-20",
+        "nodes": "104508",
+        "ms": "484",
+        "time_left_ms": "11268"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "16",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_178_english",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/8/4k1p1/P1np2Np/P1p4P/2K2P2/8/8 b - - 12 53",
+      "last_logged_candidate_move": {
+        "move": "f7g5",
+        "depth": "13",
+        "score": "-20",
+        "nodes": "101376",
+        "ms": "579",
+        "time_left_ms": "5760"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "5",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    }
+  ]
+}

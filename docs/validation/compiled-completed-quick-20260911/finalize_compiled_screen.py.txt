@@ -1,0 +1,67 @@
+"""Preserve every result of the frozen compiled-search short comparison."""
+import hashlib
+import json
+import shutil
+import time
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+repo=work/'search-compiled-128'
+summary=json.loads((repo/'data/runs/compiled-quick-evidence.json').read_text())
+assert summary['games']==20 and summary['wins']==17 and summary['draws']==2
+assert summary['baseline_diagnostics']==[] and summary['candidate_failure_or_fallback_markers']==0
+out=repo/'docs/validation/compiled-completed-quick-20260911'
+out.mkdir(parents=True,exist_ok=True)
+for pattern in ('compiled-quick-*','compiled-draw-audit.json','compiled-validation-plan.json'):
+    for p in (repo/'data/runs').glob(pattern):
+        shutil.copyfile(p,out/p.name)
+shutil.copyfile(Path(__file__),out/'finalize_compiled_screen.py.txt')
+p=repo/'docs/COMPILED_SEARCH_20260911.md'
+s=p.read_text()
+s=s.replace('No playing-strength result\nexists for this candidate yet. A predeclared20-game,20s+0.3s paired comparison will\nuse untouched opening indices172-181 from the recorded pool, with all games kept.',
+'''The short comparison completed at 17 wins, 2 draws and 1 loss: 85% actual wins,
+90% score. All 20 games at 20s+0.3s, using paired opening indices 172-181, are kept.
+This is a promising short result, not yet the user's 90% actual-win objective.''')
+s+='''
+
+## Completed short comparison
+
+All 20 games and 10 colour pairs finished: **+17 =2 -1, 90% score, 85% actual wins**.
+Seven openings were won with both colours, two yielded a win and a draw, and one
+was split. Eighteen games ended by checkmate; two by repetition. Every PGN replays
+legally, the candidate/opponent fingerprints remained fixed, and neither engine
+logged any failure/fallback diagnostics. Maximum recorded import was 43.578s and
+peak working set was 595,644,416 bytes.
+
+Both drawn games were recognized as draws in the final search; neither retained
+an evaluation of at least +150cp. Seven logged root scans completed. This is a
+small opening sample and does not establish a platform rating or a guaranteed
+85%/90% future result. It clears the preliminary promising gate, while falling
+one observed win short of the user's 90% actual-win target in this sample.
+
+No long tournament is started yet: a separate accumulator-cache experiment is
+being checked for further speed while preserving this frozen candidate. Main and
+the recommended upload remain the previously validated 7eda0fa release.
+'''
+# Improve spacing in this handoff without changing source or runtime fingerprints.
+for old,new in {'least90':'least 90','width128':'width 128','All96':'All 96',
+    'fixed-depth6':'fixed-depth 6','blends0/75/100':'blends 0/75/100',
+    'positions,19':'positions, 19','depths1-7':'depths 1-7','Ten50ms':'Ten 50ms',
+    'over10,000':'over 10,000','roots,nine':'roots, nine','roots,four':'roots, four',
+    'comparisons,26':'comparisons, 26','passes992':'passes 992','and502':'and 502',
+    'covers55':'covers 55','WAC:273':'WAC: 273','depth6':'depth 6','blend75':'blend 75',
+    'width256':'width 256','passed15':'passed 15','the1,944':'the 1,944',
+    'default2**21':'default 2**21','use39,845':'use 39,845','in109':'in 109',
+    'the90%':'the 90%'}.items():
+    s=s.replace(old,new)
+p.write_text(s,encoding='utf-8')
+with (repo/'viewer/activity_log.jsonl').open('a',encoding='utf-8') as stream:
+    stream.write(json.dumps({'time':time.time(),'status':'done','message':
+        'Compiled search completed +17 =2 -1 in 20 paired games at 20s+0.3 vs released '
+        '7eda0fa: 90% score, 85% actual wins. All PGNs legal, fingerprints fixed, zero '
+        'runtime diagnostics/flags/crashes. Preliminary gate passed; 90% actual-win '
+        'target unmet. Further accumulator refinement before any long test/main promotion.'})+'\n')
+(out/'SHA256.json').write_text(json.dumps({str(p.relative_to(out)):
+    hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*')
+    if p.is_file() and p.name!='SHA256.json'},indent=2)+'\n')
+print('Archived all 20 games and explicit 85%-win / 90%-score distinction.')
