@@ -127,10 +127,9 @@ def _close_book() -> None:
 
 atexit.register(_close_book)
 
-# The live platform suspends this process outside our turn, so this legacy worker
-# cannot gain opponent-time nodes there. Disabling it failed the existing Lucena
-# regression locally; retain the baseline behavior pending a validated replacement.
-# The next get_move requests cancellation before beginning its foreground search.
+# The live platform suspends this process outside our turn. The bounded candidate
+# disables worker startup below; foreground search and its persistent table remain.
+# Legacy helpers remain available for diagnostic comparison with the parent.
 _ponder_thread: threading.Thread | None = None
 _ponder_stop = threading.Event()
 
@@ -298,25 +297,10 @@ def _record_our_move(board: chess.Board, move: chess.Move) -> None:
 
 
 def _start_pondering(board: chess.Board, our_move: chess.Move) -> None:
-    global _ponder_thread
-    board_after_us = board.copy(stack=False)
-    board_after_us.push(our_move)
-    if board_after_us.is_game_over(claim_draw=False):
-        return
-    ponder_move = _predict_reply(board_after_us)
-    if ponder_move is None:
-        return
-    board_to_ponder = board_after_us
-    board_to_ponder.push(ponder_move)
-    # The predicted opponent reply can itself end the game. search_root requires
-    # a legal root move; starting it on a predicted mate raises in the worker.
-    if board_to_ponder.is_game_over(claim_draw=False):
-        return
-    _ponder_stop.clear()
-    _ponder_thread = threading.Thread(
-        target=_ponder, args=(board_to_ponder, _ponder_stop), daemon=True
-    )
-    _ponder_thread.start()
+    # The live runner suspends the process between turns. This bounded candidate
+    # avoids startup/cancellation work for a worker with no opponent-time budget.
+    # Keep the old implementation in Git as the independently tested reference.
+    return
 
 
 def get_move(fen: str, time_left_ms: int) -> str:

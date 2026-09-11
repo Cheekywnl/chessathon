@@ -1,0 +1,10 @@
+game 1/6 [20260916_000_startpos, agent=white]: white by checkmate
+game 2/6 [20260916_000_startpos, agent=black]: black by checkmate
+game 3/6 [20260916_001_italian, agent=white]: black by checkmate
+game 4/6 [20260916_001_italian, agent=black]: draw by fifty_moves
+game 5/6 [20260916_002_ruy_lopez, agent=white]: black by checkmate
+game 6/6 [20260916_002_ruy_lopez, agent=black]: black by checkmate
+
+. vs ..\search-compiled-128 over 6 games, 3 openings
++3 =1 -2, score 58.3%
+terminations: checkmate 5, fifty_moves 1
