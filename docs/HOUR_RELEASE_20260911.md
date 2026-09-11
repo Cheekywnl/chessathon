@@ -1,4 +1,4 @@
-# Refined engine: published before full-clock validation
+# Penultimate engine: full-clock validation complete
 
 Use **submission-refined.zip** for this candidate.
 
@@ -24,13 +24,32 @@ opening choices and Syzygy assets are unchanged. No published network is used.
 The measured short-game result meets the requested 90% actual-win fraction in
 this sample. It does not guarantee a future win rate or establish a platform Elo.
 
-## Full-clock validation: pending
+## Full-clock validation: complete
 
-Published first at the user's request. The subsequent test uses fresh opening
-pairs 30-69, 120s+0.5s, one core per game and actual opponent-time suspension.
-It uses ordered complete-pair GSPRT hypotheses 0/50 local Elo, alpha/beta .05,
-at least 20 pairs and at most 80 games, retaining all already running pairs.
-Completed results will be appended after the run; they are not claimed here.
+Against the older **already-NNUE** release `7eda0fa`, this exact ZIP finished
+**42 wins, 15 draws, 1 loss in 58 games**:
+85.3% score and 72.4% actual wins at 120s+0.5s.
+This is a clear improvement over that older release. The requested 90% actual-win
+fraction was **not** reached in this longer-clock sample.
+
+The predeclared paired GSPRT (0/50 local Elo, alpha/beta .05) accepted H1 after
+23 complete pairs, LLR 3.072927. All already
+running pairs were retained: 29 pairs total, final LLR
+3.874424. The descriptive logistic score estimate is
+about +306 local comparison Elo; it is not a platform rating or a confidence
+bound, and the earlier short-game score overstated the longer-clock margin.
+
+All PGNs replay legally. Both runtimes stayed byte-for-byte fixed. There were no
+flags, illegal moves, crashes, fallback messages or other diagnostics. Maximum
+recorded peak memory was 481,685,504 bytes and maximum
+initialization was 64.015s. The only loss was
+a normal checkmate. Of the 15 draws, 14 were repetitions and one the fifty-move
+rule; 14 final search decisions scored the draw at -20cp and one used a tablebase.
+None ended with a final search move still scored at least +150cp, and every logged
+draw-claim scan completed.
+
+The user's subsequent five-hour refinement targets further improvement against
+**this penultimate runtime**, not against `7eda0fa`. New experiments are separate.
 
 ## Reproducibility
 

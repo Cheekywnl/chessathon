@@ -1,0 +1,112 @@
+"""Archive completed penultimate validation without changing its runtime or ZIP."""
+import datetime
+import hashlib
+import json
+import math
+import shutil
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+work = Path(__file__).resolve().parent
+release = work / 'hour-release'
+outputs = work.parent / 'outputs'
+sys.path.insert(0, str(release))
+from tools.match_evidence import build_manifest
+
+expected_runtime = '029bec79c7f2c75fdd0a1ca5badbee1c9aaa734c5a1675b0e6231871c46c776c'
+expected_zip = '409c48e8f4aeae994be2add38f4d09a46a0e4c234d99253f01eebe18d65b4188'
+assert build_manifest(release)['runtime_sha256'] == expected_runtime
+assert hashlib.sha256((outputs / 'submission-refined.zip').read_bytes()).hexdigest() == expected_zip
+run = release / 'data/runs'
+result = json.loads((run / 'refinement-full-clock.result.json').read_text())
+audit = json.loads((run / 'refinement-full-clock-evidence.json').read_text())
+draws = json.loads((run / 'refinement-full-clock-draws.json').read_text())
+assert result['games'] == audit['games'] == 58
+assert audit['legal_pgn_replay'] and not audit['baseline_diagnostics']
+assert not audit['candidate_failure_or_fallback_markers']
+proof = release / 'docs/validation/refinement-full-clock-20260911'
+proof.mkdir(parents=True, exist_ok=True)
+for name in ('refinement-full-clock.log', 'refinement-full-clock.jsonl',
+             'refinement-full-clock.builds.json', 'refinement-full-clock.result.json',
+             'refinement-full-clock-evidence.json', 'refinement-full-clock-draws.json',
+             'full-clock-validation-plan.json'):
+    shutil.copyfile(run / name, proof / name)
+for source in (work / 'audit_draw_matches.py', Path(__file__),
+               release / 'tools/sprt_arena.py', release / 'tools/paired_statistics.py',
+               release / 'tools/match_evidence.py', release / 'tools/platform_agent.py'):
+    shutil.copyfile(source, proof / (source.name + '.txt'))
+point = 400 * math.log10(audit['score'] / (1 - audit['score']))
+section = f'''## Full-clock validation: complete
+
+Against the older **already-NNUE** release `7eda0fa`, this exact ZIP finished
+**{audit['wins']} wins, {audit['draws']} draws, {audit['losses']} loss in {audit['games']} games**:
+{audit['score']:.1%} score and {audit['wins']/audit['games']:.1%} actual wins at 120s+0.5s.
+This is a clear improvement over that older release. The requested 90% actual-win
+fraction was **not** reached in this longer-clock sample.
+
+The predeclared paired GSPRT (0/50 local Elo, alpha/beta .05) accepted H1 after
+23 complete pairs, LLR {result['decision']['llr_at_boundary']:.6f}. All already
+running pairs were retained: 29 pairs total, final LLR
+{result['llr_including_inflight']:.6f}. The descriptive logistic score estimate is
+about +{point:.0f} local comparison Elo; it is not a platform rating or a confidence
+bound, and the earlier short-game score overstated the longer-clock margin.
+
+All PGNs replay legally. Both runtimes stayed byte-for-byte fixed. There were no
+flags, illegal moves, crashes, fallback messages or other diagnostics. Maximum
+recorded peak memory was {audit['maximum_recorded_peak_rss_bytes']:,} bytes and maximum
+initialization was {audit['maximum_recorded_init_seconds']:.3f}s. The only loss was
+a normal checkmate. Of the 15 draws, 14 were repetitions and one the fifty-move
+rule; 14 final search decisions scored the draw at -20cp and one used a tablebase.
+None ended with a final search move still scored at least +150cp, and every logged
+draw-claim scan completed.
+
+The user's subsequent five-hour refinement targets further improvement against
+**this penultimate runtime**, not against `7eda0fa`. New experiments are separate.
+'''
+report_path = release / 'docs/HOUR_RELEASE_20260911.md'
+report = report_path.read_text()
+start = report.index('## Full-clock validation: pending')
+end = report.index('## Reproducibility', start)
+report = report[:start] + section + '\n' + report[end:]
+report = report.replace('# Refined engine: published before full-clock validation',
+                        '# Penultimate engine: full-clock validation complete', 1)
+report_path.write_text(report)
+(proof / 'SHA256.json').write_text(json.dumps({p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+    for p in proof.iterdir() if p.is_file() and p.name != 'SHA256.json'}, indent=2) + '\n')
+subprocess.run(['git', '-C', str(release), 'add', 'docs/HOUR_RELEASE_20260911.md',
+                'docs/validation/refinement-full-clock-20260911'], check=True)
+for path in proof.iterdir():
+    if path.is_file():
+        relative = path.relative_to(release).as_posix()
+        staged = subprocess.check_output(['git', '-C', str(release), 'show', ':' + relative])
+        assert staged == path.read_bytes(), ('staged bytes changed', relative)
+subprocess.run(['git', '-C', str(release), 'commit', '-m',
+                'Record completed full-clock validation for penultimate release'], check=True)
+subprocess.run(['git', '-C', str(release), 'push', 'origin', 'hour-release'], check=True)
+commit = subprocess.check_output(['git', '-C', str(release), 'rev-parse', 'HEAD'], text=True).strip()
+(outputs / 'REFINEMENT_VALIDATION.md').write_text(report + f'\nValidation commit: `{commit}`\n')
+with zipfile.ZipFile(outputs / 'refinement-evidence.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+    names = ('refinement-candidate-20260911', 'refinement-hour-20260911',
+             'no-ponder-20260911', 'refinement-completed-20260911',
+             'refinement-publication-20260911', 'refinement-full-clock-20260911')
+    for name in names:
+        for path in (release / 'docs/validation' / name).rglob('*'):
+            if path.is_file():
+                archive.write(path, path.relative_to(release / 'docs'))
+    for name in ('HOUR_RELEASE_20260911.md', 'REFINEMENT_HOUR_20260911.md',
+                 'ACCUMULATOR_CANDIDATE_20260911.md', 'NO_PONDER_20260911.md'):
+        archive.write(release / 'docs' / name, name)
+files = ('submission-refined.zip', 'REFINEMENT_VALIDATION.md', 'refinement-evidence.zip')
+(outputs / 'REFINEMENT_SHA256SUMS.txt').write_text(''.join(
+    hashlib.sha256((outputs / name).read_bytes()).hexdigest() + '  ' + name + '\n' for name in files))
+publication = json.loads((work / 'hour-publication.json').read_text())
+publication.update(full_clock_testing='complete', validation_commit=commit,
+                   validation_completed_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                   full_clock_result={k: v for k, v in result.items() if k != 'configuration'})
+(work / 'hour-publication.json').write_text(json.dumps(publication, indent=2) + '\n')
+assert build_manifest(release)['runtime_sha256'] == expected_runtime
+assert hashlib.sha256((outputs / 'submission-refined.zip').read_bytes()).hexdigest() == expected_zip
+print(json.dumps({'commit': commit, 'runtime_unchanged': True, 'zip_unchanged': True,
+                  'games': audit['games'], 'score': audit['score'], 'elo_point_estimate': point}))

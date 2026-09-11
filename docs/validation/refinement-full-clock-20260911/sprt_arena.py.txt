@@ -1,0 +1,199 @@
+"""Real-protocol, opening-paired GSPRT with optional independent CPU workers.
+
+Each opening is used once with each colour. Decisions use completed pairs in the
+preselected opening order, never whichever result finishes first. In-flight pairs
+finish and remain in the log after a boundary is reached. No repeated deterministic
+opening is counted as a new independent trial. See tools.paired_statistics for
+the constrained pentanomial likelihood and its mathematical reference.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from collections import Counter
+from concurrent.futures import Future, ProcessPoolExecutor
+from pathlib import Path
+from typing import Any
+
+import chess
+
+from harness.referee import FAILED_TERMINATIONS, play_match
+from harness.rules import PLY_CAP
+from harness.sandbox import local
+from tools.match_evidence import audit_runtime_logs, build_manifest
+from tools.paired_statistics import pair_llr
+from tools.platform_agent import local as platform_local
+from tools.version_arena import (
+    FAST_BASE_MS,
+    FAST_INCREMENT_MS,
+    OPENING_LINES,
+    _fen_for,
+    load_opening_file,
+)
+
+
+def play_pair(job: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for agent_white in (True, False):
+        agent, opponent = Path(job["agent"]), Path(job["opponent"])
+        white, black = (agent, opponent) if agent_white else (opponent, agent)
+        if job["cpu"] is None:
+            wp, bp = local(white), local(black)
+        else:
+            wp = platform_local(white, cpu=job["cpu"], python=job["python"])
+            bp = platform_local(black, cpu=job["cpu"], python=job["python"])
+        outcome = play_match(wp, bp, job["base_ms"], job["increment_ms"],
+                             ply_cap=max(1, job["ply_cap"] - chess.Board(job["fen"]).ply()),
+                             start_fen=job["fen"])
+        row: dict[str, Any] = {"opening": job["name"], "pair_index": job["index"],
+               "agent_white": agent_white, "base_ms": job["base_ms"],
+               "increment_ms": job["increment_ms"], "result": outcome.result,
+               "ply_cap_total": job["ply_cap"],
+               "termination": outcome.termination, "pgn": outcome.pgn,
+               "white_log": wp.stderr_tail, "black_log": bp.stderr_tail,
+               "white_peak_rss": getattr(wp, "peak_rss_bytes", None),
+               "black_peak_rss": getattr(bp, "peak_rss_bytes", None),
+               "white_init_seconds": getattr(wp, "init_seconds", None),
+               "black_init_seconds": getattr(bp, "init_seconds", None), "cpu": job["cpu"]}
+        rows.append(row)
+        side = "white" if agent_white else "black"
+        print(f"game finished: pair {job['index'] + 1} {job['name']} agent={side}: "
+              f"{outcome.result} by {outcome.termination}", flush=True)
+        if outcome.termination in FAILED_TERMINATIONS or outcome.result == "void":
+            break
+        try:
+            row["diagnostics"] = audit_runtime_logs(row)
+        except ValueError as exc:
+            row["evidence_error"] = str(exc)
+            break
+    return rows
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--agent", type=Path, default=Path("."))
+    parser.add_argument("--opponent", type=Path, required=True)
+    parser.add_argument("--base-ms", type=int, default=FAST_BASE_MS)
+    parser.add_argument("--increment-ms", type=int, default=FAST_INCREMENT_MS)
+    parser.add_argument("--ply-cap", type=int, default=PLY_CAP)
+    parser.add_argument("--platform-cpu", type=int)
+    parser.add_argument("--workers", nargs="+", type=int, help="Distinct CPUs, one game per CPU")
+    parser.add_argument("--engine-python")
+    parser.add_argument("--opening-file", type=Path)
+    parser.add_argument("--opening-start", type=int, default=0)
+    parser.add_argument("--max-games", type=int, default=400)
+    parser.add_argument("--min-pairs", type=int, default=20)
+    parser.add_argument("--elo0", type=float, default=0)
+    parser.add_argument("--elo1", type=float, default=5)
+    parser.add_argument("--alpha", type=float, default=0.05)
+    parser.add_argument("--beta", type=float, default=0.05)
+    parser.add_argument("--jsonl", type=Path)
+    parser.add_argument("--selfcheck", action="store_true", help="Label an identical-build run")
+    args = parser.parse_args()
+    if args.max_games < 2 or args.max_games % 2 or args.min_pairs < 2:
+        raise ValueError("positive whole colour pairs and at least two minimum pairs required")
+    if not (0 < args.alpha < 0.5 and 0 < args.beta < 0.5 and args.elo0 < args.elo1):
+        raise ValueError("invalid statistical bounds")
+    if args.workers and (args.platform_cpu is not None
+                         or len(set(args.workers)) != len(args.workers)):
+        raise ValueError("choose distinct worker CPUs or one platform CPU")
+    if args.jsonl and args.jsonl.exists():
+        raise FileExistsError("use a new evidence log")
+    openings = (load_opening_file(args.opening_file) if args.opening_file else
+                [(name, _fen_for(line)) for name, line in OPENING_LINES.items()])
+    openings = openings[args.opening_start:args.opening_start + args.max_games // 2]
+    if not openings:
+        raise ValueError("no unused opening positions")
+    cpus = args.workers or [args.platform_cpu]
+    agent, opponent = args.agent.resolve(), args.opponent.resolve()
+    manifests = {"agent": build_manifest(agent), "opponent": build_manifest(opponent)}
+    lower, upper = math.log(args.beta / (1 - args.alpha)), math.log((1 - args.beta) / args.alpha)
+    configuration = {"elo0": args.elo0, "elo1": args.elo1, "alpha": args.alpha,
+                     "beta": args.beta, "min_pairs": args.min_pairs, "cpus": cpus,
+                     "model": "pentanomial constrained MLE; 0.001 count per cell",
+                     "bounds": [lower, upper], "opening_order": [name for name, _fen in openings],
+                     "selfcheck": args.selfcheck, "builds": manifests}
+    if args.jsonl:
+        args.jsonl.parent.mkdir(parents=True, exist_ok=True)
+        args.jsonl.with_suffix(".builds.json").write_text(
+            json.dumps(configuration, indent=2), encoding="utf8",
+        )
+    print(json.dumps({key: value for key, value in configuration.items()
+                      if key not in ("builds", "opening_order")}), flush=True)
+    scores: list[float] = []
+    pair_scores: list[float] = []
+    records: list[dict[str, Any]] = []
+    decision: dict[str, Any] | None = None
+    pending: dict[int, Future[list[dict[str, Any]]]] = {}
+    pool = ProcessPoolExecutor(max_workers=len(cpus)) if len(cpus) > 1 else None
+
+    def job(index: int, cpu: int | None) -> dict[str, Any]:
+        name, fen = openings[index]
+        return {"index": index, "name": name, "fen": fen, "cpu": cpu,
+                "agent": str(agent), "opponent": str(opponent), "python": args.engine_python,
+                "base_ms": args.base_ms, "increment_ms": args.increment_ms, "ply_cap": args.ply_cap}
+
+    try:
+        if pool:
+            for index in range(min(len(cpus), len(openings))):
+                pending[index] = pool.submit(play_pair, job(index, cpus[index]))
+        for index in range(len(openings)):
+            if pool:
+                if index not in pending:
+                    break
+                rows = pending.pop(index).result()
+            elif decision:
+                break
+            else:
+                rows = play_pair(job(index, cpus[0]))
+            for row in rows:
+                if args.jsonl:
+                    with args.jsonl.open("a", encoding="utf8") as stream:
+                        stream.write(json.dumps(row) + "\n")
+                records.append(row)
+                if (row["termination"] in FAILED_TERMINATIONS or row["result"] == "void"
+                        or "evidence_error" in row):
+                    raise SystemExit(f"Invalid SPRT: {row['opening']} {row['termination']} "
+                                     f"{row.get('evidence_error', '')}")
+                score = (0.5 if row["result"] == "draw" else
+                         float((row["result"] == "white") == row["agent_white"]))
+                scores.append(score)
+            assert len(rows) == 2
+            pair_scores.append(sum(scores[-2:]) / 2)
+            llr = pair_llr(pair_scores, args.elo0, args.elo1)
+            print(f"pair {index + 1}/{len(openings)} {openings[index][0]}: "
+                  f"{scores[-2:]}; +{scores.count(1)} ={scores.count(0.5)} -{scores.count(0)}; "
+                  f"LLR={llr:.4f}", flush=True)
+            if (decision is None and len(pair_scores) >= args.min_pairs
+                    and (llr >= upper or llr <= lower)):
+                decision = {"verdict": "H1 accepted" if llr >= upper else "H0 accepted",
+                            "pairs_at_boundary": len(pair_scores), "llr_at_boundary": llr}
+                print(json.dumps(decision), flush=True)
+            next_index = index + len(cpus)
+            if pool and decision is None and next_index < len(openings):
+                pending[next_index] = pool.submit(
+                    play_pair, job(next_index, cpus[index % len(cpus)]),
+                )
+    finally:
+        if pool:
+            pool.shutdown(wait=True, cancel_futures=True)
+        assert build_manifest(agent) == manifests["agent"], "candidate changed during test"
+        assert build_manifest(opponent) == manifests["opponent"], "opponent changed during test"
+    result = {"decision": decision or {"verdict": "inconclusive: opening/game cap"},
+              "games": len(scores), "pairs": len(pair_scores), "wins": scores.count(1),
+              "draws": scores.count(0.5), "losses": scores.count(0),
+              "score": sum(scores) / len(scores), "llr_including_inflight": llr,
+              "terminations": dict(Counter(row["termination"] for row in records)),
+              "configuration": configuration, "platform_elo_established": False}
+    if args.jsonl:
+        args.jsonl.with_suffix(".result.json").write_text(
+            json.dumps(result, indent=2), encoding="utf8",
+        )
+    print(json.dumps({key: value for key, value in result.items() if key != "configuration"}),
+          flush=True)
+
+
+if __name__ == "__main__":
+    main()
