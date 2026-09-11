@@ -1,0 +1,28 @@
+"""A real missing-asset loader warning must invalidate candidate match evidence."""
+import contextlib,importlib.util,io,json,shutil,sys
+from pathlib import Path
+work=Path(__file__).parent;repo=work/'two-hour-refinement'
+target=work/'twohour-missing-policy-check'
+target.mkdir(exist_ok=True)
+assert not (target/'syzygy/rook_wins.npz').exists()
+path=target/'chess_rook_endgame.py'
+shutil.copy2(work/'twohour-final-extracted/chess_rook_endgame.py',path)
+spec=importlib.util.spec_from_file_location('missing_rook_policy_probe',path)
+assert spec is not None and spec.loader is not None
+module=importlib.util.module_from_spec(spec);captured=io.StringIO()
+with contextlib.redirect_stderr(captured):spec.loader.exec_module(module)
+warning=captured.getvalue()
+assert 'rook policy unavailable' in warning and not module._WINS
+sys.path.insert(0,str(repo))
+from tools.match_evidence import audit_runtime_logs
+try:
+    audit_runtime_logs({'agent_white':True,'white_log':warning,'black_log':''})
+except ValueError:
+    rejected=True
+else:
+    rejected=False
+assert rejected
+assert audit_runtime_logs({'agent_white':True,'white_log':'','black_log':''})==[]
+result={'actual_missing_asset_warning_detected':True,'candidate_evidence_rejected':rejected,'clean_logs_accepted':True,'frozen_runtime_unchanged':True}
+(work/'twohour-rook-failure-audit-check.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result,indent=2))

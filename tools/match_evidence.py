@@ -16,7 +16,7 @@ from harness.referee import FAILED_TERMINATIONS, RESULT_HEADERS
 from tools.halfkp_data import file_hash
 
 ERROR_MARKERS = ("traceback", "load failed", "probe failed", "get_move crashed",
-                 "exception in thread", "falling back to first legal")
+                 "exception in thread", "falling back to first legal", "rook policy unavailable")
 
 
 def build_manifest(root: Path) -> dict[str, object]:

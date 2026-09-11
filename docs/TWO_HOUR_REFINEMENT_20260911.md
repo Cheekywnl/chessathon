@@ -140,3 +140,11 @@ match the frozen ZIP and every archived evidence file matches its SHA manifest.
 Fresh canonical rules and contract copies fetched at 08:12 UTC remain consistent
 with the selected package. The local test machine is an i7-10700K; the platform's
 published CPU is an AMD EPYC 9V74, so local timings are not remote measurements.
+
+
+The evidence auditor now also rejects the rook-policy loader's specific
+"unavailable" warning, which was not covered by the generic model/tablebase
+failure markers. A real missing-asset import reproduced that warning and the
+auditor rejected it; clean logs remain accepted. No such warnings occur in the
+existing selection or completed final-game records. This changes validation
+only; the frozen runtime and game protocol are unchanged. Ruff and mypy passed.
