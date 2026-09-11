@@ -70,8 +70,8 @@ uv sync --locked
 uv run python -m harness.play --white . --black baselines/greedy
 ```
 
-The repository is private, so cloning requires access. Dependencies are pinned
-in `uv.lock`. The agent interface returns a UCI move for the side to move:
+Dependencies are pinned in `uv.lock`. The agent interface returns a UCI move for
+the side to move:
 
 ```python
 def get_move(fen: str, time_left_ms: int) -> str: ...
