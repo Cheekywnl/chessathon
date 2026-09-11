@@ -1,119 +1,147 @@
-Current candidate: [11 September final refinement and validation](docs/TWO_HOUR_REFINEMENT_20260911.md).
+# chessathon
 
-This fork contains the team's own compiled alpha-beta/PVS engine and a HalfKP
-network trained from random initialization. The current candidate adds exact
-sparse neural inference, reusable scratch storage and a verified 9,103-position
-rook-and-pawn winning policy. Its actual submission ZIP expands recursively to
-49,042,751 bytes. The final 48-game comparison against the previous corrected
-upload finished 13W/27D/8L (55.21% score) at 120s+0.5s.
-Measured search speed is separate from playing-strength evidence.
+A chess engine built for [AI Chessathon](https://aichessathon.com), with a
+from-scratch bitboard search, a team-trained HalfKP neural evaluator, and local
+opening and endgame data. Python and Numba provide the complete playing runtime.
 
-Upload the packaged submission, not GitHub's repository ZIP. The repository also
-contains tools, baselines and validation records that are not submission files.
+**Final reported competition rating: 1955 Elo. Project complete, 11 September 2026.**
+The rating was reported by the team after submission; local validation results
+are recorded separately below.
 
-Selected network: [training and model provenance](docs/HALFKP_MODEL_CARD.md).
+## Engine
 
-# Agent and local harness
+- **Search:** iterative deepening, alpha-beta/PVS, transposition tables,
+  aspiration windows, null-move pruning, late-move reductions and time management.
+- **Evaluation:** a width-128 HalfKP network trained from random initialization,
+  with incremental accumulators, integer inference and exact evaluation caching.
+  The normal blend is 75% neural and 25% classical; positions with seven or fewer
+  pieces and bare-king endings use the classical route.
+- **Fast inference:** contiguous transposed dense weights, zero-activation
+  skipping and reusable integer scratch storage preserve the original outputs.
+- **Openings and endgames:** a 294,743-entry Polyglot opening book, local Syzygy
+  tables and a verified 9,103-position rook-and-pawn-versus-rook winning policy.
+  Coverage is limited to the supplied data.
+- **Draw handling:** game-history tracking, repetition and fifty-move checks,
+  plus history-aware selection of endgame moves.
 
-The project builds on the [AI Chessathon](https://aichessathon.com) starter's
-unchanged protocol, referee and packaging harness. Baselines and the harness are
-development tools; the submitted runtime uses the root Python modules and the
-selected assets in `weights/`, `book/` and `syzygy/`.
+The submitted engine runs on one CPU core without network access or a GPU. Its
+neural weights were trained by the team; offline teacher engines were used to
+label training positions and are excluded from the playing runtime. See the
+[model card](docs/HALFKP_MODEL_CARD.md) and
+[parent training record](docs/HALFKP_PARENT_MODEL_CARD_20260910.md) for provenance.
 
+## Final validation
+
+The final frozen submission was compared with the **immediately preceding
+corrected upload (`c1b6dc4`)** over 24 colour-swapped opening pairs. Each game used
+a fresh process, one CPU core and the unchanged competition referee at
+120 seconds plus 0.5 seconds per move.
+
+| Check | Recorded result |
+|---|---|
+| Direct match | **13 wins, 27 draws, 8 losses** in 48 games; **55.21%** score |
+| Search throughput | **47.8% more nodes/second**, with identical fixed-depth moves, scores, nodes and search state |
+| Win At Chess tactics | **277/300** at one second per position |
+| Incremental evaluation | **105,643** position checks and **50,111** legal transitions; zero mismatches |
+| Draw handling | **3,468** comparisons against the referee passed |
+| Rook-ending conversions | **20/20** checkmates against exact DTZ defence |
+| Runtime and source checks | All 48 PGNs replay legally; no flags, illegal moves, crashes or load failures; Ruff and strict mypy passed |
+
+The match's paired statistical test was **inconclusive**. Its score corresponds
+descriptively to about +36 local Elo; this is separate from the reported
+competition rating and does not establish a 200-500 Elo gain. Throughput was
+measured on an i7-10700K and is not a platform CPU measurement.
+
+Of the 27 draws, 26 were repetitions and one was stalemate. An offline post-match
+tablebase check confirmed that the stalemating move was the only move that saved
+that game. Full methods, rejected experiments and results are in the
+[final validation report](docs/TWO_HOUR_REFINEMENT_20260911.md), with
+[raw evidence](docs/validation/refinement-twohour-20260911/) and a
+[SHA-256 manifest](docs/validation/refinement-twohour-20260911/SHA256.json).
+
+## Run locally
+
+Install Python 3.12 and [uv](https://docs.astral.sh/uv/), then:
+
+```sh
+git clone https://github.com/Cheekywnl/chessathon.git
+cd chessathon
+uv sync --locked
+uv run python -m harness.play --white . --black baselines/greedy
 ```
-git clone --branch final-release https://github.com/Cheekywnl/chess-codex-isolated-20260910.git
-cd chess-codex-isolated-20260910
-make setup
-make play
-```
 
-That plays your agent against a baseline over a full 120 s + 0.5 s game and prints the result.
-When you like it, `make zip` and drop `submission.zip` on your dashboard.
-
-## Writing an agent
-
-`agent.py` is the submission entrypoint. Its public interface is:
+The repository is private, so cloning requires access. Dependencies are pinned
+in `uv.lock`. The agent interface returns a UCI move for the side to move:
 
 ```python
-def get_move(fen: str, time_left_ms: int) -> str:
-    return "e2e4"
+def get_move(fen: str, time_left_ms: int) -> str: ...
 ```
 
-The engine returns legal UCI moves through this interface. The separate random
-baseline is useful for protocol checks; beating it does not establish strength.
+Models load and Numba kernels warm during import. The process retains game state
+between moves and starts fresh for each game.
 
-```
-make play                                          # one game, real time control
-make arena                                         # 20 fast games, prints a score
-make play FEN="<fen>"                              # start from a given position
-uv run python -m harness.play --black baselines/minimax --pgn game.pgn
-uv run python -m harness.arena --opponent ../my-old-version --games 200
-```
+Useful development commands, on systems with Make and Bash:
 
-Anything your agent writes to stdout or stderr shows up under the result, so `print` debugging
-works. The platform discards it during rated games and shows it in your validation log.
-
-## The ladder
-
-Measured with `harness/arena.py`. Beating greedy is a search. Beating minimax is a search plus an
-evaluation worth searching with.
-
-| Matchup | Games | Time control | Score |
-|---|---|---|---|
-| random vs greedy | 20 | 10 s + 0.1 s | 10.0% (+1 =2 -17) |
-| greedy vs minimax | 6 | 120 s + 0.5 s | 0.0% (+0 =0 -6) |
-| numba vs minimax | 6 | 10 s + 0.5 s | 66.7% (+2 =4 -0) |
-
-- `baselines/random` plays a uniformly random legal move. It is what `agent.py` starts as.
-- `baselines/greedy` searches one ply on material.
-- `baselines/minimax` searches two plies on material and mobility, with no time management.
-- `baselines/numba` is `minimax` with the evaluation jitted. It is barely stronger, which is
-  the point: jitting a shallow search buys headroom, not depth. Read it for the warm-up call
-  at the bottom, which is how you keep compilation off your clock.
-
-## What's here
-
-```
-agent.py                        submission entrypoint: time management, book/tablebase
-                                 lookup, the repetition backstop, and a crash safety net
-                                 around move selection
-chess_search.py                 negamax/PVS search: TT, null-move, LMR, futility,
-                                 aspiration windows
-chess_eval.py                   tapered material + PST + structure eval, tunable PARAMS
-chess_movegen.py                from-scratch numba-jitted bitboard move generator
-chess_state.py                  raw bitboard game state, Zobrist hashing, SEE
-syzygy/                         Syzygy endgame tablebases (3-4 piece, plus a few common
-                                 5-piece endings): provably perfect play once few enough
-                                 pieces remain, shipped data (see AGENTS.md)
-book/                           a Polyglot opening book, shipped data, an early-blunder
-                                 safety net rather than a strength source (see AGENTS.md)
-baselines/                      random, greedy, minimax, numba; each a directory with
-                                 its own agent.py
-harness/runner.py               the process the platform runs your agent in
-harness/referee.py              the clock, legality, draw and adjudication rules
-harness/rules.py                the event constants the harness enforces
-harness/sandbox.py              the one process, spoken to as the platform speaks to it
-harness/play.py                 one game between two agent directories
-harness/arena.py                many games, with a score
-harness/package.py              builds submission.zip; `make zip` passes --include for
-                                 syzygy/ and book/ so they end up in it too
-tools/fast_arena.py             in-process A/B arena for eval/param changes -- no
-                                 subprocess spawn or JIT re-warm per game
-tools/wac_test.py, wac.epd      the Win At Chess tactical regression suite
-tools/endgame_regression.py     known-hard technical endgames played through the real
-                                 get_move, not a bypassed direct-search shortcut
-tools/generate_training_data.py,
-tools/tune.py                   Texel tuning pipeline (see tune.py's own docstring)
-docs/IDEAS.md                   where the strength actually comes from
+```sh
+make gate       # lint, strict typing and two short protocol games
+make wac        # tactical regression suite
+make endgame    # technical endgame regressions
+make arena      # quick games against the development baseline
 ```
 
-Local games start from the normal position unless you pass `--fen`. Rated games start from
-curated neutral positions.
+The bundled random, greedy and minimax baselines are development checks. Use
+paired games against a frozen engine version to assess playing-strength changes.
 
-The harness is here so your games are honest, not so you can pre-validate an upload. Acceptance
-happens on the platform, and the validation log on your dashboard is the authority on it.
+## Submission package
 
-## The rules
+The preserved final artifact is **`submission-final-locked.zip`**. Its source and
+validation release is [`ab515ec`](https://github.com/Cheekywnl/chessathon/commit/ab515ecf11125773aa3ca4b369e035ebbbeaeae2);
+the final README update leaves the playing code and assets unchanged.
 
-[aichessathon.com/docs](https://aichessathon.com/docs) is canonical and changes. Read it before
-you upload.
+| Package measurement | Bytes |
+|---|---:|
+| ZIP file | 41,332,226 |
+| Outer unzipped contents | 45,455,743 |
+| Fully expanded, including nested NPZ/ZIP/gzip | **49,042,751** |
+| Margin below 50,000,000 | **957,249** |
+
+The package contains 114 runtime files. Its SHA-256 is:
+
+```text
+2b25f386bcb7c4a795c43449cdc8c937f66f09c97763b5d56c181f4661b65719
+```
+
+To build a submission from a clean checkout:
+
+```sh
+uv run python -m harness.package --include syzygy --include book
+uv run python -m tools.portable_submission --source-zip submission.zip --out submission-portable.zip --manifest submission-manifest.json
+```
+
+The second command verifies the recursively expanded size, checks the payload
+and writes portable archive metadata. It requires a new output path.
+`agent.py` sits at the archive root; the package includes the selected weights,
+book and endgame assets. Upload the resulting submission archive: GitHub's
+whole-repository download also contains development tools and evidence and is
+not the competition package. The preserved ZIP above remains the reference for
+the completed tests.
+
+The official [agent contract](https://aichessathon.com/docs/agent-contract.md) and
+[competition rules](https://aichessathon.com/docs/rules.md) define the runtime and
+submission limits; the platform's validation log determines upload acceptance.
+
+## Repository guide
+
+| Path | Purpose |
+|---|---|
+| `agent.py` | Move selection, clock management, book and endgame integration |
+| `chess_search.py`, `chess_movegen.py`, `chess_state.py` | Search, bitboards, legal moves and game state |
+| `chess_eval.py`, `chess_halfkp_int.py`, `chess_nnue_halfkp.py` | Classical and neural evaluation |
+| `chess_draw.py`, `chess_rook_endgame.py` | Draw safeguards and rook-ending policy |
+| `weights/`, `book/`, `syzygy/` | Selected runtime assets |
+| `harness/`, `baselines/` | Original competition protocol, referee and local opponents |
+| `tools/` | Training, quantization, benchmarks, match analysis and package checks |
+| `docs/` | Model provenance, experiment history and validation evidence |
+
+The project builds on the AI Chessathon starter. Its protocol and referee remain
+unchanged so local games use the competition interface and clock semantics.
