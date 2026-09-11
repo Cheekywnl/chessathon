@@ -1,0 +1,165 @@
+{
+  "integer_and_bitboard_comparisons": 10000,
+  "mismatches": 0,
+  "search_comparisons": 10,
+  "depth": 6,
+  "cpu": 14,
+  "search_seconds": {
+    "before": 9.256247400004213,
+    "after": 9.19224590000158
+  },
+  "speed_ratio": 1.006962553079941,
+  "comparisons": [
+    {
+      "fen": "r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10",
+      "before": {
+        "move": "f1e2",
+        "score": 47,
+        "nodes": 56950,
+        "seconds": 2.154838099999324
+      },
+      "after": {
+        "move": "f1e2",
+        "score": 47,
+        "nodes": 56950,
+        "seconds": 2.1445346000000427
+      }
+    },
+    {
+      "fen": "r1bq1rk1/bppp1ppp/p1n2n2/4p3/4P3/1BPPBN2/PP3PPP/RN1Q1RK1 b - - 4 8",
+      "after": {
+        "move": "d7d5",
+        "score": 9,
+        "nodes": 21884,
+        "seconds": 0.7728763000013714
+      },
+      "before": {
+        "move": "d7d5",
+        "score": 9,
+        "nodes": 21884,
+        "seconds": 0.7797030999972776
+      }
+    },
+    {
+      "fen": "r1bqk2r/1ppn1ppp/p1pb4/4p3/4P3/3P1N2/PPP2PPP/RNBQ1RK1 w kq - 3 8",
+      "before": {
+        "move": "a2a4",
+        "score": -9,
+        "nodes": 30896,
+        "seconds": 1.0422452999991947
+      },
+      "after": {
+        "move": "a2a4",
+        "score": -9,
+        "nodes": 30896,
+        "seconds": 1.0346123000017542
+      }
+    },
+    {
+      "fen": "rnbqkb1r/1p3pp1/p2pp2p/8/3NP3/2N1n3/PPPQ1PPP/2KR1B1R w kq - 0 10",
+      "after": {
+        "move": "d2e3",
+        "score": 27,
+        "nodes": 18867,
+        "seconds": 0.6673670999989554
+      },
+      "before": {
+        "move": "d2e3",
+        "score": 27,
+        "nodes": 18867,
+        "seconds": 0.6751820000026783
+      }
+    },
+    {
+      "fen": "rnbq1rk1/pp3pp1/5n1p/2bp4/8/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 0 9",
+      "before": {
+        "move": "a2a3",
+        "score": 6,
+        "nodes": 44893,
+        "seconds": 1.7025790000006964
+      },
+      "after": {
+        "move": "a2a3",
+        "score": 6,
+        "nodes": 44893,
+        "seconds": 1.6916037000009965
+      }
+    },
+    {
+      "fen": "rn1qkbnr/pp3ppb/2p1p2p/8/3P1N1P/3B2N1/PPP2PP1/R1BQK2R b KQkq - 3 9",
+      "after": {
+        "move": "d8d4",
+        "score": -3,
+        "nodes": 19478,
+        "seconds": 0.7659337000004598
+      },
+      "before": {
+        "move": "d8d4",
+        "score": -3,
+        "nodes": 19478,
+        "seconds": 0.7729549000032421
+      }
+    },
+    {
+      "fen": "r1bqr1k1/1p1nbpp1/p1p1pn1p/8/2BP3B/P1N1PN2/1PQ2PPP/2R1K2R b K - 0 12",
+      "before": {
+        "move": "b7b5",
+        "score": -4,
+        "nodes": 15561,
+        "seconds": 0.5893030000006547
+      },
+      "after": {
+        "move": "b7b5",
+        "score": -4,
+        "nodes": 15561,
+        "seconds": 0.5874839999996766
+      }
+    },
+    {
+      "fen": "r1bq1rk1/pp2ppb1/n1pp1npp/4P3/2PP3B/2N2N2/PP2BPPP/R2Q1RK1 b - - 0 11",
+      "after": {
+        "move": "d6e5",
+        "score": -24,
+        "nodes": 10656,
+        "seconds": 0.4051333999996132
+      },
+      "before": {
+        "move": "d6e5",
+        "score": -24,
+        "nodes": 10656,
+        "seconds": 0.41104819999964093
+      }
+    },
+    {
+      "fen": "r1bq1r1k/ppp1bppp/2n5/3np3/8/P1N1PN2/1PQPBPPP/R1B1K2R w KQ - 3 9",
+      "before": {
+        "move": "c3d5",
+        "score": 23,
+        "nodes": 14551,
+        "seconds": 0.5761587000015425
+      },
+      "after": {
+        "move": "c3d5",
+        "score": 23,
+        "nodes": 14551,
+        "seconds": 0.5719433999984176
+      }
+    },
+    {
+      "fen": "rnbq1rk1/p2p1ppp/1p2pn2/2b5/2P1P3/P1N2N2/1PQ2PPP/R1B1KB1R b KQ - 0 8",
+      "after": {
+        "move": "c8b7",
+        "score": 24,
+        "nodes": 14415,
+        "seconds": 0.5507574000002933
+      },
+      "before": {
+        "move": "c8b7",
+        "score": 24,
+        "nodes": 14415,
+        "seconds": 0.5522350999999617
+      }
+    }
+  ],
+  "playing_strength_validated": false
+}

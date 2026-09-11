@@ -1,0 +1,165 @@
+{
+  "integer_and_bitboard_comparisons": 10000,
+  "mismatches": 0,
+  "search_comparisons": 10,
+  "depth": 6,
+  "cpu": 14,
+  "search_seconds": {
+    "before": 12.114281499994831,
+    "after": 11.878529399997205
+  },
+  "speed_ratio": 1.019846909668606,
+  "comparisons": [
+    {
+      "fen": "r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10",
+      "before": {
+        "move": "f1e2",
+        "score": 49,
+        "nodes": 48596,
+        "seconds": 1.917724899998575
+      },
+      "after": {
+        "move": "f1e2",
+        "score": 49,
+        "nodes": 48596,
+        "seconds": 1.8822350000009465
+      }
+    },
+    {
+      "fen": "r1bq1rk1/bppp1ppp/p1n2n2/4p3/4P3/1BPPBN2/PP3PPP/RN1Q1RK1 b - - 4 8",
+      "after": {
+        "move": "d7d6",
+        "score": 12,
+        "nodes": 16845,
+        "seconds": 0.6099333999991359
+      },
+      "before": {
+        "move": "d7d6",
+        "score": 12,
+        "nodes": 16845,
+        "seconds": 0.6206310999987181
+      }
+    },
+    {
+      "fen": "r1bqk2r/1ppn1ppp/p1pb4/4p3/4P3/3P1N2/PPP2PPP/RNBQ1RK1 w kq - 3 8",
+      "before": {
+        "move": "c1e3",
+        "score": 0,
+        "nodes": 45647,
+        "seconds": 1.6114531999992323
+      },
+      "after": {
+        "move": "c1e3",
+        "score": 0,
+        "nodes": 45647,
+        "seconds": 1.5808292999972764
+      }
+    },
+    {
+      "fen": "rnbqkb1r/1p3pp1/p2pp2p/8/3NP3/2N1n3/PPPQ1PPP/2KR1B1R w kq - 0 10",
+      "after": {
+        "move": "d2e3",
+        "score": 31,
+        "nodes": 21934,
+        "seconds": 0.7801499999986845
+      },
+      "before": {
+        "move": "d2e3",
+        "score": 31,
+        "nodes": 21934,
+        "seconds": 0.7952011999987008
+      }
+    },
+    {
+      "fen": "rnbq1rk1/pp3pp1/5n1p/2bp4/8/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 0 9",
+      "before": {
+        "move": "a2a3",
+        "score": 17,
+        "nodes": 71380,
+        "seconds": 2.655075200000283
+      },
+      "after": {
+        "move": "a2a3",
+        "score": 17,
+        "nodes": 71380,
+        "seconds": 2.60832819999996
+      }
+    },
+    {
+      "fen": "rn1qkbnr/pp3ppb/2p1p2p/8/3P1N1P/3B2N1/PPP2PP1/R1BQK2R b KQkq - 3 9",
+      "after": {
+        "move": "d8d4",
+        "score": -16,
+        "nodes": 15535,
+        "seconds": 0.6277533000029507
+      },
+      "before": {
+        "move": "d8d4",
+        "score": -16,
+        "nodes": 15535,
+        "seconds": 0.6376046000004862
+      }
+    },
+    {
+      "fen": "r1bqr1k1/1p1nbpp1/p1p1pn1p/8/2BP3B/P1N1PN2/1PQ2PPP/2R1K2R b K - 0 12",
+      "before": {
+        "move": "b7b5",
+        "score": 4,
+        "nodes": 40433,
+        "seconds": 1.5564556999997876
+      },
+      "after": {
+        "move": "b7b5",
+        "score": 4,
+        "nodes": 40433,
+        "seconds": 1.5314245999979903
+      }
+    },
+    {
+      "fen": "r1bq1rk1/pp2ppb1/n1pp1npp/4P3/2PP3B/2N2N2/PP2BPPP/R2Q1RK1 b - - 0 11",
+      "after": {
+        "move": "d6e5",
+        "score": -4,
+        "nodes": 18563,
+        "seconds": 0.6856690999993589
+      },
+      "before": {
+        "move": "d6e5",
+        "score": -4,
+        "nodes": 18563,
+        "seconds": 0.7001515000010841
+      }
+    },
+    {
+      "fen": "r1bq1r1k/ppp1bppp/2n5/3np3/8/P1N1PN2/1PQPBPPP/R1B1K2R w KQ - 3 9",
+      "before": {
+        "move": "c3d5",
+        "score": 25,
+        "nodes": 14004,
+        "seconds": 0.569298999998864
+      },
+      "after": {
+        "move": "c3d5",
+        "score": 25,
+        "nodes": 14004,
+        "seconds": 0.5620440000020608
+      }
+    },
+    {
+      "fen": "rnbq1rk1/p2p1ppp/1p2pn2/2b5/2P1P3/P1N2N2/1PQ2PPP/R1B1KB1R b KQ - 0 8",
+      "after": {
+        "move": "f6g4",
+        "score": 29,
+        "nodes": 26257,
+        "seconds": 1.0101624999988417
+      },
+      "before": {
+        "move": "f6g4",
+        "score": 29,
+        "nodes": 26257,
+        "seconds": 1.0506850999991002
+      }
+    }
+  ],
+  "playing_strength_validated": false
+}

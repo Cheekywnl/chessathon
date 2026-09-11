@@ -5,7 +5,11 @@ has to survive between moves in the same game -- the transposition table and the
 position history -- and the time budget that keeps a slow position from flagging the clock.
 """
 
+import atexit
+import gzip
+import shutil
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -89,11 +93,24 @@ MAX_TABLEBASE_PIECES = 5
 # written back, so thread-unsafe concerns around the ponder thread don't apply. Load is
 # wrapped for the same reason as the tablebase above: an exception here would fail the whole
 # import, not just this feature.
+_BOOK_DIRECTORY: "tempfile.TemporaryDirectory[str] | None" = None
+
+
 def _open_book() -> "chess.polyglot.MemoryMappedReader | None":
+    global _BOOK_DIRECTORY
     path = Path(__file__).resolve().parent / "book" / "codekiddy.bin"
-    if not path.is_file():
-        return None
     try:
+        if not path.is_file():
+            compressed = path.with_suffix(".bin.gz")
+            if not compressed.is_file():
+                return None
+            # The platform directs tempfile to its writable /tmp. Restore the
+            # exact Polyglot bytes once during init, then retain its normal mmap
+            # reader. Compression changes storage, not book entries or choices.
+            _BOOK_DIRECTORY = tempfile.TemporaryDirectory(prefix="chess-book-")
+            path = Path(_BOOK_DIRECTORY.name) / "codekiddy.bin"
+            with gzip.open(compressed, "rb") as source, path.open("wb") as output:
+                shutil.copyfileobj(source, output)
         return chess.polyglot.open_reader(str(path))
     except Exception as exc:
         print(f"book load failed, continuing without it: {exc}", file=sys.stderr)
@@ -101,6 +118,16 @@ def _open_book() -> "chess.polyglot.MemoryMappedReader | None":
 
 
 _BOOK = _open_book()
+
+
+def _close_book() -> None:
+    if _BOOK is not None:
+        _BOOK.close()
+    if _BOOK_DIRECTORY is not None:
+        _BOOK_DIRECTORY.cleanup()
+
+
+atexit.register(_close_book)
 
 # The live platform suspends this process outside our turn, so this legacy worker
 # cannot gain opponent-time nodes there. Disabling it failed the existing Lucena

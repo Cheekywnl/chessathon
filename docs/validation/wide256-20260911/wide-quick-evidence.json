@@ -1,0 +1,41 @@
+{
+  "games": 20,
+  "openings": 10,
+  "clock_ms": [
+    20000,
+    300
+  ],
+  "wins": 8,
+  "draws": 8,
+  "losses": 4,
+  "score": 0.6,
+  "terminations": {
+    "checkmate": 12,
+    "threefold_repetition": 8
+  },
+  "pair_score_counts": {
+    "1.5": 5,
+    "0.5": 1,
+    "1.0": 4
+  },
+  "log_sha256": {
+    "data\\runs\\wide-quick-a.jsonl": "bf1b2ab12706165cdf93dd851fe86de33ad36ab3bbc17cfddb62057d760357e2",
+    "data\\runs\\wide-quick-b.jsonl": "7123f266a243d7317ef40eeb92bd7d659452b602a3a901cd468a36961f8aedc9",
+    "data\\runs\\wide-quick-c.jsonl": "4f9d05d99e98f855d62762e11b91103b83535f520776fb2712e26dc8a1c25f5c",
+    "data\\runs\\wide-quick-d.jsonl": "3ad633221e5541356facfdeb135fa771b1ae73c0527c6adfe5c48726051f36d0",
+    "data\\runs\\wide-quick-e.jsonl": "0238e3dda5e5156bcf2320d1219bc9d299a1427f4eecd62eeffb59769e2948df"
+  },
+  "fingerprinted_logs": 5,
+  "runtime_fingerprints": [
+    [
+      "b5db33c1845a053056914bbde8c74e924486e49810327d865f881a097ee533c2",
+      "d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 258420736,
+  "maximum_recorded_init_seconds": 16.3279999999977,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

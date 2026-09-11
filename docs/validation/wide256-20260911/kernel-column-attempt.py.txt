@@ -64,8 +64,8 @@ def load_weights(path: str | Path) -> QuantizedWeights:
                 raise ValueError("HalfKP dense accumulator can overflow int32")
         return QuantizedWeights(
             w1, np.ascontiguousarray(data["b1"]),
-            np.ascontiguousarray(data["W2"]), np.ascontiguousarray(data["b2"]),
-            np.ascontiguousarray(data["W3"]), np.ascontiguousarray(data["b3"]),
+            np.asfortranarray(data["W2"]), np.ascontiguousarray(data["b2"]),
+            np.asfortranarray(data["W3"]), np.ascontiguousarray(data["b3"]),
             np.ascontiguousarray(data["W4"]), int(data["b4"]),
             scale2, scale3, divisor,
         )
@@ -92,21 +92,30 @@ def forward(
     own = accumulate(white if stm else black, count, w1, b1)
     other = accumulate(black if stm else white, count, w1, b1)
     width = w1.shape[1]
+    # Each active input updates a contiguous vector of output neurons. The
+    # loader stores these matrices by column so LLVM can vectorize the inner
+    # loop. Zero clipped inputs contribute exactly zero and can be skipped.
+    total1 = b2.copy()
+    for k in range(width):
+        a, b = np.int32(own[k]), np.int32(other[k])
+        if a:
+            for j in range(32):
+                total1[j] += np.int32(w2[j, k]) * a
+        if b:
+            for j in range(32):
+                total1[j] += np.int32(w2[j, width + k]) * b
     h1 = np.empty(32, dtype=np.int16)
     for j in range(32):
-        total = np.int32(b2[j])
-        for k in range(width):
-            # Numba otherwise widens a scalar reduction to int64. The loader
-            # proves each dense sum fits int32, allowing a narrower SIMD sum.
-            total = np.int32(total + np.int32(w2[j, k]) * np.int32(own[k])
-                             + np.int32(w2[j, width + k]) * np.int32(other[k]))
-        h1[j] = min(255, max(0, int((np.int64(total) + scale2 // 2) // scale2)))
+        h1[j] = min(255, max(0, int((np.int64(total1[j]) + scale2 // 2) // scale2)))
+    total2 = b3.copy()
+    for k in range(32):
+        a = np.int32(h1[k])
+        if a:
+            for j in range(32):
+                total2[j] += np.int32(w3[j, k]) * a
     h2 = np.empty(32, dtype=np.int16)
     for j in range(32):
-        total = np.int32(b3[j])
-        for k in range(32):
-            total = np.int32(total + np.int32(w3[j, k]) * np.int32(h1[k]))
-        h2[j] = min(255, max(0, int((np.int64(total) + scale3 // 2) // scale3)))
+        h2[j] = min(255, max(0, int((np.int64(total2[j]) + scale3 // 2) // scale3)))
     output = b4
     for k in range(32):
         output += int(w4[k]) * int(h2[k])

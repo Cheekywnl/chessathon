@@ -1,0 +1,8 @@
+game 1/4 [20260914_168_english, agent=white]: white by checkmate
+game 2/4 [20260914_168_english, agent=black]: white by checkmate
+game 3/4 [20260914_169_nimzo_indian, agent=white]: black by checkmate
+game 4/4 [20260914_169_nimzo_indian, agent=black]: black by checkmate
+
+. vs ..\halfkp-release over 4 games, 2 openings
++2 =0 -2, score 50.0%
+terminations: checkmate 4

@@ -466,10 +466,17 @@ class Search:
                 raise TimeUp
 
     def _is_draw(self, state: State, key: int) -> bool:
-        if state[11] >= 100:
-            return True
-        if self.seen.get(key, 0) >= 3:
-            return True
+        if state[11] >= 100 or self.seen.get(key, 0) >= 3:
+            # A terminal checkmate takes precedence over the move counter.
+            return not (is_in_check(state) and legal_moves(state)[3] == 0)
+        if state[11] == 99:
+            # The referee also claims by intended move. A legal nonzeroing
+            # continuation with a legal reply reaches the fifty-move limit.
+            f, t, p, count = legal_moves(state)
+            for index in range(count):
+                child = apply_move(state, int(f[index]), int(t[index]), int(p[index]))
+                if child[11] >= 100 and legal_moves(child)[3] > 0:
+                    return True
         occupied = state[6] | state[7]
         # int.bit_count() (3.10+, the platform runs 3.12) does exactly what
         # bin(x).count("1") does -- count set bits -- natively rather than via a string
@@ -546,6 +553,8 @@ class Search:
         if in_check is None:
             in_check = is_in_check(state)
         from_arr, to_arr, promo_arr, count = legal_moves(state)
+        if count == 0:
+            return -(MATE - ply) if in_check else self._draw_score(ply)
         pawns, knights, bishops, rooks, queens, white, black = int_fields(state)
         ep_square = state[10]
 
@@ -554,8 +563,6 @@ class Search:
         # is_capture_i call, found by profiling as a real, avoidable chunk of quiescence's
         # (a very hot path) total cost.
         if in_check:
-            if count == 0:
-                return -(MATE - ply)
             best = -MATE - 1
             cand = [
                 (

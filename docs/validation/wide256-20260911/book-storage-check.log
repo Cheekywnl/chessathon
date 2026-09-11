@@ -1,0 +1,10 @@
+{
+  "identical_restored_sha256": "16a2ab58fb6793e6749a23e1a59ee2e4fc2af5800849c3ba9dafaa94b190f88b",
+  "restored_bytes": 12500000,
+  "entries": 781250,
+  "choice_comparisons": 603,
+  "book_hits": 104,
+  "move_20_21_boundary": true,
+  "all_bytes_identical": true,
+  "temporary_directory_cleanup": true
+}

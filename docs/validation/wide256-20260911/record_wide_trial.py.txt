@@ -1,0 +1,115 @@
+"""Preserve completed width-256 trial evidence, excluding unselected weights."""
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import time
+
+work = Path(__file__).resolve().parent
+repo = work / 'draw-wide256'
+out = repo / 'docs/validation/wide256-20260911'
+out.mkdir(parents=True, exist_ok=True)
+summary = json.loads((repo/'data/runs/wide-quick-evidence.json').read_text())
+assert summary['games'] == 20 and summary['legal_pgn_replay']
+assert summary['candidate_failure_or_fallback_markers'] == 0
+assert summary['baseline_diagnostics'] == []
+for pattern in ('wide-*.log', 'wide-*.json', 'wide-quick-*.jsonl',
+                'kernel*.json', 'kernel*.log', 'kernel-column-attempt.py.txt',
+                'book-storage-check.*', 'terminal-check.*'):
+    for path in (repo/'data/runs').glob(pattern):
+        if path.is_file():
+            shutil.copyfile(path, out/path.name)
+training = work/'draw-fused/data/runs'
+for name in ('wide256-pilot','wide256-full','wide256-anneal'):
+    dest = out/name
+    dest.mkdir(exist_ok=True)
+    for path in (training/name).glob('*'):
+        if path.suffix in ('.json','.jsonl'):
+            shutil.copyfile(path,dest/path.name)
+    log = training/f'{name}.log'
+    if log.exists():
+        shutil.copyfile(log,dest/log.name)
+shutil.copyfile(Path(__file__),out/'record_wide_trial.py.txt')
+text = '''# Width-256 experiment and terminal draw fixes, 11 September 2026
+
+Experimental checkpoint only. The 20-game short screen against released neural
+7eda0fa finished **+8 =8 -4: 60% score, 40% actual wins**, at 20s+0.3s, paired
+colours on previously unused opening indices 162-171. It fails the predeclared
+70% score / 60% actual-win screen and the user's 90% actual-win objective.
+No long tournament or main promotion follows this result.
+
+All PGNs replay legally, all five worker fingerprints stayed fixed, and neither
+engine logged fallback/runtime diagnostics. Peak working set was 258,420,736
+bytes and maximum import was 16.328s. All eight draws were repetition; six final
+search moves were scored as draws, two were negative, and none retained a score
+of at least +150cp. Twelve recorded root scans completed (maximum 15ms).
+
+## Code and packaging
+
+Terminal search now gives checkmate precedence over repetition/fifty-move draws,
+recognizes a claim by an intended nonzeroing move at halfmove 99, and returns a
+draw for stalemate before quiescence stand-pat evaluation. The reference check
+passes 992 referee states and 502 terminal leaf comparisons and records three
+concrete failures of the prior implementation.
+
+The opening book is gzip compressed on disk and restored in the permitted
+temporary directory during initialization. Its original 12,500,000 bytes and
+781,250 entries are unchanged (603 move-choice checks including the move-20/21
+boundary). All 96 shipped tablebases are retained. A standard BZIP2 NPZ repacker
+keeps every tensor bit-identical; no custom runtime decoder or native file ships.
+
+The integer dense layers use checked int32 sums and widen before rounding. Both
+widths pass 10,000 integer/bitboard comparisons and ten full fixed-depth search
+state comparisons. Correctly warmed paired timings show only 1.007x at width128
+and 1.020x at width256. The earlier apparent 1.67x column-layout result included
+JIT compilation and is invalid; a warmed rerun was 0.991x and that layout was
+discarded. All logs are retained to make this distinction reviewable.
+
+The tested runtime passed make gate, full WAC (231/300), Lucena checkmate,
+3,468 draw/referee comparisons, quantization and integration checks, and an
+extracted package audit: 49,435,948 unzipped bytes, 107 files, 16.426s import,
+242,663,424-byte peak working set, three legal smoke moves.
+
+- Tested runtime SHA256: b5db33c1845a053056914bbde8c74e924486e49810327d865f881a097ee533c2
+- Opponent runtime SHA256: d488f913a5d059a444a599e2696db66b4037cc539fb6eb556c3e6761dd89438c
+- Tested ZIP SHA256: e742de530ee774dc173570285b5cfc18a25ea1434c4a0ab032b2efad77cdd70d
+- Tested packed weight SHA256: 36d3c10e4b0f4ed0ee8c5d6e45ad13c4ae9beaa9a7cb53851cd748c880bf4892
+- Unpacked quantized NPZ SHA256: fcbcda71a6a53dcebe2395958ebef617cc1edcdcb977e80ac3c170f4c6e219ad
+
+## Training provenance
+
+The team's shared HalfKP transformer was widened from128 to256, preserving
+40,960 king-relative inputs and clipped32->32->1 dense layers, with training-only
+feature factorization folded before export. It began from random initialization,
+seed20260910. No published model or new dataset was downloaded. The existing
+148,547,121 training rows and 1,498,177 deterministic held-out rows stayed disjoint.
+Three full epochs made 445,641,363 presentations in 1,001.040s, with batch8192,
+Adam/cosine learning rate0.001. Held-out MSE was 0.0098303081 vs released
+0.0106574617 (about7.76% lower). This fitting gain did not produce a compelling
+match screen. The subsequent low-rate anneal stopped after80,038,032 presentations
+and167.950s without improving validation, retaining the parent tensors exactly.
+
+- Dataset manifest SHA256: 6d63c217336798ec31b4b881f938d4d274eecc587678fad202b3b48e58df22b3
+- Selected own checkpoint SHA256: f1493c5bd8d1b42b69e17e84b3eccc708e2af873d8d8e22b70d900780e721b66
+- Selected float export SHA256: 665b764fc63b09ccf93279d77d22f0dafbb74d8d64ad8a5c2189b37189fc31fa
+
+Quantization had zero integer-reference/bitboard mismatches in10,000 positions;
+mean float-to-quantized error8.089cp, p9918.783cp, max29.426cp. Run manifests,
+commands, validation metrics and resource observations accompany this note.
+
+The unselected width256 weight, raw checkpoints, dataset and local submission
+ZIP are intentionally excluded from Git. This branch's committed weight remains
+the released width128 model; the manifest above identifies the exact experimental
+runtime used in these matches. Main and the recommended upload remain7eda0fa.
+'''
+(repo/'docs/WIDE256_EXPERIMENT_20260911.md').write_text(text,encoding='utf-8')
+with (repo/'viewer/activity_log.jsonl').open('a',encoding='utf-8') as stream:
+    stream.write(json.dumps({'time':time.time(),'status':'issue','message':
+        'Width256 experiment: +8 =8 -4 in20 paired games,20s+0.3 vs7eda0fa; '
+        '40% actual wins fails90% target and quick gate. All legality/runtime checks pass. '
+        'No long tournament/main promotion. Terminal draw fixes and lossless asset '
+        'compression checkpointed with evidence; unselected weights remain outside Git.'})+'\n')
+manifest = {str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in out.rglob('*') if p.is_file() and p.name!='SHA256.json'}
+(out/'SHA256.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps({'files':len(manifest),'bytes':sum(p.stat().st_size for p in out.rglob('*') if p.is_file())}))
