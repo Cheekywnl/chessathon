@@ -1,0 +1,17 @@
+{
+  "source": "User-provided platform validation logs",
+  "first": {
+    "time_utc": "2026-09-11T06:38:47Z",
+    "result": "rejected_size",
+    "platform_expanded_bytes": 53215813,
+    "zip_sha256": "908ca85c2fd041d4269bf063f73ff08f20aac11256716ae617b7fc309ef4cb68"
+  },
+  "corrected": {
+    "time_utc": "2026-09-11T06:53:12Z",
+    "size_check_passed": true,
+    "platform_expanded_bytes": 45431701,
+    "zip_sha256": "4d3086d962a7a1760a0e7388fe31f267937c893542693d6a26eb4d67c4712110",
+    "build_result": "failed_before_agent_execution",
+    "error": "pull access denied for aichessathon/agent-base, repository does not exist or may require docker login"
+  }
+}

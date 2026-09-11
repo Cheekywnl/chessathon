@@ -1,0 +1,62 @@
+[
+  {
+    "group": "opening_pool",
+    "positions": 300,
+    "original_hits": 84,
+    "lost_hits": 17,
+    "retained_choices_exact": true
+  },
+  {
+    "group": "recorded_original_fullclock_paths",
+    "positions": 375,
+    "original_hits": 49,
+    "lost_hits": 15,
+    "affected_games": [
+      [
+        "20260917_100_sicilian_najdorf",
+        false
+      ],
+      [
+        "20260917_103_nimzo_indian",
+        false
+      ],
+      [
+        "20260917_104_startpos",
+        false
+      ],
+      [
+        "20260917_108_english",
+        true
+      ],
+      [
+        "20260917_108_english",
+        false
+      ],
+      [
+        "20260917_109_startpos",
+        true
+      ],
+      [
+        "20260917_112_french",
+        true
+      ],
+      [
+        "20260917_112_french",
+        false
+      ],
+      [
+        "20260917_113_queens_gambit_declined",
+        false
+      ],
+      [
+        "20260917_117_nimzo_indian",
+        true
+      ],
+      [
+        "20260917_117_nimzo_indian",
+        false
+      ]
+    ],
+    "retained_choices_exact": true
+  }
+]

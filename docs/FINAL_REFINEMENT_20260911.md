@@ -1,12 +1,40 @@
 # Final refinement: frozen candidate and validation
 
-The candidate ZIP is frozen at SHA-256 `908ca85c2fd041d4269bf063f73ff08f20aac11256716ae617b7fc309ef4cb68`. It contains
-48,710,010 uncompressed bytes in 114 files, below the
-50,000,000-byte limit. Runtime fingerprint:
-`78489e1c8647c1311390d837976e24cf53dc4c52821f5d9144052ddddba51d36`.
+The candidate ZIP is frozen at SHA-256 `4d3086d962a7a1760a0e7388fe31f267937c893542693d6a26eb4d67c4712110`. It contains
+45,431,701 outer-uncompressed bytes in 114 files. Counting every nested
+ZIP/NPZ and gzip archive gives 48,999,996 bytes,
+leaving 1,000,004 bytes under the 50 MB limit. Runtime fingerprint:
+`99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900`.
 
 **Full-clock testing is in progress. An additional 300-500 Elo or a 90% actual
 win rate over the penultimate engine has not been established.**
+
+
+## Upload-size correction and platform status
+
+The first archive failed platform validation: its gzip opening book expanded
+from 7,994,197 to 12,500,000 bytes, bringing the platform's count to 53,215,813.
+Our original audit counted only the outer ZIP. That audit was insufficient.
+It now counts nested ZIP/NPZ and gzip archives; synthetic nested-format
+regressions and the actual corrected artifact pass.
+
+The replacement is **submission-final-fixed.zip**, also copied to
+submission-final.zip. It retains the 294,743 highest-frequency opening keys in
+a 4,715,888-byte uncompressed book. Every retained entry is byte-identical;
+missing keys use normal search. All non-book runtime files, the trained model
+and endgame tables are unchanged. On the 300-opening pool, book hits change
+from 84 to 67. This changes some opening decisions, so the prior larger-book
+full-clock result is supporting evidence, not an exact corrected-ZIP result.
+
+The actual corrected ZIP passed a fresh one-core import and legal-move check.
+A separate 20-game fresh-process test at 15s+0.2s on unused opening indices
+160-169 compares this exact corrected ZIP against the penultimate engine.
+
+The user supplied a subsequent platform log confirming the corrected archive's
+size check passed at 45,431,701 bytes. Docker then failed at
+`FROM aichessathon/agent-base:latest` with pull-access denied, before importing
+our agent. Platform execution has therefore not yet been validated; the base
+image availability/access needs repair by the platform operator.
 
 ## Exact comparison
 
@@ -17,7 +45,8 @@ ce3bdbb260fa714fecf4279f5befe6bce3ba1c4e with documentation commit
 15-draw, one-loss result was against the older neural 7eda0fa engine. That older
 result is not counted as a new gain here.
 
-The independent comparison uses the actual extracted final ZIP, 120 seconds
+The 120-second comparison uses the pre-correction extracted ZIP with the larger
+opening book, 120 seconds
 plus 0.5 seconds per move, fresh processes for every game, both colours, and
 unused opening indices 100-129. Six workers use separate physical CPU cores;
 opponent process trees are suspended between moves. The CPU interpreter uses
@@ -75,9 +104,9 @@ as proven Elo gains, and short-clock results may differ from the full clock.
 
 ## Verification
 
-Ruff passes and strict mypy passes all 59 checked source files. The actual ZIP
-cold-imported in 37.654s on one physical core, below 90s;
-peak process memory was 483,921,920 bytes, below 2 GB. Opening,
+Ruff passes and strict mypy passes all 60 checked source files. The corrected ZIP
+cold-imported in 47.860s on one physical core, below 90s;
+peak process memory was 483,540,992 bytes, below 2 GB. Opening,
 middlegame and tablebase smoke moves were legal and within their clocks.
 
 Search parity covers 56 cases, 32 abort cases and 1,944 TT probes; deadline and
@@ -111,5 +140,6 @@ commit after the full-clock audit.
 An exploratory 16-game full-clock model attribution match uses unused indices
 140-147 on CPU cores 0 and 10. Its opponent has the exact final runtime and assets
 except for the previous model weights. It is reported separately and cannot be
-pooled with the penultimate-engine comparison. The predeclared primary release
-test remains the 60-game comparison above.
+pooled with the penultimate-engine comparison. That attribution batch was interrupted after eight saved games to free its
+workers for corrected-package validation following the size rejection. It is
+retained as interrupted research and is not a completed final strength result.

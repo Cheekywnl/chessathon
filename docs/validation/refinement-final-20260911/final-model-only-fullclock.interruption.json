@@ -1,0 +1,8 @@
+{
+  "stopped_utc": "2026-09-11T06:49:01.552540+00:00",
+  "reason": "Platform rejected recursive asset size. Reallocate exploratory model-attribution workers to validate a compliant package. This interrupted attribution batch is not a final strength result.",
+  "controller_pids": [
+    13568
+  ],
+  "rows_saved": 8
+}

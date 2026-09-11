@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import io
 import json
 import tempfile
@@ -17,6 +18,19 @@ from tools.halfkp_data import file_hash
 from tools.platform_agent import SuspendedAgent, local
 
 
+def expanded_bytes(data: bytes, depth: int = 0) -> int:
+    """Count leaf bytes, including ZIP/NPZ and gzip nested inside a submission."""
+    if depth > 8:
+        raise ValueError("excessive archive nesting")
+    if data[:2] == b"\x1f\x8b":
+        return expanded_bytes(gzip.decompress(data), depth + 1)
+    if zipfile.is_zipfile(io.BytesIO(data)):
+        with zipfile.ZipFile(io.BytesIO(data)) as nested:
+            return sum(expanded_bytes(nested.read(item), depth + 1)
+                       for item in nested.infolist() if not item.is_dir())
+    return len(data)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zip", dest="archive", type=Path, required=True)
@@ -29,6 +43,10 @@ def main() -> None:
         total = sum(entry.file_size for entry in entries)
         if total > 50_000_000:
             raise ValueError(f"submission exceeds 50 MB: {total}")
+        recursive_total = sum(expanded_bytes(archive.read(entry)) for entry in entries
+                              if not entry.is_dir())
+        if recursive_total > 50_000_000:
+            raise ValueError(f"submission exceeds recursively expanded 50 MB: {recursive_total}")
         names = [entry.filename for entry in entries]
         assert "agent.py" in names
         assert len(names) == len(set(names)), "duplicate zip member"
@@ -80,7 +98,8 @@ def main() -> None:
             assert "HalfKP load failed" not in process.stderr_tail
             assert "Traceback" not in process.stderr_tail
     result = {"zip": str(args.archive.resolve()), "sha256": file_hash(args.archive),
-              "unzipped_bytes": total, "file_count": len(names),
+              "unzipped_bytes": total, "fully_recursive_bytes": recursive_total,
+              "file_count": len(names),
               "integer_network": integer_network, "init_seconds": init_seconds,
               "peak_rss_bytes": peak_rss, "cpu_affinity": [args.cpu], "smoke_moves": moves,
               "source_and_permitted_assets_only": True, "playing_strength_validated": False}

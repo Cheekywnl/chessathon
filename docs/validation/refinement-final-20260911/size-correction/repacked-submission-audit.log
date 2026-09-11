@@ -1,0 +1,32 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\final-artifacts-repacked\\submission-final-fixed.zip",
+  "sha256": "4d3086d962a7a1760a0e7388fe31f267937c893542693d6a26eb4d67c4712110",
+  "unzipped_bytes": 45431701,
+  "fully_recursive_bytes": 48999996,
+  "file_count": 114,
+  "integer_network": true,
+  "init_seconds": 47.8600449000005,
+  "peak_rss_bytes": 483540992,
+  "cpu_affinity": [
+    0
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.000675899995258078
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c1g5",
+      "seconds": 0.2132350999963819
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.02018849999876693
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

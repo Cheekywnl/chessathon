@@ -1,0 +1,66 @@
+import gzip,hashlib,io,json,shutil,sys,zipfile
+from pathlib import Path
+import chess,chess.polyglot,numpy as np,psutil
+root=Path(__file__).resolve().parent;repo=root/'final-refinement'
+psutil.Process().cpu_affinity([0])
+old=root/'final-extracted/book/codekiddy.bin.gz'
+raw=gzip.decompress(old.read_bytes())
+dtype=[('key','>u8'),('move','>u2'),('weight','>u2'),('learn','>u4')]
+a=np.frombuffer(raw,dtype=dtype)
+assert len(np.unique(a['key']))==len(a)
+budget=4715888
+priority=np.lexsort((a['key'],-a['weight'].astype(np.int32)))
+selected=np.sort(priority[:budget//16]);b=a[selected]
+book=repo/'book/codekiddy.bin';assert not book.exists()
+b.tofile(book)
+assert book.stat().st_size==budget
+assert np.array_equal(np.fromfile(book,dtype=dtype),a[selected])
+original=root/'size-fix-original-book.bin';original.write_bytes(raw)
+probes=hits=lost=0
+opening=json.loads((root/'next-bitloops/data/runs/openings-next-fresh.json').read_text())
+print('opening format',type(opening).__name__,flush=True)
+fens=[]
+if isinstance(opening,list):
+    for row in opening:
+        if isinstance(row,dict):fens.append(row['fen'])
+        elif isinstance(row,list):fens.append(row[1])
+else:
+    for row in opening.get('openings',[]):fens.append(row['fen'])
+import csv
+with (root/'teacher-tools/labels-merged.csv').open(newline='') as stream:
+    for row in csv.DictReader(stream):
+        if len(fens)>=10300:break
+        fens.append(row['fen'])
+with chess.polyglot.open_reader(original) as left,chess.polyglot.open_reader(book) as right:
+    for fen in fens:
+        board=chess.Board(fen)
+        l=max(left.find_all(board),key=lambda x:x.weight,default=None)
+        r=max(right.find_all(board),key=lambda x:x.weight,default=None)
+        assert r is None or r==l,fen
+        probes+=1;hits+=l is not None;lost+=(l is not None and r is None)
+compressed=repo/'book/codekiddy.bin.gz'
+assert compressed.resolve().parent==(repo/'book').resolve()
+compressed.unlink()
+sys.path.insert(0,str(repo))
+from harness.package import build
+out=root/'final-artifacts-repacked';out.mkdir(exist_ok=True)
+archive=out/'submission-final-fixed.zip';assert not archive.exists()
+build(repo,archive,('weights','syzygy','book'))
+def expanded(data):
+    if data[:2]==b'\x1f\x8b':return expanded(gzip.decompress(data))
+    if zipfile.is_zipfile(io.BytesIO(data)):
+        with zipfile.ZipFile(io.BytesIO(data)) as z:return sum(expanded(z.read(i)) for i in z.infolist() if not i.is_dir())
+    return len(data)
+files={}
+with zipfile.ZipFile(archive) as z:
+    flat=sum(i.file_size for i in z.infolist())
+    recursive=sum(expanded(z.read(i)) for i in z.infolist())
+    assert recursive<=49000000
+    extracted=root/'final-extracted-repacked';assert not extracted.exists();extracted.mkdir();z.extractall(extracted)
+    for i in z.infolist():files[i.filename]=dict(bytes=i.file_size,sha256=hashlib.sha256(z.read(i)).hexdigest())
+result=dict(zip=str(archive),sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),zip_bytes=archive.stat().st_size,unzipped_bytes=flat,fully_recursive_bytes=recursive,margin_bytes=50000000-recursive,all_nonbook_files_unchanged=True,book=dict(original_entries=len(a),retained_entries=len(b),original_bytes=len(raw),new_bytes=budget,minimum_retained_weight=int(b['weight'].min()),all_retained_entries_exact=True,probes=probes,original_probe_hits=hits,lost_probe_hits=lost),files=files)
+prior=json.loads((root/'final-artifacts/artifact-manifest.json').read_text())['files']
+for name,note in files.items():
+    if not name.startswith('book/'):assert note==prior[name],name
+(out/'artifact-manifest.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({k:v for k,v in result.items() if k!='files'},indent=2))

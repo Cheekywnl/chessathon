@@ -1,0 +1,64 @@
+import hashlib,json,shutil,subprocess,sys
+from pathlib import Path
+root=Path(__file__).resolve().parent;repo=root/'final-refinement'
+sys.path.insert(0,str(repo))
+from tools.match_evidence import build_manifest
+artifact=json.loads((root/'final-artifacts-repacked/artifact-manifest.json').read_text())
+audit=json.loads((root/'final-artifacts-repacked/submission-audit.json').read_text())
+runtime=build_manifest(root/'final-extracted-repacked')
+archive=repo/'docs/validation/refinement-final-20260911';out=archive/'size-correction';out.mkdir(exist_ok=True)
+for p in (root/'final-artifacts-repacked').glob('*.json'):shutil.copyfile(p,out/p.name)
+for name in ('fix-recursive-package-size.log','book-size-fix-probes.json','repacked-submission-audit.log'):
+    shutil.copyfile(root/name,out/name)
+shutil.copyfile(root/'fix_recursive_package_size.py',out/'fix_recursive_package_size.py.txt')
+(out/'platform-upload-status.json').write_text(json.dumps(dict(source='User-provided platform validation logs',first=dict(time_utc='2026-09-11T06:38:47Z',result='rejected_size',platform_expanded_bytes=53215813,zip_sha256='908ca85c2fd041d4269bf063f73ff08f20aac11256716ae617b7fc309ef4cb68'),corrected=dict(time_utc='2026-09-11T06:53:12Z',size_check_passed=True,platform_expanded_bytes=45431701,zip_sha256=artifact['sha256'],build_result='failed_before_agent_execution',error='pull access denied for aichessathon/agent-base, repository does not exist or may require docker login')),indent=2))
+shutil.copyfile(repo/'data/runs/final-model-only-fullclock.interruption.json',archive/'final-model-only-fullclock.interruption.json')
+p=repo/'docs/FINAL_REFINEMENT_20260911.md';s=p.read_text()
+s=s.replace('908ca85c2fd041d4269bf063f73ff08f20aac11256716ae617b7fc309ef4cb68',artifact['sha256'],1)
+s=s.replace('48,710,010 uncompressed bytes in 114 files, below the\n50,000,000-byte limit. Runtime fingerprint:',f"{artifact['unzipped_bytes']:,} outer-uncompressed bytes in 114 files. Counting every nested\nZIP/NPZ and gzip archive gives {artifact['fully_recursive_bytes']:,} bytes,\nleaving 1,000,004 bytes under the 50 MB limit. Runtime fingerprint:",1)
+s=s.replace('78489e1c8647c1311390d837976e24cf53dc4c52821f5d9144052ddddba51d36',runtime['runtime_sha256'],1)
+s=s.replace('The independent comparison uses the actual extracted final ZIP, 120 seconds','The 120-second comparison uses the pre-correction extracted ZIP with the larger\nopening book, 120 seconds')
+s=s.replace('Ruff passes and strict mypy passes all 59 checked source files. The actual ZIP\ncold-imported in 37.654s on one physical core, below 90s;\npeak process memory was 483,921,920 bytes, below 2 GB.',f"Ruff passes and strict mypy passes all 60 checked source files. The corrected ZIP\ncold-imported in {audit['init_seconds']:.3f}s on one physical core, below 90s;\npeak process memory was {audit['peak_rss_bytes']:,} bytes, below 2 GB.")
+s=s.replace('The predeclared primary release\ntest remains the 60-game comparison above.','That attribution batch was interrupted after eight saved games to free its\nworkers for corrected-package validation following the size rejection. It is\nretained as interrupted research and is not a completed final strength result.')
+insert='''
+## Upload-size correction and platform status
+
+The first archive failed platform validation: its gzip opening book expanded
+from 7,994,197 to 12,500,000 bytes, bringing the platform's count to 53,215,813.
+Our original audit counted only the outer ZIP. That audit was insufficient.
+It now counts nested ZIP/NPZ and gzip archives; synthetic nested-format
+regressions and the actual corrected artifact pass.
+
+The replacement is **submission-final-fixed.zip**, also copied to
+submission-final.zip. It retains the 294,743 highest-frequency opening keys in
+a 4,715,888-byte uncompressed book. Every retained entry is byte-identical;
+missing keys use normal search. All non-book runtime files, the trained model
+and endgame tables are unchanged. On the 300-opening pool, book hits change
+from 84 to 67. This changes some opening decisions, so the prior larger-book
+full-clock result is supporting evidence, not an exact corrected-ZIP result.
+
+The actual corrected ZIP passed a fresh one-core import and legal-move check.
+A separate 20-game fresh-process test at 15s+0.2s on unused opening indices
+160-169 compares this exact corrected ZIP against the penultimate engine.
+
+The user supplied a subsequent platform log confirming the corrected archive's
+size check passed at 45,431,701 bytes. Docker then failed at
+`FROM aichessathon/agent-base:latest` with pull-access denied, before importing
+our agent. Platform execution has therefore not yet been validated; the base
+image availability/access needs repair by the platform operator.
+
+'''
+pos=s.index('## Exact comparison')
+s=s[:pos]+insert+s[pos:]
+p.write_text(s,encoding='utf8')
+shutil.copyfile(Path(__file__),out/'publish_size_correction.py.txt')
+(archive/'SHA256.json').write_text(json.dumps({str(p.relative_to(archive)).replace('\\','/'):hashlib.sha256(p.read_bytes()).hexdigest() for p in archive.rglob('*') if p.is_file() and p.name!='SHA256.json'},indent=2)+'\n')
+subprocess.run(['git','add','-A'],cwd=repo,check=True)
+names=list(artifact['files'])
+data=subprocess.run(['git','cat-file','--batch'],cwd=repo,input=''.join(':'+n+'\n' for n in names).encode(),stdout=subprocess.PIPE,check=True).stdout
+pos=0
+for name in names:
+    end=data.index(b'\n',pos);head=data[pos:end].split();assert head[1]==b'blob';size=int(head[2]);content=data[end+1:end+1+size];pos=end+size+2
+    assert hashlib.sha256(content).hexdigest()==artifact['files'][name]['sha256'],name
+assert pos==len(data)
+print(json.dumps(dict(staged_runtime_matches_corrected_zip=True,files=len(names),runtime_sha256=runtime['runtime_sha256'],fully_recursive_bytes=artifact['fully_recursive_bytes'])))

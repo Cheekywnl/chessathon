@@ -1,0 +1,21 @@
+opening format dict
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\final-artifacts-repacked\\submission-final-fixed.zip",
+  "sha256": "4d3086d962a7a1760a0e7388fe31f267937c893542693d6a26eb4d67c4712110",
+  "zip_bytes": 41309052,
+  "unzipped_bytes": 45431701,
+  "fully_recursive_bytes": 48999996,
+  "margin_bytes": 1000004,
+  "all_nonbook_files_unchanged": true,
+  "book": {
+    "original_entries": 781250,
+    "retained_entries": 294743,
+    "original_bytes": 12500000,
+    "new_bytes": 4715888,
+    "minimum_retained_weight": 4,
+    "all_retained_entries_exact": true,
+    "probes": 10300,
+    "original_probe_hits": 44,
+    "lost_probe_hits": 9
+  }
+}
