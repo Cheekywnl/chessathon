@@ -1,0 +1,16 @@
+{
+  "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-phaseheads\\data\\runs\\phase-ftslow-v2\\best_float.npz",
+  "source_sha256": "0a22ad9f2772215095247d48147476655e7b12235c1105e31616b8b93362d5df",
+  "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-phaseheads\\data\\runs\\phase-ftslow-v2\\quantized.npz",
+  "sha256": "286f8f811a30b11ac09cfe325a971375f16d8f2c2212dfa7dc76d13f8425cb73",
+  "file_bytes": 6952425,
+  "int16_accumulator_absolute_bound": 15160,
+  "weight_scales": [
+    136.0,
+    121.0,
+    0.1938529737483001
+  ],
+  "width": 128,
+  "dense_scaling": "fullrange",
+  "playing_strength_validated": false
+}

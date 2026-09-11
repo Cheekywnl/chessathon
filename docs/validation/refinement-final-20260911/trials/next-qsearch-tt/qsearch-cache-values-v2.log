@@ -1,0 +1,11 @@
+C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\halfkp-trial\.venv\Lib\site-packages\numba\typed\typeddict.py:39: NumbaTypeSafetyWarning: unsafe cast from int64 to uint64. Precision may be lost.
+  return d[key]
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\next-qsearch-tt\tools\qsearch_cache_check.py", line 90, in <module>
+    main()
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\next-qsearch-tt\tools\qsearch_cache_check.py", line 65, in main
+    assert valid, (index, board.fen(), expected, alpha, beta, actual)
+           ^^^^^
+AssertionError: (293, '8/8/3k4/8/8/8/p7/K6b w - - 0 1', -20, -46, -45, -590)

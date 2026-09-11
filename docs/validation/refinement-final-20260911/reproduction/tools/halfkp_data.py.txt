@@ -1,0 +1,236 @@
+"""Bounded HalfKP preparation and deterministic, position-based held-out splitting.
+
+Only a 250k-row shard (32 MB) and the CSV reader are resident during preparation.
+Training opens one .npy shard at a time. Every source row is visited; no dataset-sized
+Python list is constructed. Prepared files and manifests belong in ignored data/.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import math
+import shutil
+import time
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+from numba import njit
+
+RECORD = np.dtype([
+    ("white", "<u2", (30,)), ("black", "<u2", (30,)),
+    ("count", "u1"), ("stm", "?"), ("target", "<f4"), ("bucket", "<u2"),
+])
+SPLIT_MODULUS = 1000
+VALIDATION_BUCKETS = 10
+PIECE_LOOKUP = np.full(128, -1, dtype=np.int8)
+for _i, _letter in enumerate("pnbrq"):
+    PIECE_LOOKUP[ord(_letter)] = _i
+    PIECE_LOOKUP[ord(_letter.upper())] = _i
+
+
+def split_bucket(fen: str) -> int:
+    """Exclude counters, so repeated positions cannot cross the train/validation split."""
+    fields = fen.split()
+    if len(fields) < 4 or fields[1] not in ("w", "b"):
+        raise ValueError(f"Invalid FEN fields: {fen!r}")
+    key = " ".join(fields[:4]).encode("ascii")
+    digest = hashlib.blake2b(key, digest_size=8, person=b"halfkp-split-v1").digest()
+    return int.from_bytes(digest, "little") % SPLIT_MODULUS
+
+
+@njit(cache=True)
+def encode(
+    codes: np.ndarray, white: np.ndarray, black: np.ndarray, lookup: np.ndarray,
+) -> int:
+    """Checked ASCII encoder; no unchecked write for a malformed or overfull board."""
+    rank, file = 7, 0
+    wk, bk = -1, -1
+    nwk, nbk = 0, 0
+    for code in codes:
+        if code == 32:
+            break
+        if code == 47:
+            if file != 8 or rank == 0:
+                raise ValueError("invalid FEN rank")
+            rank -= 1
+            file = 0
+        elif 49 <= code <= 56:
+            file += code - 48
+        else:
+            if code == 75:
+                wk = rank * 8 + file
+                nwk += 1
+            elif code == 107:
+                bk = rank * 8 + file
+                nbk += 1
+            elif code >= 128 or lookup[code] < 0:
+                raise ValueError("invalid FEN piece")
+            file += 1
+        if file > 8:
+            raise ValueError("overfull FEN rank")
+    if rank != 0 or file != 8 or nwk != 1 or nbk != 1:
+        raise ValueError("invalid FEN board or kings")
+    rank, file, count = 7, 0, 0
+    for code in codes:
+        if code == 32:
+            break
+        if code == 47:
+            rank -= 1
+            file = 0
+        elif 49 <= code <= 56:
+            file += code - 48
+        else:
+            if code != 75 and code != 107:
+                if count >= 30:
+                    raise ValueError("more than 30 non-king pieces")
+                square = rank * 8 + file
+                relative = 0 if code < 97 else 1
+                piece = lookup[code] * 2
+                white[count] = square + (piece + relative + wk * 10) * 64
+                black[count] = (square ^ 56) + (piece + (1 - relative) + (bk ^ 56) * 10) * 64
+                count += 1
+            file += 1
+    return count
+
+
+def encode_row(fen: str, label: float, cp_format: bool, record: Any) -> None:
+    if not math.isfinite(label) or (not cp_format and not 0 <= label <= 1):
+        raise ValueError("non-finite or invalid label")
+    record["bucket"] = split_bucket(fen)
+    record["stm"] = fen.split()[1] == "w"
+    record["count"] = encode(
+        np.frombuffer(fen.encode("ascii"), dtype=np.uint8),
+        record["white"], record["black"], PIECE_LOOKUP,
+    )
+    signed = label if record["stm"] else -label
+    if cp_format:
+        record["target"] = 1 / (1 + math.exp(-max(-40.0, min(40.0, signed / 400))))
+    else:
+        record["target"] = label if record["stm"] else 1 - label
+
+
+def file_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(8 * 1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def prepare(paths: list[Path], out: Path, shard_rows: int, limit: int | None) -> dict[str, Any]:
+    if out.exists():
+        raise ValueError(f"Refusing to overwrite prepared data: {out}")
+    if shard_rows < 1 or shard_rows > 1_000_000 or (limit is not None and limit < 1):
+        raise ValueError("invalid preparation bounds")
+    out.mkdir(parents=True)
+    buffer = np.zeros(shard_rows, dtype=RECORD)
+    manifest: dict[str, Any] = {
+        "version": 1, "record_bytes": RECORD.itemsize, "shard_rows": shard_rows,
+        "split": "blake2b(canonical first 4 FEN fields, digest_size=8, "
+                 "person=halfkp-split-v1), little-endian modulo 1000; <10 held out",
+        "labels": "cp: White-relative, sigmoid(stm_cp/400); WDL: White-result, "
+                  "complemented for Black to move",
+        "source": "https://database.lichess.org/#evals (CC0); team self-play where supplied",
+        "sources": [], "train": [], "validation": [], "rows": 0,
+        "train_rows": 0, "validation_rows": 0, "rejected_rows": 0,
+        "rejection_reasons": {}, "rejection_examples": [], "complete": False,
+    }
+    count = 0
+    started = time.perf_counter()
+    preview_rows = 0
+
+    def flush() -> None:
+        nonlocal count
+        if not count:
+            return
+        if shutil.disk_usage(out).free < buffer.nbytes + 2 * 1024**3:
+            raise MemoryError("Less than 2 GB disk reserve; stopping before writing another shard")
+        subset = buffer[:count]
+        validation = subset["bucket"] < VALIDATION_BUCKETS
+        shard_id = len(manifest["train"])
+        for name, mask in (("train", ~validation), ("validation", validation)):
+            filename = f"{name}-{shard_id:05d}.npy"
+            selected = subset[mask]
+            np.save(out / filename, selected, allow_pickle=False)
+            manifest[name].append({"path": filename, "rows": len(selected)})
+            manifest[f"{name}_rows"] += len(selected)
+        manifest["rows"] += count
+        manifest["preparation_seconds"] = time.perf_counter() - started
+        (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf8")
+        print(json.dumps({"prepared_rows": manifest["rows"],
+                          "rows_per_second": manifest["rows"] / manifest["preparation_seconds"],
+                          "disk_free_gb": shutil.disk_usage(out).free / 1e9}), flush=True)
+        count = 0
+
+    with (out / "heldout_fens.csv").open("w", newline="", encoding="utf8") as preview:
+        writer = csv.writer(preview)
+        writer.writerow(["fen", "target"])
+        for path in paths:
+            source_info: dict[str, Any] = {
+                "path": str(path.resolve()), "bytes": path.stat().st_size,
+                "mtime_ns": path.stat().st_mtime_ns, "rows": 0, "rows_seen": 0,
+            }
+            manifest["sources"].append(source_info)
+            with path.open(newline="", encoding="utf8") as source:
+                reader = csv.reader(source)
+                header = next(reader)
+                source_info["header"] = header
+                if header not in (["fen", "depth", "cp"], ["fen", "mobility", "result"]):
+                    raise ValueError(f"Unsupported header at {path}: {header}")
+                cp_format = header[2] == "cp"
+                for row in reader:
+                    source_info["rows_seen"] += 1
+                    try:
+                        if len(row) != 3:
+                            raise ValueError("malformed CSV row")
+                        encode_row(row[0], float(row[2]), cp_format, buffer[count])
+                    except ValueError as exc:
+                        reason = str(exc)
+                        manifest["rejected_rows"] += 1
+                        reasons = manifest["rejection_reasons"]
+                        reasons[reason] = reasons.get(reason, 0) + 1
+                        if len(manifest["rejection_examples"]) < 10:
+                            manifest["rejection_examples"].append({
+                                "source": str(path), "line": source_info["rows_seen"] + 1,
+                                "row": row, "reason": reason,
+                            })
+                        continue
+                    if buffer[count]["bucket"] < VALIDATION_BUCKETS and preview_rows < 20_000:
+                        writer.writerow([row[0], float(buffer[count]["target"])])
+                        preview_rows += 1
+                    count += 1
+                    source_info["rows"] += 1
+                    if count == shard_rows:
+                        flush()
+                    if limit is not None and manifest["rows"] + count >= limit:
+                        break
+            if limit is not None and manifest["rows"] + count >= limit:
+                break
+    flush()
+    # Hash complete source files, without materializing their contents in memory.
+    if limit is None:
+        for info in manifest["sources"]:
+            info["sha256"] = file_hash(Path(info["path"]))
+    manifest["complete"] = True
+    manifest["pilot_limit"] = limit
+    manifest["preparation_seconds"] = time.perf_counter() - started
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf8")
+    return manifest
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", nargs="+", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--shard-rows", type=int, default=250_000)
+    parser.add_argument("--limit", type=int, help="Pilot only; omit to prepare every source row")
+    args = parser.parse_args()
+    print(json.dumps(prepare(args.data, args.out, args.shard_rows, args.limit), indent=2))
+
+
+if __name__ == "__main__":
+    main()

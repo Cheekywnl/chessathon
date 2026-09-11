@@ -1,0 +1,57 @@
+"""Assemble checked independent changes into isolated candidate worktrees."""
+import ast
+import shutil
+import subprocess
+from pathlib import Path
+
+root = Path(__file__).resolve().parent
+def replace_function(current, source, name, owner=None):
+    def span(text):
+        nodes = ast.parse(text).body
+        if owner:
+            nodes = next(n.body for n in nodes if isinstance(n, ast.ClassDef) and n.name == owner)
+        node = next(n for n in nodes if isinstance(n, ast.FunctionDef) and n.name == name)
+        start = min([node.lineno, *[d.lineno for d in node.decorator_list]]) - 1
+        return start, node.end_lineno
+    a, b = span(current)
+    c, d = span(source)
+    lines, other = current.splitlines(keepends=True), source.splitlines(keepends=True)
+    return "".join(lines[:a] + other[c:d] + lines[b:])
+
+for label in ("combo128", "combo64"):
+    destination = root / f"next-{label}"
+    assert not destination.exists()
+    subprocess.run(["git", "worktree", "add", "-b", f"refine/{label}-next",
+                    str(destination), "ce3bdbb260fa714fecf4279f5befe6bce3ba1c4e"],
+                   cwd=root / "hour-release", check=True)
+    for path in (root / "next-evalcache").glob("*.py"):
+        shutil.copy2(path, destination / path.name)
+    target = destination / "chess_search_compiled.py"
+    source = (root / "next-qendgamefast" / target.name).read_text()
+    text = replace_function(target.read_text(), source, "qsearch")
+    assert "stand = evaluate(s, n, ctx)" in text
+    text = text.replace("stand = evaluate(s, n, ctx)", "stand = evaluate_cached(s, n, key, ctx)")
+    target.write_text(text)
+    target = destination / "chess_search.py"
+    text = replace_function(target.read_text(),
+                            (root / "next-qendgamefast" / target.name).read_text(),
+                            "quiescence", "Search")
+    old = "                    if score > window_alpha:\n"
+    assert text.count(old) == 1
+    text = text.replace(old, "                    # A fail-high is retried by aspiration widening.\n"
+                            "                    if window_alpha < score < beta:\n")
+    target.write_text(text)
+    for folder, names in (
+        ("next-teacher", ("platform_agent.py", "sprt_arena.py")),
+        ("next-evalcache", ("eval_cache_check.py",)),
+        ("next-qendgamefast", ("compiled_search_check.py", "qendgame_check.py")),
+        ("next-scratch", ("halfkp_cache_check.py", "division_check.py")),
+    ):
+        for name in names:
+            source = root / folder / "tools" / name
+            if source.exists():
+                shutil.copy2(source, destination / "tools" / name)
+    if label == "combo64":
+        shutil.copy2(root / "next-compact64/weights/halfkp.npz", destination / "weights/halfkp.npz")
+    (destination / "data/runs").mkdir(parents=True)
+    print(destination, flush=True)

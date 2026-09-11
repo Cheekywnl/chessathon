@@ -1,0 +1,91 @@
+"""Sample intact FENs across the existing Lichess source for fresh offline labels."""
+from __future__ import annotations
+
+import csv
+import hashlib
+import json
+import math
+import random
+import sys
+from collections import Counter
+from pathlib import Path
+
+import chess
+
+root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root / "next-teacher"))
+from tools.halfkp_data import split_bucket  # noqa: E402
+
+
+def main() -> None:
+    out = Path(__file__).resolve().parent / "positions-broad.json"
+    assert not out.exists()
+    manifest_path = root / "halfkp-trial/data/full-cache/manifest.json"
+    parent = json.loads(manifest_path.read_text())
+    source_note = parent["sources"][0]
+    source = Path(source_note["path"])
+    before = source.stat()
+    rng = random.Random(20260920)
+    selected: dict[str, dict[str, object]] = {}
+    attempts = 0
+    blocks = 0
+    with source.open("rb") as stream:
+        header = next(csv.reader([stream.readline().decode("utf8").strip()]))
+        assert header == ["fen", "depth", "cp"]
+        while len(selected) < 50000 and attempts < 1_000_000:
+            offset = rng.randrange(0, max(1, before.st_size - 65536))
+            stream.seek(offset)
+            stream.readline()
+            blocks += 1
+            for _ in range(256):
+                line = stream.readline()
+                if not line or len(selected) >= 50000:
+                    break
+                attempts += 1
+                fields = next(csv.reader([line.decode("utf8").strip()]))
+                if len(fields) != 3:
+                    continue
+                try:
+                    cp = float(fields[2])
+                    if not math.isfinite(cp) or abs(cp) > 1000:
+                        continue
+                    board = chess.Board(fields[0])
+                except ValueError:
+                    continue
+                count = len(board.piece_map())
+                if not 8 <= count <= 28 or not board.is_valid() or board.is_check():
+                    continue
+                if board.is_game_over():
+                    continue
+                board.halfmove_clock = 0
+                if len(fields[0].split()) < 6:
+                    board.fullmove_number = 20
+                fen = board.fen()
+                # Normalizing irrelevant EP fields must not move an original
+                # held-out source position into the new training split.
+                if (split_bucket(fields[0]) < 10) != (split_bucket(fen) < 10):
+                    continue
+                key = " ".join(fen.split()[:4])
+                selected.setdefault(key, {"fen": fen, "pieces": count,
+                    "game": "lichess-source", "source_fen": fields[0],
+                    "source_cp": cp, "source_depth": fields[1]})
+            if blocks % 50 == 0:
+                print(json.dumps({"blocks": blocks, "attempts": attempts,
+                                  "selected": len(selected)}), flush=True)
+    after = source.stat()
+    assert (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)
+    values = list(selected.values())
+    rng.shuffle(values)
+    result = {"seed": 20260920, "source": source_note,
+              "source_size": before.st_size, "source_mtime_ns": before.st_mtime_ns,
+              "parent_manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+              "sampling": "random byte-offset blocks; intact FEN rights/EP; valid non-check boards; abs sourceCP<=1000; 8-28 pieces",
+              "attempts": attempts, "blocks": blocks, "selected_positions": len(values),
+              "piece_counts": dict(Counter(str(row["pieces"]) for row in values)),
+              "positions": values}
+    out.write_text(json.dumps(result, indent=2))
+    print(json.dumps({"positions": len(values), "sha256": hashlib.sha256(out.read_bytes()).hexdigest()}), flush=True)
+
+
+if __name__ == "__main__":
+    main()

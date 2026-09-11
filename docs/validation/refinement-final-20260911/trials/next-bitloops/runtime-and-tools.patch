@@ -1,0 +1,319 @@
+diff --git a/chess_eval.py b/chess_eval.py
+index 0f42f09..0ad93fe 100644
+--- a/chess_eval.py
++++ b/chess_eval.py
+@@ -20,6 +20,8 @@ import chess
+ import numpy as np
+ from numba import njit
+ 
++from chess_bits import lsb_index, popcount
++
+ Bitboard = np.uint64
+ 
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+@@ -172,11 +174,7 @@ ADJACENT_FILE_MASK = _adjacent_file_masks()
+ 
+ @njit(cache=False)
+ def _popcount(bb: np.uint64) -> int:
+-    count = 0
+-    while bb:
+-        bb &= bb - np.uint64(1)
+-        count += 1
+-    return count
++    return popcount(bb)
+ 
+ 
+ @njit(cache=False)
+@@ -220,7 +218,9 @@ def evaluate(
+             bishop_count_w = w_count
+             bishop_count_b = b_count
+ 
+-        for square in range(64):
++        while bb:
++            square = lsb_index(bb)
++            bb &= bb - np.uint64(1)
+             mask = np.uint64(1) << np.uint64(square)
+             if w_bb & mask:
+                 if piece_type != KING:
+diff --git a/chess_movegen.py b/chess_movegen.py
+index f5dd016..1109023 100644
+--- a/chess_movegen.py
++++ b/chess_movegen.py
+@@ -34,6 +34,8 @@ import chess
+ import numpy as np
+ from numba import njit
+ 
++from chess_bits import lsb_index
++
+ WHITE, BLACK = True, False
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+ 
+@@ -335,10 +337,8 @@ def _would_be_legal(
+     )
+     if from_sq == king_sq:
+         king_bb = nkings & (nwhite if moving_white else nblack)
+-        for s in range(64):
+-            if king_bb & _bit(s):
+-                king_sq = s
+-                break
++        if king_bb:
++            king_sq = lsb_index(king_bb)
+     return not is_square_attacked(
+         king_sq, not moving_white,
+         npawns, nknights, nbishops, nrooks, nqueens, nkings, nwhite, nblack,
+@@ -371,11 +371,7 @@ def generate_legal_moves_bb(
+     enemy = black if turn else white
+ 
+     king_bb = kings & own
+-    king_sq = 0
+-    for s in range(64):
+-        if king_bb & _bit(s):
+-            king_sq = s
+-            break
++    king_sq = lsb_index(king_bb) if king_bb else 0
+ 
+     checkers, pinned, pin_rays = compute_pins_and_checkers(
+         pawns, knights, bishops, rooks, queens, white, black, turn, king_sq
+@@ -397,14 +393,14 @@ def generate_legal_moves_bb(
+             piece_bb = rooks & own
+         else:
+             piece_bb = queens & own
+-        for from_sq in range(64):
+-            if not (piece_bb & _bit(from_sq)):
+-                continue
++        while piece_bb:
++            from_sq = lsb_index(piece_bb)
++            piece_bb &= piece_bb - np.uint64(1)
+             targets = attacks_from(from_sq, piece_type, turn, occupied) & ~own
+             is_pinned = pinned & _bit(from_sq) != 0
+-            for to_sq in range(64):
+-                if not (targets & _bit(to_sq)):
+-                    continue
++            while targets:
++                to_sq = lsb_index(targets)
++                targets &= targets - np.uint64(1)
+                 if in_check:
+                     legal = _would_be_legal(
+                         pawns, knights, bishops, rooks, queens, kings, white, black,
+@@ -422,8 +418,10 @@ def generate_legal_moves_bb(
+ 
+     # King moves.
+     king_targets = KING_ATTACKS[king_sq] & ~own
+-    for to_sq in range(64):
+-        if king_targets & _bit(to_sq) and _would_be_legal(
++    while king_targets:
++        to_sq = lsb_index(king_targets)
++        king_targets &= king_targets - np.uint64(1)
++        if _would_be_legal(
+             pawns, knights, bishops, rooks, queens, kings, white, black,
+             king_sq, to_sq, 0, 0, turn, king_sq,
+         ):
+@@ -436,18 +434,19 @@ def generate_legal_moves_bb(
+     # Same fast/slow split as above for everything except en passant, which always uses the
+     # slow path below (the classic en passant pin needs the full make-and-test).
+     pawn_bb = pawns & own
+-    for from_sq in range(64):
+-        if not (pawn_bb & _bit(from_sq)):
+-            continue
++    pawn_sources = pawn_bb
++    while pawn_sources:
++        from_sq = lsb_index(pawn_sources)
++        pawn_sources &= pawn_sources - np.uint64(1)
+         rank = from_sq // 8
+         promo_rank = 7 if turn else 0
+         is_pinned = pinned & _bit(from_sq) != 0
+ 
+         capture_table = PAWN_ATTACKS_WHITE if turn else PAWN_ATTACKS_BLACK
+         capture_targets = capture_table[from_sq] & enemy
+-        for to_sq in range(64):
+-            if not (capture_targets & _bit(to_sq)):
+-                continue
++        while capture_targets:
++            to_sq = lsb_index(capture_targets)
++            capture_targets &= capture_targets - np.uint64(1)
+             if in_check:
+                 legal = _would_be_legal(
+                     pawns, knights, bishops, rooks, queens, kings, white, black,
+@@ -519,8 +518,10 @@ def generate_legal_moves_bb(
+     if ep_square >= 0:
+         ep_table = PAWN_ATTACKS_BLACK if turn else PAWN_ATTACKS_WHITE
+         capturers = ep_table[ep_square] & pawn_bb
+-        for from_sq in range(64):
+-            if capturers & _bit(from_sq) and _would_be_legal(
++        while capturers:
++            from_sq = lsb_index(capturers)
++            capturers &= capturers - np.uint64(1)
++            if _would_be_legal(
+                 pawns, knights, bishops, rooks, queens, kings, white, black,
+                 from_sq, ep_square, 0, 1, turn, king_sq,
+             ):
+diff --git a/chess_nnue_halfkp.py b/chess_nnue_halfkp.py
+index 7c18f7e..9d0725f 100644
+--- a/chess_nnue_halfkp.py
++++ b/chess_nnue_halfkp.py
+@@ -33,6 +33,8 @@ from pathlib import Path
+ import numpy as np
+ from numba import njit
+ 
++from chess_bits import lsb_index
++
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+ 
+ INPUT_SIZE = 40_960
+@@ -86,23 +88,19 @@ def active_features_halfkp(
+     position's active HalfKP feature indices per perspective, returns how many were written.
+     Piece-type numbering matches tools/train_nnue_halfkp.py exactly: PAWN=0, KNIGHT=1, BISHOP=2,
+     ROOK=3, QUEEN=4 (kings are never their own feature, only the per-perspective anchor)."""
+-    white_king_sq = 0
+-    black_king_sq = 0
+-    for s in range(64):
+-        bit = np.uint64(1) << np.uint64(s)
+-        if kings & white & bit:
+-            white_king_sq = s
+-        if kings & black & bit:
+-            black_king_sq = s
++    white_king_sq = lsb_index(kings & white) if kings & white else 0
++    black_king_sq = lsb_index(kings & black) if kings & black else 0
+     black_king_mirrored = black_king_sq ^ 56
+ 
+     piece_bb = (pawns, knights, bishops, rooks, queens)
+     n = 0
+     for piece_type in range(5):
+         bb = piece_bb[piece_type]
+-        for square in range(64):
++        while bb:
++            square = lsb_index(bb)
++            bb &= bb - np.uint64(1)
+             mask = np.uint64(1) << np.uint64(square)
+-            if bb & white & mask:
++            if white & mask:
+                 rel_color_white = 0
+                 white_out[n] = square + (piece_type * 2 + rel_color_white + white_king_sq * 10) * 64
+                 mirrored_square = square ^ 56
+@@ -110,7 +108,7 @@ def active_features_halfkp(
+                 bp_idx = piece_type * 2 + rel_color_black
+                 black_out[n] = mirrored_square + (bp_idx + black_king_mirrored * 10) * 64
+                 n += 1
+-            elif bb & black & mask:
++            elif black & mask:
+                 rel_color_white = 1
+                 white_out[n] = square + (piece_type * 2 + rel_color_white + white_king_sq * 10) * 64
+                 mirrored_square = square ^ 56
+diff --git a/chess_state.py b/chess_state.py
+index 247ea13..857ead8 100644
+--- a/chess_state.py
++++ b/chess_state.py
+@@ -20,6 +20,7 @@ import numpy as np
+ from numba import njit
+ 
+ import chess_movegen as mg
++from chess_bits import lsb_index
+ 
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+ 
+@@ -177,17 +178,8 @@ ZOBRIST_TURN = np.uint64(int(_rng.integers(0, 2**63, dtype=np.int64)))
+ 
+ @njit(cache=False)
+ def _lsb_index(bb: np.uint64) -> int:
+-    """Index of the lowest set bit. A manual count-trailing-zeros loop rather than
+-    `.bit_length()` on the isolated-lowest-bit trick used elsewhere in this codebase (the
+-    Python-level `(bb & -bb).bit_length() - 1` idiom) -- numba's nopython mode does not
+-    reliably support that method on integer types, so the plain loop is the portable choice
+-    here. Only ever called once per set bit actually present (~20-32 per position), not once
+-    per candidate square, which is the whole point of using it in zobrist_hash."""
+-    idx = 0
+-    while (bb & np.uint64(1)) == 0:
+-        bb >>= np.uint64(1)
+-        idx += 1
+-    return idx
++    """Index of the lowest set bit using Numba's host compilation."""
++    return lsb_index(bb)
+ 
+ 
+ @njit(cache=False)
+diff --git a/tools/make_opening_suite.py b/tools/make_opening_suite.py
+index 515cc09..34ec040 100644
+--- a/tools/make_opening_suite.py
++++ b/tools/make_opening_suite.py
+@@ -35,11 +35,17 @@ def book_exit_key(reader: chess.polyglot.MemoryMappedReader, position: chess.Boa
+ def main() -> None:
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--baseline", type=Path, required=True)
++    parser.add_argument("--book", type=Path,
++                        help="Use the shipped book and the preserved classical balance screen")
++    parser.add_argument("--exit-book", type=Path,
++                        help="Check distinct exits under a separate shipped book")
+     parser.add_argument("--out", type=Path, required=True)
+     parser.add_argument("--count", type=int, default=100)
+     parser.add_argument("--seed", type=int, default=20260910)
+     parser.add_argument("--cpu", type=int, default=6)
+     parser.add_argument("--distinct-book-exits", action="store_true")
++    parser.add_argument("--cycle-attempts", action="store_true",
++                        help="Cycle attempted families so an exhausted family cannot stall the pool")
+     parser.add_argument("--exclude-file", action="append", type=Path, default=[])
+     args = parser.parse_args()
+     if args.out.exists():
+@@ -53,29 +59,34 @@ def main() -> None:
+     assert cs.__file__ is not None
+     assert Path(cs.__file__).parent == baseline
+     rng = random.Random(args.seed)
+-    book = baseline / "book/codekiddy.bin"
++    book = args.book.resolve() if args.book else baseline / "book/codekiddy.bin"
++    exit_book = args.exit_book.resolve() if args.exit_book else book
+     families = list(OPENING_LINES)
+     seen: set[str] = set()
+     seen_exits: set[str] = set()
+     positions: list[dict[str, object]] = []
+     attempts = 0
+-    with chess.polyglot.open_reader(book) as reader:
++    with (chess.polyglot.open_reader(book) as reader,
++          chess.polyglot.open_reader(exit_book) as exit_reader):
+         if args.distinct_book_exits:
+             for line in OPENING_LINES.values():
+                 prior = chess.Board()
+                 for san in line:
+                     prior.push_san(san)
+-                seen_exits.add(book_exit_key(reader, prior))
++                seen_exits.add(book_exit_key(exit_reader, prior))
+         for path in args.exclude_file:
+             for entry in json.loads(path.read_text(encoding="utf8"))["positions"]:
+                 prior = chess.Board(entry["fen"])
+                 seen.add(" ".join(prior.fen().split()[:4]))
+-                seen_exits.add(book_exit_key(reader, prior))
++                seen_exits.add(book_exit_key(exit_reader, prior))
+         while len(positions) < args.count:
+             attempts += 1
++            if attempts % 500 == 0:
++                print(json.dumps({"attempts": attempts, "accepted": len(positions)}), flush=True)
+             if attempts > args.count * 1000:
+                 raise RuntimeError("could not generate enough distinct balanced book positions")
+-            family = families[len(positions) % len(families)]
++            family_index = attempts - 1 if args.cycle_attempts else len(positions)
++            family = families[family_index % len(families)]
+             board = chess.Board()
+             for san in OPENING_LINES[family]:
+                 board.push_san(san)
+@@ -91,7 +102,7 @@ def main() -> None:
+                 continue
+             if not board.is_valid() or len(board.piece_map()) < 26:
+                 continue
+-            exit_key = book_exit_key(reader, board)
++            exit_key = book_exit_key(exit_reader, board)
+             if args.distinct_book_exits and exit_key in seen_exits:
+                 continue
+             search = cs.Search(cs.TranspositionTable(16), {})
+@@ -105,10 +116,14 @@ def main() -> None:
+                               "fen": board.fen(), "baseline_depth4_stm_cp": score,
+                               "book_exit_key": exit_key,
+                               "uci_line": [move.uci() for move in board.move_stack]})
++            if len(positions) % 10 == 0:
++                print(json.dumps({"attempts": attempts, "accepted": len(positions)}), flush=True)
+     result = {"seed": args.seed, "count": len(positions), "attempts": attempts,
+               "book_sha256": file_hash(book), "baseline": str(baseline),
++              "exit_book_sha256": file_hash(exit_book),
+               "selection": "sqrt-weight book sampling; baseline depth4 abs(score)<=125cp",
+               "distinct_book_exits": args.distinct_book_exits,
++              "cycle_attempts": args.cycle_attempts,
+               "excluded_pools_sha256": {str(path): file_hash(path) for path in args.exclude_file},
+               "positions": positions}
+     args.out.parent.mkdir(parents=True, exist_ok=True)

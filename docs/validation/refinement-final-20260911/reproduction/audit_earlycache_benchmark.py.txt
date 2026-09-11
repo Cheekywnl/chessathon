@@ -1,0 +1,23 @@
+"""Check exact search states before summarizing paired timing observations."""
+import json
+from pathlib import Path
+
+root = Path(__file__).resolve().parent
+names = ("before-a", "after-a", "after-b", "before-b")
+runs = {name: json.loads((root / f"earlycache-{name}.json").read_text()) for name in names}
+reference = runs["before-a"]
+for name, run in runs.items():
+    assert run["nodes"] == reference["nodes"]
+    for actual, expected in zip(run["records"], reference["records"], strict=True):
+        for key in ("fen", "depths", "nodes", "table_and_heuristics_sha256"):
+            assert actual[key] == expected[key], (name, actual["index"], key)
+before = sum(runs[n]["search_seconds"] for n in ("before-a", "before-b"))
+after = sum(runs[n]["search_seconds"] for n in ("after-a", "after-b"))
+result = {"positions": len(reference["records"]), "depth": reference["depth"],
+          "nodes_each_run": reference["nodes"], "mismatches": 0,
+          "before_seconds": before, "after_seconds": after, "speed_ratio": before / after,
+          "seconds_by_run": {n: r["search_seconds"] for n, r in runs.items()},
+          "timing_caveat": "Concurrent screens briefly approached host memory pressure; replicate before a firm speed claim",
+          "playing_strength_validated": False}
+(root / "earlycache-speed-summary.json").write_text(json.dumps(result, indent=2))
+print(json.dumps(result, indent=2))

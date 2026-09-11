@@ -1,0 +1,62 @@
+diff --git a/chess_search_compiled.py b/chess_search_compiled.py
+index 639f86c..691697f 100644
+--- a/chess_search_compiled.py
++++ b/chess_search_compiled.py
+@@ -465,6 +465,14 @@ def put(ctx: Any, key: np.uint64, depth: int, score: int, flag: int, move: int,
+         )
+ 
+ 
++@njit(cache=False)
++def put_quiet(table: Any, key: np.uint64, score: int, flag: int, move: int, ply: int) -> None:
++    """Remember a completed tactical leaf without replacing a deeper search."""
++    index = np.int64(key & np.uint64(table.mask))
++    if table.flags[index] < 0 or table.depths[index] <= 0:
++        put(table, key, 0, score, flag, move, ply)
++
++
+ @njit(cache=False)
+ def tick(ctx: Any) -> bool:
+     ctx.nodes += 1
+@@ -487,6 +495,10 @@ def qsearch(
+         return 0
+     if is_draw(s, key, ctx):
+         return draw_score(ply)
++    original_alpha = alpha
++    score, ttmove, hit = probe(ctx.table, key, 0, alpha, beta, ply)
++    if hit:
++        return score
+     f, t, p, n = legal(s)
+     if n == 0:
+         return -(MATE - ply) if incheck else draw_score(ply)
+@@ -496,10 +508,12 @@ def qsearch(
+     else:
+         stand = evaluate(s, n, ctx)
+         if stand >= beta:
++            put_quiet(ctx.table, key, stand, 1, NO_MOVE, ply)
+             return stand
+         alpha = max(alpha, stand)
+         best = stand
+-    moves, caps, count = ordered(s, f, t, p, n, ctx, NO_MOVE, ply, True, incheck)
++    bestmove = NO_MOVE
++    moves, caps, count = ordered(s, f, t, p, n, ctx, ttmove, ply, True, incheck)
+     for i in range(count):
+         ff, tt, pp = unpack(moves[i])
+         if not incheck and caps[i] and (not pp):
+@@ -520,10 +534,16 @@ def qsearch(
+             del ctx.seen[childkey]
+         if ctx.aborted:
+             return 0
+-        best = max(best, score)
++        if score > best:
++            best, bestmove = score, moves[i]
+         alpha = max(alpha, score)
+         if alpha >= beta:
+             break
++    flag = 2 if best <= original_alpha else 1 if best >= beta else 0
++    # Delta pruning can leave best below the true tactical value on a fail-low.
++    # The window edge is the usable upper bound; the returned estimate is not.
++    bound = original_alpha if flag == 2 else best
++    put_quiet(ctx.table, key, bound, flag, bestmove, ply)
+     return best
+ 
+ 

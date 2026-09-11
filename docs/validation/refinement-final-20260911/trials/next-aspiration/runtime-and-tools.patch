@@ -1,0 +1,22 @@
+diff --git a/chess_search.py b/chess_search.py
+index dc11060..a6bdf62 100644
+--- a/chess_search.py
++++ b/chess_search.py
+@@ -872,7 +872,7 @@ class Search:
+         alpha: int,
+         beta: int,
+     ) -> tuple[int, int, list[tuple[chess.Move, int]]]:
+-        """One full-width pass over every root move at the given (alpha, beta) window. Returns
++        """Search root moves until the pass completes or the window fails high. Returns
+         (best_move_packed, best_score, scored) -- best_score may fall outside (alpha, beta),
+         which the caller (search_root) checks to decide whether to re-search with a wider
+         window (a false narrow-window result is not trustworthy, only the fact that it needs
+@@ -925,6 +925,8 @@ class Search:
+                 best_move = packed
+             if score > window_alpha:
+                 window_alpha = score
++            if window_alpha >= beta:
++                break
+ 
+         return best_move, best_score, scored
+ 

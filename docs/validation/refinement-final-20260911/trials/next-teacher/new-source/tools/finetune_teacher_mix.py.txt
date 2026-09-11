@@ -1,0 +1,196 @@
+"""Fine-tune this team's network on fresh offline labels mixed with original data."""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import time
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+
+from tools.halfkp_data import RECORD, file_hash
+from tools.train_halfkp_stream import HalfKPTrainNet, resource_snapshot, tensors, validate
+from tools.train_phaseheads import HalfKPTrainNet as PhaseNet
+
+
+def load_split(root: Path, manifest: dict[str, Any], name: str) -> np.ndarray:
+    arrays = [np.load(root / shard["path"], allow_pickle=False) for shard in manifest[name]]
+    return np.concatenate(arrays)
+
+
+def sample_old(root: Path, manifest: dict[str, Any], rng: np.random.Generator) -> np.ndarray:
+    arrays = []
+    for index, shard in enumerate(manifest["train"]):
+        source = np.load(root / shard["path"], mmap_mode="r", allow_pickle=False)
+        count = round(1_000_000 * len(source) / manifest["train_rows"])
+        if count:
+            # One random circular window per shard has equal inclusion
+            # probability and avoids paging the entire 19 GB source cache.
+            start = int(rng.integers(len(source)))
+            if start + count <= len(source):
+                arrays.append(source[start:start + count].copy())
+            else:
+                arrays.append(np.concatenate((source[start:],
+                                              source[:start + count - len(source)])))
+        if index % 100 == 0:
+            print(json.dumps({"event": "sample_old", "shard": index,
+                              "shards": len(manifest["train"])}), flush=True)
+    result = np.concatenate(arrays)
+    assert result.dtype == RECORD and np.all(result["bucket"] >= 10)
+    return result
+
+
+def evaluate_rows(model: HalfKPTrainNet, rows: np.ndarray, device: torch.device) -> float:
+    model.eval()
+    total = 0.0
+    with torch.no_grad():
+        for start in range(0, len(rows), 8192):
+            white, black, offsets, stm, target = tensors(rows[start:start + 8192], device)
+            total += float(((model(white, black, offsets, stm).sigmoid() - target) ** 2).sum())
+    return total / len(rows)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--parent", type=Path, required=True)
+    parser.add_argument("--prepared", type=Path, required=True)
+    parser.add_argument("--teacher", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--architecture", choices=("halfkp", "phaseheads"), default="halfkp")
+    parser.add_argument("--epochs", type=int, default=60)
+    parser.add_argument("--lr", type=float, default=0.00003)
+    parser.add_argument("--ft-lr-scale", type=float, default=0.25)
+    parser.add_argument("--seed", type=int, default=20260919)
+    args = parser.parse_args()
+    assert not args.out.exists()
+    args.out.mkdir(parents=True)
+    print(json.dumps({"event": "initializing", "parent": str(args.parent)}), flush=True)
+    torch.set_num_threads(1)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    rng = np.random.default_rng(args.seed)
+    assert torch.cuda.is_available()
+    device = torch.device("cuda")
+    old_manifest = json.loads((args.prepared / "manifest.json").read_text())
+    new_manifest = json.loads((args.teacher / "manifest.json").read_text())
+    parent_note = json.loads((args.parent.parent / "run.json").read_text())
+    assert old_manifest["complete"] and new_manifest["complete"]
+    assert parent_note.get("lineage_random_initialization",
+                           parent_note.get("random_initialization"))
+    assert parent_note["published_network_used"] is False
+    assert parent_note["checkpoint_sha256"] == file_hash(args.parent)
+    assert parent_note["source_manifest_sha256"] == file_hash(args.prepared / "manifest.json")
+    model_class = PhaseNet if args.architecture == "phaseheads" else HalfKPTrainNet
+    model = model_class(128, True).to(device)
+    checkpoint = torch.load(args.parent, map_location="cpu", weights_only=True)
+    model.load_state_dict(checkpoint["state_dict"])
+    del checkpoint
+    teacher_train = load_split(args.teacher, new_manifest, "train")
+    teacher_validation = load_split(args.teacher, new_manifest, "validation")
+    assert len(teacher_train) >= 1000 and len(teacher_validation) >= 50
+    assert np.all(teacher_train["bucket"] >= 10)
+    assert np.all(teacher_validation["bucket"] < 10)
+    old_sample = sample_old(args.prepared, old_manifest, rng)
+    feature = [p for name, p in model.named_parameters() if not name.startswith("fc")]
+    heads = [p for name, p in model.named_parameters() if name.startswith("fc")]
+    optimizer = torch.optim.Adam([
+        {"params": feature, "lr": args.lr * args.ft_lr_scale},
+        {"params": heads, "lr": args.lr},
+    ])
+    steps = args.epochs * math.ceil(len(teacher_train) / 256)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lr_lambda=lambda step: 0.1 + 0.45 * (1 + math.cos(math.pi * step / steps)),
+    )
+    log = (args.out / "metrics.jsonl").open("w", encoding="utf8")
+
+    def report(value: dict[str, Any]) -> None:
+        value["unix"] = time.time()
+        text = json.dumps(value)
+        print(text, flush=True)
+        log.write(text + "\n")
+        log.flush()
+
+    baseline_old, old_rows = validate(model, args.prepared, old_manifest["validation"],
+                                      8192, device)
+    baseline_teacher = evaluate_rows(model, teacher_validation, device)
+    note = {
+        "seed": args.seed, "random_initialization": False,
+        "lineage_random_initialization": True, "published_network_used": False,
+        "parent_run": str((args.parent.parent / "run.json").resolve()),
+        "parent_checkpoint_sha256": file_hash(args.parent), "optimizer_reset": True,
+        "architecture": args.architecture, "width": 128, "factorization": True,
+        "source_manifest_sha256": file_hash(args.prepared / "manifest.json"),
+        "teacher_manifest_sha256": file_hash(args.teacher / "manifest.json"),
+        "teacher_source": str(args.teacher.resolve()),
+        "teacher_training_rows": len(teacher_train),
+        "teacher_validation_rows": len(teacher_validation),
+        "old_sample_rows": len(old_sample), "old_full_validation_rows": old_rows,
+        "old_sample_method": ("one random circular window per original shard, "
+                              "size proportional to shard rows"),
+        "mixture": "one teacher example to three original training examples",
+        "lr": args.lr, "feature_lr_scale": args.ft_lr_scale,
+        "selection": "lowest teacher held-out MSE subject to <=2% original held-out MSE regression",
+        "baseline_old_mse": baseline_old, "baseline_teacher_mse": baseline_teacher,
+        "epochs_planned": args.epochs,
+    }
+    report({"event": "start", **note})
+    (args.out / "run.json").write_text(json.dumps(note, indent=2))
+    best = baseline_teacher
+    best_old = baseline_old
+    best_epoch = 0
+
+    def save(epoch: int) -> None:
+        torch.save({"state_dict": model.state_dict(), "optimizer": optimizer.state_dict(),
+                    "scheduler": scheduler.state_dict(), "epoch": epoch, "seed": args.seed},
+                   args.out / "best_checkpoint.pt")
+        np.savez(args.out / "best_float.npz", allow_pickle=False, **model.export_arrays())
+
+    save(0)
+    started = time.monotonic()
+    rows_seen = 0
+    for epoch in range(1, args.epochs + 1):
+        resources = resource_snapshot()
+        if resources["ram_available_gb"] < 2:
+            report({"event": "memory_pause", "epoch": epoch, **resources})
+            while resource_snapshot()["ram_available_gb"] < 2:
+                time.sleep(2)
+            report({"event": "memory_resume", "epoch": epoch})
+        model.train()
+        order = rng.permutation(len(teacher_train))
+        for start in range(0, len(order), 256):
+            teacher = teacher_train[order[start:start + 256]]
+            original = old_sample[rng.integers(len(old_sample), size=3 * len(teacher))]
+            records = np.concatenate((teacher, original))
+            white, black, offsets, stm, target = tensors(records, device)
+            optimizer.zero_grad(set_to_none=True)
+            loss = ((model(white, black, offsets, stm).sigmoid() - target) ** 2).mean()
+            loss.backward()
+            optimizer.step()
+            model.constrain()
+            scheduler.step()
+            rows_seen += len(records)
+        if epoch % 5 == 0 or epoch == args.epochs:
+            new_value = evaluate_rows(model, teacher_validation, device)
+            old_value, _ = validate(model, args.prepared, old_manifest["validation"], 8192, device)
+            selected = new_value < best and old_value <= baseline_old * 1.02
+            if selected:
+                best, best_old, best_epoch = new_value, old_value, epoch
+                save(epoch)
+            report({"event": "validation", "epoch": epoch, "teacher_mse": new_value,
+                    "original_mse": old_value, "selected": selected, "rows_seen": rows_seen,
+                    "seconds": time.monotonic() - started})
+    note.update({"best_epoch": best_epoch, "best_teacher_mse": best,
+                 "best_validation_mse": best_old, "rows_trained": rows_seen,
+                 "training_seconds": time.monotonic() - started,
+                 "checkpoint_sha256": file_hash(args.out / "best_checkpoint.pt"),
+                 "float_weights_sha256": file_hash(args.out / "best_float.npz")})
+    (args.out / "run.json").write_text(json.dumps(note, indent=2))
+    report({"event": "complete", **note})
+    log.close()
+
+
+if __name__ == "__main__":
+    main()

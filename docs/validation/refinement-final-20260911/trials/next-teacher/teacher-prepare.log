@@ -1,0 +1,3 @@
+usage: halfkp_data.py [-h] --data DATA [DATA ...] --out OUT
+                      [--shard-rows SHARD_ROWS] [--limit LIMIT]
+halfkp_data.py: error: the following arguments are required: --data

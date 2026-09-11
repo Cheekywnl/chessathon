@@ -51,7 +51,8 @@ def load_weights(path: str | Path) -> QuantizedWeights:
                 raise ValueError(f"invalid HalfKP tensor: {key}")
         scale2, scale3 = int(data["scale2"]), int(data["scale3"])
         divisor = float(data["output_divisor"])
-        if min(scale2, scale3) < 1 or not np.isfinite(divisor) or divisor <= 0:
+        if (min(scale2, scale3) < 1 or max(scale2, scale3) > 32768
+                or not np.isfinite(divisor) or divisor <= 0):
             raise ValueError("invalid HalfKP quantization scales")
         bound = 30 * np.abs(w1.astype(np.int32)).max(axis=0)
         bound += np.abs(data["b1"].astype(np.int32))
@@ -161,6 +162,70 @@ def evaluate(
                                   white, black, white_indices, black_indices)
     return round(forward(white_indices, black_indices, count, stm,
                          w1, b1, w2, b2, w3, b3, w4, b4, scale2, scale3, output_divisor))
+
+
+@njit(cache=False, inline="always")
+def clip_scaled(total: int | np.int32, scale: int, reciprocal: float) -> int:
+    """Exact clipped floor division, with a corrected reciprocal estimate.
+
+    The only interior numerators lie in (0, 255*scale), below 2**24 for every
+    supported scale. The double-precision estimate is at most one integer off;
+    multiplication checks correct either direction, including exact multiples.
+    """
+    numerator = np.int64(total) + scale // 2
+    if numerator <= 0:
+        return 0
+    if numerator >= 255 * scale:
+        return 255
+    quotient = int(numerator * reciprocal)
+    if quotient * scale > numerator:
+        quotient -= 1
+    elif (quotient + 1) * scale <= numerator:
+        quotient += 1
+    return quotient
+
+
+@njit(cache=False, inline="always")
+def binary_scale_shift(scale: int) -> int:
+    shift = 0
+    while scale > 1 and scale % 2 == 0:
+        scale //= 2
+        shift += 1
+    return shift if scale == 1 else -1
+
+
+@njit(cache=False, inline="always")
+def clip_dense(total: int | np.int32, scale: int, reciprocal: float, shift: int) -> int:
+    if shift >= 0:
+        return min(255, max(0, int((np.int64(total) + scale // 2) >> shift)))
+    return clip_scaled(total, scale, reciprocal)
+
+
+@njit(cache=False)
+def forward_scratch(
+    own: np.ndarray, other: np.ndarray, w2: np.ndarray, b2: np.ndarray,
+    w3: np.ndarray, b3: np.ndarray, w4: np.ndarray, b4: int,
+    scale2: int, scale3: int, output_divisor: float,
+    inverse2: float, inverse3: float, shift2: int, shift3: int,
+    h1: np.ndarray, h2: np.ndarray,
+) -> float:
+    """Dense inference using buffers owned exclusively by this Search context."""
+    width = len(own)
+    for j in range(32):
+        total = np.int32(b2[j])
+        for k in range(width):
+            total = np.int32(total + np.int32(w2[j, k]) * np.int32(own[k])
+                             + np.int32(w2[j, width + k]) * np.int32(other[k]))
+        h1[j] = clip_dense(total, scale2, inverse2, shift2)
+    for j in range(32):
+        total = np.int32(b3[j])
+        for k in range(32):
+            total = np.int32(total + np.int32(w3[j, k]) * np.int32(h1[k]))
+        h2[j] = clip_dense(total, scale3, inverse3, shift3)
+    output = b4
+    for k in range(32):
+        output += int(w4[k]) * int(h2[k])
+    return output / output_divisor
 
 
 def warm_up(w: QuantizedWeights) -> None:

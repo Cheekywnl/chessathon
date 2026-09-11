@@ -1,0 +1,8 @@
+{
+  "positions": 39668,
+  "in_check": 9526,
+  "double_checks": 14,
+  "en_passant_available": 94,
+  "promotion_available": 817,
+  "independent_legal_move_mismatches": 0
+}

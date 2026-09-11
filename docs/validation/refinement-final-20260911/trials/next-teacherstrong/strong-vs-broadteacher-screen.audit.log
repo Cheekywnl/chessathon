@@ -1,0 +1,40 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    15000,
+    200
+  ],
+  "wins": 5,
+  "draws": 16,
+  "losses": 19,
+  "score": 0.325,
+  "terminations": {
+    "checkmate": 24,
+    "threefold_repetition": 14,
+    "fifty_moves": 1,
+    "insufficient_material": 1
+  },
+  "pair_score_counts": {
+    "0.0": 3,
+    "1.0": 7,
+    "0.5": 9,
+    "1.5": 1
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacherstrong\\data\\runs\\strong-vs-broadteacher-screen.jsonl": "a272fc51a58c0eca59231b7237a227a2658b4e655254a8d746de82ee566a0ce3"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "ee2cefa061497d60e2a3777cdcb431eba7eb6fff56160f4f5ffa29ab60f496d1",
+      "3ba80063d3aeefa78424ad86bd1f0166e7e2990ea2c21690f520a10a0ac0d731"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 593571840,
+  "maximum_recorded_init_seconds": 54.32800000000134,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

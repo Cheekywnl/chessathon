@@ -1,0 +1,11 @@
+import json,subprocess,sys
+from pathlib import Path
+root=Path(__file__).resolve().parent
+items=[('next-combo128','combo-vs-penultimate-screen-v2'),('next-combo64','combo64-vs-combo128-screen-v2'),('next-broadteacher','broadteacher-vs-combo128-screen-v2'),('next-history','history-vs-broadteacher-screen'),('next-teacherstrong','strong-vs-broadteacher-screen'),('next-teacher192','teacher192-vs-broadteacher-screen')]
+for folder,name in items:
+    path=root/folder/'data/runs'/name
+    out=path.with_suffix('.evidence.json')
+    with path.with_suffix('.audit.log').open('w') as f:
+        subprocess.run([sys.executable,'-m','tools.match_evidence',str(path.with_suffix('.jsonl')),'--out',str(out)],cwd=root/'final-refinement',stdout=f,stderr=subprocess.STDOUT,check=True)
+    result=json.loads(out.read_text())
+    print(folder,{k:result[k] for k in ('games','wins','draws','losses','score','legal_pgn_replay','candidate_failure_or_fallback_markers')},flush=True)

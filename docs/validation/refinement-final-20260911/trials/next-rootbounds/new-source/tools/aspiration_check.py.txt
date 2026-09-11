@@ -1,0 +1,113 @@
+"""Exercise fail-high root windows and measure iterative search on fixed positions."""
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+import chess
+
+import chess_search as cs
+
+
+def load(path: Path) -> Any:
+    spec = importlib.util.spec_from_file_location("aspiration_reference", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def synthetic(module: Any, mode: str) -> dict[str, Any]:
+    board = chess.Board()
+    state = cs.state_from_board(board)
+    moves = [cs.cst.pack_move(m.from_square, m.to_square, m.promotion or 0)
+             for m in list(board.legal_moves)[:3]]
+    search = module.Search(module.TranspositionTable(8), {cs.hash_of_board(board): 1})
+    windows: list[tuple[int, int]] = []
+    values = {}
+    for index, move in enumerate(list(board.legal_moves)[:3]):
+        child = board.copy()
+        child.push(move)
+        values[cs.hash_of_board(child)] = 100 + 100 * index
+
+    def probe(s: Any, depth: int, alpha: int, beta: int, ply: int,
+              **kwargs: Any) -> int:
+        windows.append((alpha, beta))
+        return -values[kwargs["key"]]
+
+    search.negamax = probe
+    if mode == "draw_ceiling":
+        search.root_draw_claims = {int(move): 2 for move in moves}
+    if mode == "repeated":
+        search.root_repeated_moves = set(moves)
+    beta = 75 if mode == "repeated" else 25
+    result = search._search_root_pass(state, [(int(m), False) for m in moves], 4, -25, beta)
+    assert {k: v for k, v in search.seen.items() if v} == {cs.hash_of_board(board): 1}
+    return {"mode": mode, "windows": windows, "invalid_windows": sum(a >= b for a, b in windows),
+            "root_moves_searched": len(result[2]), "score": result[1]}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument("--openings", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    reference = load(args.reference)
+    tests = {name: [synthetic(module, mode) for mode in ("fail_high", "draw_ceiling", "repeated")]
+             for name, module in (("before", reference), ("after", cs))}
+    assert tests["before"][0]["invalid_windows"] > 0
+    assert tests["after"][0]["root_moves_searched"] == 3
+    assert all(row["invalid_windows"] == 0 for row in tests["after"])
+    assert all(row["root_moves_searched"] == 3 for row in tests["after"][1:])
+    print(json.dumps(tests), flush=True)
+    records = []
+    for index, position in enumerate(json.loads(args.openings.read_text())["positions"][:12]):
+        board = chess.Board(position["fen"])
+        row: dict[str, Any] = {"fen": board.fen(), "index": index}
+        for name, module in (("before", reference), ("after", cs))[::1 if index % 2 else -1]:
+            search = module.Search(module.TranspositionTable(18), {cs.hash_of_board(board): 1})
+            original = search.negamax
+            invalid: list[tuple[int, int]] = []
+
+            def checked(s: Any, depth: int, alpha: int, beta: int, ply: int,
+                        _invalid: list[tuple[int, int]] = invalid, _original: Any = original,
+                        **kwargs: Any) -> int:
+                if alpha >= beta:
+                    _invalid.append((alpha, beta))
+                return int(_original(s, depth, alpha, beta, ply, **kwargs))
+
+            search.negamax = checked
+            previous = None
+            depths = []
+            started = time.perf_counter()
+            for depth in range(1, 10):
+                result = search.search_root(board, depth, time.monotonic() + 120, previous)
+                assert result[0] in board.legal_moves
+                previous = result[1]
+                depths.append({"depth": depth, "move": result[0].uci(), "score": result[1],
+                               "nodes": search.nodes})
+            row[name] = {"seconds": time.perf_counter() - started, "nodes": search.nodes,
+                         "invalid_windows": invalid, "depths": depths}
+            assert {k: v for k, v in search.seen.items() if v} == {cs.hash_of_board(board): 1}
+        assert not row["after"]["invalid_windows"]
+        records.append(row)
+        print(json.dumps(row), flush=True)
+    summary = {"synthetic": tests, "records": records,
+               "before_seconds": sum(row["before"]["seconds"] for row in records),
+               "after_seconds": sum(row["after"]["seconds"] for row in records),
+               "before_nodes": sum(row["before"]["nodes"] for row in records),
+               "after_nodes": sum(row["after"]["nodes"] for row in records),
+               "playing_strength_validated": False}
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(summary, indent=2) + "\n")
+    print(json.dumps({k: v for k, v in summary.items() if k not in ("records", "synthetic")}),
+          flush=True)
+
+
+if __name__ == "__main__":
+    main()

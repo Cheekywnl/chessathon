@@ -1,0 +1,16 @@
+{
+  "positions": 20,
+  "depths_per_position": 9,
+  "exact_runs": 4,
+  "all_moves_scores_nodes_rankings_tt_and_heuristics_identical": true,
+  "before_seconds": 46.30580560000817,
+  "after_seconds": 40.570846199996595,
+  "speed_ratio": 1.1413566621642726,
+  "order": [
+    "before-a",
+    "after-a",
+    "after-b",
+    "before-b"
+  ],
+  "playing_strength_validated": false
+}

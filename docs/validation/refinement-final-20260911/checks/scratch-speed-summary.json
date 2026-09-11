@@ -1,0 +1,22 @@
+{
+  "order": [
+    "before-a",
+    "after-a",
+    "after-b",
+    "before-b"
+  ],
+  "positions": 20,
+  "depth": 9,
+  "nodes_each_run": 3928813,
+  "mismatches": 0,
+  "before_seconds": 35.74915950002469,
+  "after_seconds": 33.13438669995958,
+  "speed_ratio": 1.0789141752869174,
+  "seconds_by_run": {
+    "before-a": 18.98189210000419,
+    "after-a": 16.20156899998983,
+    "after-b": 16.932817699969746,
+    "before-b": 16.7672674000205
+  },
+  "playing_strength_validated": false
+}

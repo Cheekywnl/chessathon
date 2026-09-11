@@ -1,0 +1,1 @@
+{"failure_classification": "init", "failed_child_tree_killed": true, "success_protocol_unchanged": true, "diagnostics": {"available_bytes_before": 3904286720, "failure": "init", "seconds": 0.7819999999992433, "available_bytes_after": 3889143808, "stdout_buffer": "", "stderr_buffer": "child_pid=26276\r\n", "returncode": null}}

@@ -1,0 +1,122 @@
+"""Check bit scans, legal move order and feature indices against independent sources."""
+from __future__ import annotations
+
+import argparse
+import csv
+import importlib.util
+import json
+import random
+import time
+from pathlib import Path
+from typing import Any
+
+import chess
+import numpy as np
+from numba import njit
+
+import chess_eval as ce
+import chess_movegen as mg
+import chess_nnue_halfkp as features
+from chess_bits import lsb_index, popcount
+
+
+def load(name: str, path: Path) -> Any:
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    result = importlib.util.module_from_spec(spec)
+    import sys
+    sys.modules[name] = result
+    spec.loader.exec_module(result)
+    return result
+
+
+@njit
+def scan_all(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    indices = np.empty(len(values), dtype=np.int64)
+    counts = np.empty(len(values), dtype=np.int64)
+    for i in range(len(values)):
+        indices[i] = lsb_index(values[i])
+        counts[i] = popcount(values[i])
+    return indices, counts
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument("--heldout", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    original = load("original_movegen", args.reference / "chess_movegen.py")
+    original_features = load("original_features", args.reference / "chess_nnue_halfkp.py")
+    original_eval = load("original_evaluation", args.reference / "chess_eval.py")
+    rng = random.Random(20260911)
+    values = np.asarray([0, 2**64 - 1] + [1 << bit for bit in range(64)] +
+                        [rng.getrandbits(64) for _ in range(100000)], dtype=np.uint64)
+    indices, counts = scan_all(values)
+    for value, index, count in zip(values.tolist(), indices.tolist(), counts.tolist(), strict=True):
+        assert count == value.bit_count()
+        assert index == ((value & -value).bit_length() - 1 if value else 64)
+    print(f"Bit primitives exact for {len(values)} words", flush=True)
+    boards = [chess.Board()]
+    with args.heldout.open(newline="") as stream:
+        for index, row in enumerate(csv.DictReader(stream)):
+            if index >= 10000:
+                break
+            board = chess.Board(row["fen"])
+            if board.is_valid():
+                boards.append(board)
+    board = chess.Board()
+    for index in range(20000):
+        if board.is_game_over() or index % 200 == 0:
+            board = chess.Board()
+        board.push(rng.choice(list(board.legal_moves)))
+        boards.append(board.copy(stack=False))
+    boards += [chess.Board(fen) for fen in (
+        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+        "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1",
+        "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        "4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1",
+        "1r2k3/P7/8/8/8/8/7p/4K3 w - - 0 1",
+        "4k3/7P/8/8/8/8/p7/1R2K3 b - - 0 1",
+    )]
+    feature_arrays = [np.empty(30, dtype=np.int64) for _ in range(4)]
+    moves_checked = 0
+    started = time.perf_counter()
+    for index, board in enumerate(boards):
+        raw: Any = tuple(np.uint64(v) for v in (board.pawns, board.knights, board.bishops,
+                    board.rooks, board.queens, board.kings, board.occupied_co[chess.WHITE],
+                    board.occupied_co[chess.BLACK]))
+        extra: Any = (board.turn, np.uint64(board.clean_castling_rights()),
+                 board.ep_square if board.ep_square is not None else -1)
+        before = original.generate_legal_moves_bb(*raw, *extra)
+        after = mg.generate_legal_moves_bb(*raw, *extra)
+        assert before[3] == after[3]
+        for a, b in zip(before[:3], after[:3], strict=True):
+            assert np.array_equal(a[:before[3]], b[:after[3]]), (index, board.fen())
+        actual = {chess.Move(int(after[0][i]), int(after[1][i]), int(after[2][i]) or None)
+                  for i in range(after[3])}
+        assert actual == set(board.legal_moves), (index, board.fen(), actual)
+        moves_checked += after[3]
+        n_before = original_features.active_features_halfkp(*raw, *feature_arrays[:2])
+        n_after = features.active_features_halfkp(*raw, *feature_arrays[2:])
+        assert n_before == n_after
+        for a, b in zip(feature_arrays[:2], feature_arrays[2:], strict=True):
+            assert np.array_equal(a[:n_before], b[:n_after]), (index, board.fen())
+        eval_args: Any = (*raw, ce.MG_PST, ce.EG_PST, ce.PASSED_MASK_WHITE, ce.PASSED_MASK_BLACK,
+                     ce.FILE_MASK, ce.ADJACENT_FILE_MASK,
+                     int(board.has_kingside_castling_rights(chess.WHITE)) +
+                     int(board.has_queenside_castling_rights(chess.WHITE)),
+                     int(board.has_kingside_castling_rights(chess.BLACK)) +
+                     int(board.has_queenside_castling_rights(chess.BLACK)), ce.DEFAULT_PARAMS)
+        assert original_eval.evaluate(*eval_args) == ce.evaluate(*eval_args), board.fen()
+    result = {"primitive_words": len(values), "positions": len(boards),
+              "legal_moves": moves_checked, "ordered_move_arrays_exact": True,
+              "independent_referee_agrees": True, "feature_arrays_exact": True,
+              "classical_evaluation_exact": True,
+              "seconds": time.perf_counter() - started, "playing_strength_validated": False}
+    args.out.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result), flush=True)
+
+
+if __name__ == "__main__":
+    main()

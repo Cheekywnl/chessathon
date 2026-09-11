@@ -1,0 +1,2 @@
+chess_halfkp_int.py:200: error: Argument 1 to "int" has incompatible type "int | SupportsDunderLT[Any] | SupportsDunderGT[Any]"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+Found 1 error in 1 file (checked 57 source files)

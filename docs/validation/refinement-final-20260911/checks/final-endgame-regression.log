@@ -1,0 +1,18 @@
+move=c1d1 depth=14 score=225 nodes=334298 ms=500 time_left_ms=20000
+move=b8c7 depth=14 score=225 nodes=467968 ms=703 time_left_ms=20000
+move=c7b6 depth=16 score=225 nodes=483328 ms=703 time_left_ms=20000
+move=b6a7 depth=16 score=225 nodes=485376 ms=718 time_left_ms=20000
+move=a7b6 depth=17 score=225 nodes=539648 ms=734 time_left_ms=20000
+move=b6c6 depth=17 score=236 nodes=416569 ms=609 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=c6b5 depth=17 score=236 nodes=397458 ms=578 time_left_ms=20000
+move=b5a6 depth=18 score=225 nodes=539691 ms=766 time_left_ms=20000
+draw_claims=1 complete=1 ms=0.0
+move=a6b5 depth=20 score=225 nodes=545792 ms=797 time_left_ms=20000
+move=b5a6 depth=16 score=50 nodes=363799 ms=438 time_left_ms=20000
+draw_claims=2 complete=1 ms=0.0
+move=a6b5 depth=64 score=-20 nodes=0 ms=0 time_left_ms=20000
+Lucena position: FAIL (threefold_repetition)
+  The contempt commit (e73bfb9) explicitly flagged this as unfixed: 'needs the actual bridge technique, not a small scoring nudge.' Confirmed independently before this file existed: plain search (no agent.py) draws by repetition at ply 13 every time. The repetition backstop (471a3fb, fixed in bbfc5bb) resolves it as a side effect -- not because the engine knows the bridge technique by name, but because it refuses the draw and keeps trying alternatives until one actually wins.
+
+0/1 endgame regression positions passed

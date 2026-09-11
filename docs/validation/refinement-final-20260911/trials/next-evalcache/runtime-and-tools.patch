@@ -1,0 +1,529 @@
+diff --git a/chess_eval.py b/chess_eval.py
+index 0f42f09..0ad93fe 100644
+--- a/chess_eval.py
++++ b/chess_eval.py
+@@ -20,6 +20,8 @@ import chess
+ import numpy as np
+ from numba import njit
+ 
++from chess_bits import lsb_index, popcount
++
+ Bitboard = np.uint64
+ 
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+@@ -172,11 +174,7 @@ ADJACENT_FILE_MASK = _adjacent_file_masks()
+ 
+ @njit(cache=False)
+ def _popcount(bb: np.uint64) -> int:
+-    count = 0
+-    while bb:
+-        bb &= bb - np.uint64(1)
+-        count += 1
+-    return count
++    return popcount(bb)
+ 
+ 
+ @njit(cache=False)
+@@ -220,7 +218,9 @@ def evaluate(
+             bishop_count_w = w_count
+             bishop_count_b = b_count
+ 
+-        for square in range(64):
++        while bb:
++            square = lsb_index(bb)
++            bb &= bb - np.uint64(1)
+             mask = np.uint64(1) << np.uint64(square)
+             if w_bb & mask:
+                 if piece_type != KING:
+diff --git a/chess_halfkp_int.py b/chess_halfkp_int.py
+index 0cc68a2..35b3898 100644
+--- a/chess_halfkp_int.py
++++ b/chess_halfkp_int.py
+@@ -51,7 +51,8 @@ def load_weights(path: str | Path) -> QuantizedWeights:
+                 raise ValueError(f"invalid HalfKP tensor: {key}")
+         scale2, scale3 = int(data["scale2"]), int(data["scale3"])
+         divisor = float(data["output_divisor"])
+-        if min(scale2, scale3) < 1 or not np.isfinite(divisor) or divisor <= 0:
++        if (min(scale2, scale3) < 1 or max(scale2, scale3) > 32768
++                or not np.isfinite(divisor) or divisor <= 0):
+             raise ValueError("invalid HalfKP quantization scales")
+         bound = 30 * np.abs(w1.astype(np.int32)).max(axis=0)
+         bound += np.abs(data["b1"].astype(np.int32))
+@@ -163,6 +164,70 @@ def evaluate(
+                          w1, b1, w2, b2, w3, b3, w4, b4, scale2, scale3, output_divisor))
+ 
+ 
++@njit(cache=False, inline="always")
++def clip_scaled(total: int | np.int32, scale: int, reciprocal: float) -> int:
++    """Exact clipped floor division, with a corrected reciprocal estimate.
++
++    The only interior numerators lie in (0, 255*scale), below 2**24 for every
++    supported scale. The double-precision estimate is at most one integer off;
++    multiplication checks correct either direction, including exact multiples.
++    """
++    numerator = np.int64(total) + scale // 2
++    if numerator <= 0:
++        return 0
++    if numerator >= 255 * scale:
++        return 255
++    quotient = int(numerator * reciprocal)
++    if quotient * scale > numerator:
++        quotient -= 1
++    elif (quotient + 1) * scale <= numerator:
++        quotient += 1
++    return quotient
++
++
++@njit(cache=False, inline="always")
++def binary_scale_shift(scale: int) -> int:
++    shift = 0
++    while scale > 1 and scale % 2 == 0:
++        scale //= 2
++        shift += 1
++    return shift if scale == 1 else -1
++
++
++@njit(cache=False, inline="always")
++def clip_dense(total: int | np.int32, scale: int, reciprocal: float, shift: int) -> int:
++    if shift >= 0:
++        return min(255, max(0, int((np.int64(total) + scale // 2) >> shift)))
++    return clip_scaled(total, scale, reciprocal)
++
++
++@njit(cache=False)
++def forward_scratch(
++    own: np.ndarray, other: np.ndarray, w2: np.ndarray, b2: np.ndarray,
++    w3: np.ndarray, b3: np.ndarray, w4: np.ndarray, b4: int,
++    scale2: int, scale3: int, output_divisor: float,
++    inverse2: float, inverse3: float, shift2: int, shift3: int,
++    h1: np.ndarray, h2: np.ndarray,
++) -> float:
++    """Dense inference using buffers owned exclusively by this Search context."""
++    width = len(own)
++    for j in range(32):
++        total = np.int32(b2[j])
++        for k in range(width):
++            total = np.int32(total + np.int32(w2[j, k]) * np.int32(own[k])
++                             + np.int32(w2[j, width + k]) * np.int32(other[k]))
++        h1[j] = clip_dense(total, scale2, inverse2, shift2)
++    for j in range(32):
++        total = np.int32(b3[j])
++        for k in range(32):
++            total = np.int32(total + np.int32(w3[j, k]) * np.int32(h1[k]))
++        h2[j] = clip_dense(total, scale3, inverse3, shift3)
++    output = b4
++    for k in range(32):
++        output += int(w4[k]) * int(h2[k])
++    return output / output_divisor
++
++
+ def warm_up(w: QuantizedWeights) -> None:
+     evaluate(np.uint64(0x00FF00000000FF00), np.uint64(0x4200000000000042),
+              np.uint64(0x2400000000000024), np.uint64(0x8100000000000081),
+diff --git a/chess_movegen.py b/chess_movegen.py
+index f5dd016..1109023 100644
+--- a/chess_movegen.py
++++ b/chess_movegen.py
+@@ -34,6 +34,8 @@ import chess
+ import numpy as np
+ from numba import njit
+ 
++from chess_bits import lsb_index
++
+ WHITE, BLACK = True, False
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+ 
+@@ -335,10 +337,8 @@ def _would_be_legal(
+     )
+     if from_sq == king_sq:
+         king_bb = nkings & (nwhite if moving_white else nblack)
+-        for s in range(64):
+-            if king_bb & _bit(s):
+-                king_sq = s
+-                break
++        if king_bb:
++            king_sq = lsb_index(king_bb)
+     return not is_square_attacked(
+         king_sq, not moving_white,
+         npawns, nknights, nbishops, nrooks, nqueens, nkings, nwhite, nblack,
+@@ -371,11 +371,7 @@ def generate_legal_moves_bb(
+     enemy = black if turn else white
+ 
+     king_bb = kings & own
+-    king_sq = 0
+-    for s in range(64):
+-        if king_bb & _bit(s):
+-            king_sq = s
+-            break
++    king_sq = lsb_index(king_bb) if king_bb else 0
+ 
+     checkers, pinned, pin_rays = compute_pins_and_checkers(
+         pawns, knights, bishops, rooks, queens, white, black, turn, king_sq
+@@ -397,14 +393,14 @@ def generate_legal_moves_bb(
+             piece_bb = rooks & own
+         else:
+             piece_bb = queens & own
+-        for from_sq in range(64):
+-            if not (piece_bb & _bit(from_sq)):
+-                continue
++        while piece_bb:
++            from_sq = lsb_index(piece_bb)
++            piece_bb &= piece_bb - np.uint64(1)
+             targets = attacks_from(from_sq, piece_type, turn, occupied) & ~own
+             is_pinned = pinned & _bit(from_sq) != 0
+-            for to_sq in range(64):
+-                if not (targets & _bit(to_sq)):
+-                    continue
++            while targets:
++                to_sq = lsb_index(targets)
++                targets &= targets - np.uint64(1)
+                 if in_check:
+                     legal = _would_be_legal(
+                         pawns, knights, bishops, rooks, queens, kings, white, black,
+@@ -422,8 +418,10 @@ def generate_legal_moves_bb(
+ 
+     # King moves.
+     king_targets = KING_ATTACKS[king_sq] & ~own
+-    for to_sq in range(64):
+-        if king_targets & _bit(to_sq) and _would_be_legal(
++    while king_targets:
++        to_sq = lsb_index(king_targets)
++        king_targets &= king_targets - np.uint64(1)
++        if _would_be_legal(
+             pawns, knights, bishops, rooks, queens, kings, white, black,
+             king_sq, to_sq, 0, 0, turn, king_sq,
+         ):
+@@ -436,18 +434,19 @@ def generate_legal_moves_bb(
+     # Same fast/slow split as above for everything except en passant, which always uses the
+     # slow path below (the classic en passant pin needs the full make-and-test).
+     pawn_bb = pawns & own
+-    for from_sq in range(64):
+-        if not (pawn_bb & _bit(from_sq)):
+-            continue
++    pawn_sources = pawn_bb
++    while pawn_sources:
++        from_sq = lsb_index(pawn_sources)
++        pawn_sources &= pawn_sources - np.uint64(1)
+         rank = from_sq // 8
+         promo_rank = 7 if turn else 0
+         is_pinned = pinned & _bit(from_sq) != 0
+ 
+         capture_table = PAWN_ATTACKS_WHITE if turn else PAWN_ATTACKS_BLACK
+         capture_targets = capture_table[from_sq] & enemy
+-        for to_sq in range(64):
+-            if not (capture_targets & _bit(to_sq)):
+-                continue
++        while capture_targets:
++            to_sq = lsb_index(capture_targets)
++            capture_targets &= capture_targets - np.uint64(1)
+             if in_check:
+                 legal = _would_be_legal(
+                     pawns, knights, bishops, rooks, queens, kings, white, black,
+@@ -519,8 +518,10 @@ def generate_legal_moves_bb(
+     if ep_square >= 0:
+         ep_table = PAWN_ATTACKS_BLACK if turn else PAWN_ATTACKS_WHITE
+         capturers = ep_table[ep_square] & pawn_bb
+-        for from_sq in range(64):
+-            if capturers & _bit(from_sq) and _would_be_legal(
++        while capturers:
++            from_sq = lsb_index(capturers)
++            capturers &= capturers - np.uint64(1)
++            if _would_be_legal(
+                 pawns, knights, bishops, rooks, queens, kings, white, black,
+                 from_sq, ep_square, 0, 1, turn, king_sq,
+             ):
+diff --git a/chess_nnue_halfkp.py b/chess_nnue_halfkp.py
+index 7c18f7e..9d0725f 100644
+--- a/chess_nnue_halfkp.py
++++ b/chess_nnue_halfkp.py
+@@ -33,6 +33,8 @@ from pathlib import Path
+ import numpy as np
+ from numba import njit
+ 
++from chess_bits import lsb_index
++
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+ 
+ INPUT_SIZE = 40_960
+@@ -86,23 +88,19 @@ def active_features_halfkp(
+     position's active HalfKP feature indices per perspective, returns how many were written.
+     Piece-type numbering matches tools/train_nnue_halfkp.py exactly: PAWN=0, KNIGHT=1, BISHOP=2,
+     ROOK=3, QUEEN=4 (kings are never their own feature, only the per-perspective anchor)."""
+-    white_king_sq = 0
+-    black_king_sq = 0
+-    for s in range(64):
+-        bit = np.uint64(1) << np.uint64(s)
+-        if kings & white & bit:
+-            white_king_sq = s
+-        if kings & black & bit:
+-            black_king_sq = s
++    white_king_sq = lsb_index(kings & white) if kings & white else 0
++    black_king_sq = lsb_index(kings & black) if kings & black else 0
+     black_king_mirrored = black_king_sq ^ 56
+ 
+     piece_bb = (pawns, knights, bishops, rooks, queens)
+     n = 0
+     for piece_type in range(5):
+         bb = piece_bb[piece_type]
+-        for square in range(64):
++        while bb:
++            square = lsb_index(bb)
++            bb &= bb - np.uint64(1)
+             mask = np.uint64(1) << np.uint64(square)
+-            if bb & white & mask:
++            if white & mask:
+                 rel_color_white = 0
+                 white_out[n] = square + (piece_type * 2 + rel_color_white + white_king_sq * 10) * 64
+                 mirrored_square = square ^ 56
+@@ -110,7 +108,7 @@ def active_features_halfkp(
+                 bp_idx = piece_type * 2 + rel_color_black
+                 black_out[n] = mirrored_square + (bp_idx + black_king_mirrored * 10) * 64
+                 n += 1
+-            elif bb & black & mask:
++            elif black & mask:
+                 rel_color_white = 1
+                 white_out[n] = square + (piece_type * 2 + rel_color_white + white_king_sq * 10) * 64
+                 mirrored_square = square ^ 56
+diff --git a/chess_search_compiled.py b/chess_search_compiled.py
+index 639f86c..dd6d259 100644
+--- a/chess_search_compiled.py
++++ b/chess_search_compiled.py
+@@ -97,6 +97,23 @@ spec = [
+     ("acc_black", types.int32[::1]),
+     ("previous", types.uint64[::1]),
+     ("acc_valid", types.boolean),
++    ("king_sums", types.int32[:, :, ::1]),
++    ("king_positions", types.uint64[:, :, ::1]),
++    ("king_valid", types.boolean[:, ::1]),
++    ("clipped_white", types.int16[::1]),
++    ("clipped_black", types.int16[::1]),
++    ("hidden1", types.int16[::1]),
++    ("hidden2", types.int16[::1]),
++    ("inverse2", types.float64),
++    ("inverse3", types.float64),
++    ("shift2", types.int64),
++    ("shift3", types.int64),
++    ("eval_keys", types.uint64[::1]),
++    ("eval_scores", types.int32[::1]),
++    ("eval_valid", types.boolean[::1]),
++    ("eval_mask", types.int64),
++    ("eval_hits", types.int64),
++    ("eval_misses", types.int64),
+ ]
+ 
+ 
+@@ -136,6 +153,23 @@ class Context:
+         self.acc_black = np.zeros(len(b1), dtype=np.int32)
+         self.previous = np.zeros(8, dtype=np.uint64)
+         self.acc_valid = False
++        self.king_sums = np.zeros((2, 64, len(b1)), dtype=np.int32)
++        self.king_positions = np.zeros((2, 64, 8), dtype=np.uint64)
++        self.king_valid = np.zeros((2, 64), dtype=np.bool_)
++        self.clipped_white = np.empty(len(b1), dtype=np.int16)
++        self.clipped_black = np.empty(len(b1), dtype=np.int16)
++        self.hidden1 = np.empty(32, dtype=np.int16)
++        self.hidden2 = np.empty(32, dtype=np.int16)
++        self.inverse2, self.inverse3 = 1.0 / s2, 1.0 / s3
++        self.shift2, self.shift3 = qi.binary_scale_shift(s2), qi.binary_scale_shift(s3)
++        # Static evaluation is position-only for a fixed Search's weights and
++        # parameters. Keep it separate from selective search bounds and draws.
++        eval_size = 1 << 18
++        self.eval_keys = np.zeros(eval_size, dtype=np.uint64)
++        self.eval_scores = np.empty(eval_size, dtype=np.int32)
++        self.eval_valid = np.zeros(eval_size, dtype=np.bool_)
++        self.eval_mask = eval_size - 1
++        self.eval_hits, self.eval_misses = 0, 0
+ 
+ 
+ @njit(cache=False)
+@@ -283,16 +317,7 @@ def evaluate(s: State, mobility: int, ctx: Any) -> int:
+         or (not nonking & s[7])
+     ):
+         return classical
+-    # Full refresh is cheaper on sparse boards, where king moves and large
+-    # changes between sibling leaves can erase the benefit of cached sums.
+-    if ce._popcount(s[6] | s[7]) >= 24:
+-        neural = cached_neural(s, ctx)
+-    else:
+-        neural = qi.evaluate(
+-            s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8],
+-            ctx.w1, ctx.b1, ctx.w2, ctx.b2, ctx.w3, ctx.b3, ctx.w4, ctx.b4,
+-            ctx.scale2, ctx.scale3, ctx.divisor,
+-        )
++    neural = cached_neural(s, ctx)
+     bonus = int(ce.mop_up_bonus(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], ctx.params))
+     neural = max(-20000, min(20000, neural)) + (bonus if s[8] else -bonus)
+     return (
+@@ -304,64 +329,77 @@ def evaluate(s: State, mobility: int, ctx: Any) -> int:
+ 
+ @njit(cache=False)
+ def cached_neural(s: State, ctx: Any) -> int:
+-    """Update from the last evaluated board, even across siblings and null moves.
++    """Keep an exact feature sum for each perspective and king square.
+ 
+-    Exact piece-set differences make this independent of search-ply bookkeeping.
+-    Each perspective refreshes when its king anchor changes. Int32 raw sums avoid
+-    intermediate overflow; clipping happens only after every removal/addition.
+-    The cache belongs to one Search, never the shared transposition table.
++    A king move selects its own remembered board. Piece-set differences update
++    that sum even when the search visits siblings, returns upward, or changes
++    game position. The cache belongs to one Search and contains no clipped sums.
+     """
+-    old = ctx.previous
+     white_king = cst._lsb_index(s[5] & s[6])
+     black_king = cst._lsb_index(s[5] & s[7]) ^ 56
+-    refresh_white = not ctx.acc_valid or (old[5] & old[6]) != (s[5] & s[6])
+-    refresh_black = not ctx.acc_valid or (old[5] & old[7]) != (s[5] & s[7])
+     width = len(ctx.b1)
+-    if refresh_white:
+-        for j in range(width):
+-            ctx.acc_white[j] = ctx.b1[j]
+-    if refresh_black:
+-        for j in range(width):
+-            ctx.acc_black[j] = ctx.b1[j]
+     pieces = (s[0], s[1], s[2], s[3], s[4])
+-    for kind in range(5):
+-        for color in range(2):
+-            own = s[6] if color == 0 else s[7]
+-            prior_own = old[6] if color == 0 else old[7]
+-            now = pieces[kind] & own
+-            prior = old[kind] & prior_own
+-            changed = now ^ prior if ctx.acc_valid else now
+-            visit = now | changed if refresh_white or refresh_black else changed
+-            while visit:
+-                square = cst._lsb_index(visit)
+-                bit = U1 << np.uint64(square)
+-                present = bool(now & bit)
+-                delta = 1 if present else -1
+-                white_delta = (1 if present else 0) if refresh_white else (
+-                    delta if changed & bit else 0)
+-                black_delta = (1 if present else 0) if refresh_black else (
+-                    delta if changed & bit else 0)
+-                if white_delta:
+-                    feature = square + (kind * 2 + color + white_king * 10) * 64
+-                    for j in range(width):
+-                        ctx.acc_white[j] += white_delta * np.int32(ctx.w1[feature, j])
+-                if black_delta:
+-                    feature = (square ^ 56) + (kind * 2 + 1 - color + black_king * 10) * 64
+-                    for j in range(width):
+-                        ctx.acc_black[j] += black_delta * np.int32(ctx.w1[feature, j])
+-                visit &= visit - U1
+     raw = (s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7])
++    for perspective in range(2):
++        king = white_king if perspective == 0 else black_king
++        old = ctx.king_positions[perspective, king]
++        acc = ctx.king_sums[perspective, king]
++        valid = ctx.king_valid[perspective, king]
++        if not valid:
++            for j in range(width):
++                acc[j] = ctx.b1[j]
++        for kind in range(5):
++            for color in range(2):
++                own = s[6] if color == 0 else s[7]
++                prior_own = old[6] if color == 0 else old[7]
++                now = pieces[kind] & own
++                prior = old[kind] & prior_own
++                changed = now ^ prior if valid else now
++                while changed:
++                    square = cst._lsb_index(changed)
++                    bit = U1 << np.uint64(square)
++                    delta = 1 if now & bit else -1
++                    relative_square = square if perspective == 0 else square ^ 56
++                    relative_color = color if perspective == 0 else 1 - color
++                    feature = relative_square + (kind * 2 + relative_color + king * 10) * 64
++                    for j in range(width):
++                        acc[j] += delta * np.int32(ctx.w1[feature, j])
++                    changed &= changed - U1
++        for i in range(8):
++            old[i] = raw[i]
++        ctx.king_valid[perspective, king] = True
++    ctx.acc_white = ctx.king_sums[0, white_king]
++    ctx.acc_black = ctx.king_sums[1, black_king]
+     for i in range(8):
+-        old[i] = raw[i]
++        ctx.previous[i] = raw[i]
+     ctx.acc_valid = True
+-    white = np.empty(width, dtype=np.int16)
+-    black = np.empty(width, dtype=np.int16)
++    white = ctx.clipped_white
++    black = ctx.clipped_black
+     for j in range(width):
+         white[j] = min(255, max(0, ctx.acc_white[j]))
+         black[j] = min(255, max(0, ctx.acc_black[j]))
+     own_acc, other_acc = (white, black) if s[8] else (black, white)
+-    return round(qi.forward_accumulators(own_acc, other_acc, ctx.w2, ctx.b2, ctx.w3, ctx.b3,
+-                 ctx.w4, ctx.b4, ctx.scale2, ctx.scale3, ctx.divisor))
++    return round(qi.forward_scratch(own_acc, other_acc, ctx.w2, ctx.b2, ctx.w3, ctx.b3,
++                 ctx.w4, ctx.b4, ctx.scale2, ctx.scale3, ctx.divisor,
++                 ctx.inverse2, ctx.inverse3, ctx.shift2, ctx.shift3, ctx.hidden1, ctx.hidden2))
++
++
++@njit(cache=False)
++def evaluate_cached(s: State, n: int, key: np.uint64, ctx: Any) -> int:
++    """Cache only static scores, with full keys and per-Search ownership.
++
++    Every caller still handles repetition, terminal positions and the clock.
++    The legal move count is deterministic for this position's full state key.
++    A collision replaces an entry and can affect speed only.
++    """
++    index = np.int64(key & np.uint64(ctx.eval_mask))
++    if ctx.eval_valid[index] and ctx.eval_keys[index] == key:
++        ctx.eval_hits += 1
++        return int(ctx.eval_scores[index])
++    score = evaluate(s, n, ctx)
++    ctx.eval_keys[index], ctx.eval_scores[index], ctx.eval_valid[index] = key, score, True
++    ctx.eval_misses += 1
++    return score
+ 
+ 
+ @njit(cache=False)
+@@ -494,7 +532,7 @@ def qsearch(
+     if incheck:
+         best = -MATE - 1
+     else:
+-        stand = evaluate(s, n, ctx)
++        stand = evaluate_cached(s, n, key, ctx)
+         if stand >= beta:
+             return stand
+         alpha = max(alpha, stand)
+@@ -553,7 +591,7 @@ def negamax(
+         return -(MATE - ply) if incheck else draw_score(ply)
+     static = 0
+     if not incheck:
+-        static = evaluate(s, n, ctx)
++        static = evaluate_cached(s, n, key, ctx)
+         if depth <= limits.REVERSE_FUTILITY_DEPTH and abs(beta) < MATE_THRESHOLD:
+             margin = limits.REVERSE_FUTILITY_MARGIN_PER_PLY * depth
+             if static - margin >= beta:
+diff --git a/chess_state.py b/chess_state.py
+index 247ea13..857ead8 100644
+--- a/chess_state.py
++++ b/chess_state.py
+@@ -20,6 +20,7 @@ import numpy as np
+ from numba import njit
+ 
+ import chess_movegen as mg
++from chess_bits import lsb_index
+ 
+ PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
+ 
+@@ -177,17 +178,8 @@ ZOBRIST_TURN = np.uint64(int(_rng.integers(0, 2**63, dtype=np.int64)))
+ 
+ @njit(cache=False)
+ def _lsb_index(bb: np.uint64) -> int:
+-    """Index of the lowest set bit. A manual count-trailing-zeros loop rather than
+-    `.bit_length()` on the isolated-lowest-bit trick used elsewhere in this codebase (the
+-    Python-level `(bb & -bb).bit_length() - 1` idiom) -- numba's nopython mode does not
+-    reliably support that method on integer types, so the plain loop is the portable choice
+-    here. Only ever called once per set bit actually present (~20-32 per position), not once
+-    per candidate square, which is the whole point of using it in zobrist_hash."""
+-    idx = 0
+-    while (bb & np.uint64(1)) == 0:
+-        bb >>= np.uint64(1)
+-        idx += 1
+-    return idx
++    """Index of the lowest set bit using Numba's host compilation."""
++    return lsb_index(bb)
+ 
+ 
+ @njit(cache=False)

@@ -1,0 +1,16 @@
+{
+  "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-phaseheads\\data\\runs\\phase-init\\best_float.npz",
+  "source_sha256": "0b40932d2f30c23251ccc768d336b04298e163a74c5688e36767d8ed33c1375b",
+  "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-phaseheads\\data\\runs\\phase-init\\quantized.npz",
+  "sha256": "066e27cc716fafe15ea6a49b33975ef2cb3b124293fe09cc14d688485614ceb3",
+  "file_bytes": 6943792,
+  "int16_accumulator_absolute_bound": 15191,
+  "weight_scales": [
+    161.0,
+    150.0,
+    0.20542363055717575
+  ],
+  "width": 128,
+  "dense_scaling": "fullrange",
+  "playing_strength_validated": false
+}

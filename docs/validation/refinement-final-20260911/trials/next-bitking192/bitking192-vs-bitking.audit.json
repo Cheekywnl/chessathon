@@ -1,0 +1,41 @@
+{
+  "games": 20,
+  "openings": 10,
+  "clock_ms": [
+    20000,
+    300
+  ],
+  "wins": 6,
+  "draws": 8,
+  "losses": 6,
+  "score": 0.5,
+  "terminations": {
+    "checkmate": 12,
+    "fifty_moves": 1,
+    "insufficient_material": 1,
+    "threefold_repetition": 6
+  },
+  "pair_score_counts": {
+    "0.0": 1,
+    "2.0": 1,
+    "1.0": 4,
+    "0.5": 2,
+    "1.5": 2
+  },
+  "log_sha256": {
+    "data\\runs\\bitking192-vs-bitking.jsonl": "7785e68da9893bb1ab8d3b28174a0b3b22678420ae33b7395ffdc63ebfe8328a"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "ede41c1d28a9d8174eec95e25c890d86e840b29f53e16c6cf61a914996160a7a",
+      "5fa2792627119e8bbfaafde56f5fd5c55c93014c682bd45835eb2377bea94d63"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 486215680,
+  "maximum_recorded_init_seconds": 55.03199999999924,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

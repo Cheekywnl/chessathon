@@ -1,0 +1,37 @@
+"""Prepare a more teacher-heavy fine-tuning experiment from our original checkpoint."""
+import shutil
+import subprocess
+from pathlib import Path
+
+root = Path(__file__).resolve().parent
+destination = root / "next-teacherstrong"
+assert not destination.exists()
+subprocess.run(["git", "worktree", "add", "-b", "refine/teacherstrong-next",
+                str(destination), "ce3bdbb260fa714fecf4279f5befe6bce3ba1c4e"],
+               cwd=root / "hour-release", check=True)
+for path in (root / "next-combo128").glob("*.py"):
+    shutil.copy2(path, destination / path.name)
+for name in ("finetune_teacher_mix.py", "train_phaseheads.py", "platform_agent.py",
+             "sprt_arena.py", "compiled_search_check.py"):
+    shutil.copy2(root / "next-broadteacher/tools" / name, destination / "tools" / name)
+for name in ("screen_arena.py", "reuse_runner.py", "reuse_platform_agent.py"):
+    shutil.copy2(root / "next-combo128/tools" / name, destination / "tools" / name)
+path = destination / "tools/finetune_teacher_mix.py"
+text = path.read_text()
+text = text.replace('    parser.add_argument("--epochs", type=int, default=60)',
+    '    parser.add_argument("--old-ratio", type=int, default=3)\n'
+    '    parser.add_argument("--old-regression", type=float, default=0.02)\n'
+    '    parser.add_argument("--epochs", type=int, default=60)')
+text = text.replace('    assert not args.out.exists()',
+    '    assert 0 <= args.old_ratio <= 10 and 0 <= args.old_regression <= 0.1\n'
+    '    assert not args.out.exists()')
+text = text.replace('"mixture": "one teacher example to three original training examples",',
+    '"mixture": f"one teacher example to {args.old_ratio} original training examples",')
+text = text.replace('"selection": "lowest teacher held-out MSE subject to <=2% original held-out MSE regression",',
+    '"selection": f"lowest teacher held-out MSE subject to <={args.old_regression:.1%} original held-out MSE regression",')
+text = text.replace('size=3 * len(teacher)', 'size=args.old_ratio * len(teacher)')
+text = text.replace('old_value <= baseline_old * 1.02',
+                    'old_value <= baseline_old * (1 + args.old_regression)')
+path.write_text(text)
+(destination / "data/runs").mkdir(parents=True)
+print(destination)

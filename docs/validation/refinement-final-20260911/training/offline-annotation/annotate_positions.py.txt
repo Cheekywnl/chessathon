@@ -1,0 +1,72 @@
+"""Offline teacher labels only. This script and binary never enter a submission."""
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import time
+from pathlib import Path
+
+import chess
+import chess.engine
+import psutil
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cpu", type=int, required=True)
+    parser.add_argument("--index", type=int, required=True)
+    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--nodes", type=int, default=12000)
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parent
+    psutil.Process().cpu_affinity([args.cpu])
+    exe = root / "stockfish-offline/stockfish/stockfish-windows-x86-64-universal.exe"
+    source = root / "positions.json"
+    rows = json.loads(source.read_text())["positions"][args.index::args.workers]
+    output = root / f"labels-{args.index}.csv"
+    details = root / f"labels-{args.index}.jsonl"
+    assert not output.exists() and not details.exists()
+    started = time.monotonic()
+    accepted = 0
+    with chess.engine.SimpleEngine.popen_uci(str(exe)) as engine:
+        engine.configure({"Threads": 1, "Hash": 64, "NumaPolicy": "none"})
+        with output.open("w", newline="", encoding="utf8") as stream, details.open("w", encoding="utf8") as log:
+            writer = csv.writer(stream)
+            writer.writerow(["fen", "depth", "cp"])
+            for index, row in enumerate(rows):
+                board = chess.Board(row["fen"])
+                info = engine.analyse(board, chess.engine.Limit(nodes=args.nodes), game=index)
+                score = info["score"].white()
+                pv = info.get("pv", [])
+                cp = score.score()
+                keep = bool(pv and cp is not None and abs(cp) <= 1800
+                            and not board.is_capture(pv[0]) and not pv[0].promotion
+                            and info.get("depth", 0) >= 6)
+                record = {"fen": board.fen(), "game": row["game"], "keep": keep,
+                          "cp_white": cp, "mate_white": score.mate(),
+                          "depth": info.get("depth"), "nodes": info.get("nodes"),
+                          "pv": [move.uci() for move in pv]}
+                log.write(json.dumps(record) + "\n")
+                if keep:
+                    writer.writerow([board.fen(), info["depth"], cp])
+                    accepted += 1
+                if index % 100 == 0:
+                    stream.flush()
+                    log.flush()
+                    print(json.dumps({"index": index, "total": len(rows), "accepted": accepted,
+                                      "seconds": time.monotonic() - started}), flush=True)
+        note = {"engine_id": engine.id, "binary_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
+                "input_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "labels_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+                "details_sha256": hashlib.sha256(details.read_bytes()).hexdigest(),
+                "nodes_per_position": args.nodes, "cpu": args.cpu, "index": args.index,
+                "workers": args.workers, "positions": len(rows), "accepted": accepted,
+                "seconds": time.monotonic() - started, "offline_only": True}
+        (root / f"labels-{args.index}.manifest.json").write_text(json.dumps(note, indent=2))
+        print(json.dumps(note), flush=True)
+
+
+if __name__ == "__main__":
+    main()

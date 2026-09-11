@@ -1,0 +1,1 @@
+{"screening_only": true, "processes_reused_after_game_state_reload": true, "fresh_process_final_validation_required": true, "elo0": 0.0, "elo1": 50.0, "alpha": 0.05, "beta": 0.05, "min_pairs": 20, "cpus": [12, 14], "model": "pentanomial constrained MLE; 0.001 count per cell", "bounds": [-2.9444389791664403, 2.9444389791664403], "selfcheck": false}

@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\next-broadteacher\tools\quantize_halfkp.py", line 79, in <module>
+    main()
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\next-broadteacher\tools\quantize_halfkp.py", line 75, in main
+    print(json.dumps(quantize(args.source, args.out, args.dense_scaling), indent=2))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cheek\Documents\Codex\2026-09-10\files-pasted-by-the-user-you\work\next-broadteacher\tools\quantize_halfkp.py", line 17, in quantize
+    raise ValueError(f"Refusing to overwrite weights: {output}")
+ValueError: Refusing to overwrite weights: weights\halfkp.npz

@@ -1,0 +1,58 @@
+{"prepared_rows": 13933, "rows_per_second": 20141.559034501748, "disk_free_gb": 24.743645184}
+{
+  "version": 1,
+  "record_bytes": 128,
+  "shard_rows": 250000,
+  "split": "blake2b(canonical first 4 FEN fields, digest_size=8, person=halfkp-split-v1), little-endian modulo 1000; <10 held out",
+  "labels": "cp: White-relative, sigmoid(stm_cp/400); WDL: White-result, complemented for Black to move",
+  "source": "https://database.lichess.org/#evals (CC0); team self-play where supplied",
+  "sources": [
+    {
+      "path": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\teacher-tools\\labels-0.csv",
+      "bytes": 422753,
+      "mtime_ns": 1789099450586146000,
+      "rows": 6947,
+      "rows_seen": 6947,
+      "header": [
+        "fen",
+        "depth",
+        "cp"
+      ],
+      "sha256": "2aa635d187026dddf3155a6ef7721daeba19a9022704bbfa6802a978f68df87c"
+    },
+    {
+      "path": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\teacher-tools\\labels-1.csv",
+      "bytes": 425462,
+      "mtime_ns": 1789099432684177800,
+      "rows": 6986,
+      "rows_seen": 6986,
+      "header": [
+        "fen",
+        "depth",
+        "cp"
+      ],
+      "sha256": "ae591f9127223661cd474c69048fecd272c46192c51fbdd5ed17a178a3941235"
+    }
+  ],
+  "train": [
+    {
+      "path": "train-00000.npy",
+      "rows": 13787
+    }
+  ],
+  "validation": [
+    {
+      "path": "validation-00000.npy",
+      "rows": 146
+    }
+  ],
+  "rows": 13933,
+  "train_rows": 13787,
+  "validation_rows": 146,
+  "rejected_rows": 0,
+  "rejection_reasons": {},
+  "rejection_examples": [],
+  "complete": true,
+  "preparation_seconds": 0.7009124999967753,
+  "pilot_limit": null
+}

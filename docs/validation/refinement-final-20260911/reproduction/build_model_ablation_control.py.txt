@@ -1,0 +1,15 @@
+import hashlib,json,shutil
+from pathlib import Path
+root=Path(__file__).resolve().parent
+manifest=json.loads((root/'final-artifacts/artifact-manifest.json').read_text())
+control=root/'final-original-model-control';assert not control.exists();control.mkdir()
+for name in manifest['files']:
+    target=control/name;target.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copyfile(root/'final-extracted'/name,target)
+old=root/'hour-release/weights/halfkp.npz'
+assert hashlib.sha256(old.read_bytes()).hexdigest()=='3ab6d135ecdd3b9b24b6c37aace3e9a658c3cc8c6c2093dee1a02edb1a0401a2'
+shutil.copyfile(old,control/'weights/halfkp.npz')
+different=[name for name in manifest['files'] if (control/name).read_bytes()!=(root/'final-extracted'/name).read_bytes()]
+assert different==['weights/halfkp.npz']
+(root/'final-model-ablation-plan.json').write_text(json.dumps(dict(purpose='Exploratory attribution of the selected model contribution with identical final optimized code; not combined with primary final comparison.',only_difference=different,clock_ms=[120000,500],games=16,opening_indices=list(range(140,148)),workers=[0,10],selection_rule='Primary 60-game penultimate comparison remains the release-strength test; no post-hoc promotion on this small attribution sample.'),indent=2))
+print(control)

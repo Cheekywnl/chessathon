@@ -1,0 +1,45 @@
+"""Compare real get_move state transitions against the frozen per-turn cache."""
+import json
+import random
+from pathlib import Path
+
+import chess
+from tools.reuse_platform_agent import close_all, local
+
+def main():
+    roots = (Path("."), Path("../next-persistentstatic"))
+    agents = [local(root, cpu=10, python="../halfkp-trial/.venv/Scripts/python.exe")
+              for root in roots]
+    rng = random.Random(20260921)
+    records = []
+    try:
+        for cycle, fen in enumerate((
+            "r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10",
+            "8/8/3k4/8/8/8/p7/K6b w - - 0 1",
+            "r3k2r/ppp2ppp/2n5/8/8/2N5/PPP2PPP/R3K2R w KQkq - 80 21",
+        )):
+            for agent in agents:
+                agent.start(90)
+            board = chess.Board(fen)
+            for step in range(12):
+                if board.is_game_over(claim_draw=True):
+                    break
+                replies = [agent.verify(board.fen()) for agent in agents]
+                assert replies[0] == replies[1], (cycle, step, board.fen(), replies)
+                move = chess.Move.from_uci(replies[0]["move"])
+                assert move in board.legal_moves
+                records.append({"cycle": cycle, "step": step, "fen": board.fen(), **replies[0]})
+                board.push(move)
+                if not board.is_game_over(claim_draw=True):
+                    board.push(rng.choice(list(board.legal_moves)))
+            for agent in agents:
+                agent.stop()
+    finally:
+        close_all()
+    result = {"positions": len(records), "tt_and_history_states_exact": True,
+              "real_get_move_depth": 5, "records": records}
+    Path("data/runs/persistent-static-check.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps({k: v for k, v in result.items() if k != "records"}))
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,5 @@
+usage: compiled_search_check.py [-h] --reference REFERENCE
+                                [--reference-backend REFERENCE_BACKEND]
+                                [--reference-inference REFERENCE_INFERENCE]
+                                --openings OPENINGS --out OUT
+compiled_search_check.py: error: the following arguments are required: --reference, --openings

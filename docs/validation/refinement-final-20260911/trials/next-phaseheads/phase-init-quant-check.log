@@ -1,0 +1,64 @@
+{
+  "positions": 10000,
+  "integer_reference_mismatches": 0,
+  "head_counts": [
+    1427,
+    1850,
+    2910,
+    3813
+  ],
+  "observed_nonking_counts": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30
+  ],
+  "cached_dense_mismatches": 0,
+  "bitboard_inference_mismatches": 0,
+  "cpu_affinity": [
+    0
+  ],
+  "mean_abs_error_cp": 4.095024932440502,
+  "p99_abs_error_cp": 21.55472158876142,
+  "max_abs_error_cp": 36.072042453254085,
+  "float_probability_mse": 0.009417334858007208,
+  "quant_probability_mse": 0.009404139783306871,
+  "microseconds_per_call": {
+    "classical": [
+      11.4375850000215,
+      14.215499999772874
+    ],
+    "quantized": [
+      13.688470000124653,
+      10.500359999787179
+    ]
+  },
+  "checksum": -487200,
+  "playing_strength_validated": false
+}

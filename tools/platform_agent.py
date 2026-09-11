@@ -26,6 +26,7 @@ class SuspendedAgent(Agent):
         self.init_seconds = 0.0
         self.peak_rss_bytes = 0
         self.moves_returned = 0
+        self.init_diagnostics: dict[str, Any] = {}
 
     def _measure_memory(self) -> None:
         if self.control is not None:
@@ -39,7 +40,28 @@ class SuspendedAgent(Agent):
         import psutil  # type: ignore[import-untyped]
 
         started = time.monotonic()
-        super().start(init_budget_s)
+        self.init_diagnostics["available_bytes_before"] = psutil.virtual_memory().available
+        try:
+            super().start(init_budget_s)
+        except AgentFailure as failure:
+            self.init_seconds = time.monotonic() - started
+            self.init_diagnostics.update({
+                "failure": failure.reason, "seconds": self.init_seconds,
+                "available_bytes_after": psutil.virtual_memory().available,
+                "stdout_buffer": self._buffer[:4096].decode("utf8", "replace"),
+                "stderr_buffer": self._tail[-4096:].decode("utf8", "replace"),
+            })
+            # Even a failed import can have a real child interpreter behind
+            # the Windows venv launcher. Register it before referee cleanup.
+            if self._process is not None:
+                self.init_diagnostics["returncode"] = self._process.poll()
+                with suppress(psutil.NoSuchProcess):
+                    root = psutil.Process(self._process.pid)
+                    self.controls = [root, *root.children(recursive=True)]
+                    self.control = self.controls[-1]
+                    with suppress(psutil.NoSuchProcess, AgentFailure):
+                        self._measure_memory()
+            raise
         self.init_seconds = time.monotonic() - started
         assert self._process is not None
         root = psutil.Process(self._process.pid)

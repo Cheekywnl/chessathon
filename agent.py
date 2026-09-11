@@ -7,6 +7,7 @@ position history -- and the time budget that keeps a slow position from flagging
 
 import atexit
 import gzip
+import os
 import shutil
 import sys
 import tempfile
@@ -15,6 +16,10 @@ import time
 import traceback
 from pathlib import Path
 
+# This optimization level reduced both cold compilation and search time in
+# both benchmark orders, with every fixed-depth search state unchanged.
+os.environ["NUMBA_OPT"] = "2"
+
 import chess
 import chess.polyglot
 import chess.syzygy
@@ -22,6 +27,7 @@ import chess.syzygy
 import chess_draw as cd
 import chess_eval as ce
 import chess_movegen as mg
+import chess_rook_endgame as cre
 import chess_search as cs
 import chess_state as cst
 
@@ -41,31 +47,10 @@ DRAW_SCAN_BUDGET_FRACTION = 0.20
 _TT = cs.TranspositionTable(size_power=21)
 _GAME_HISTORY: dict[int, int] = {}
 
-# Syzygy endgame tables: every 3-4 piece ending (K+R vs K, K+B+N vs K, K+Q+Q vs K, ...) plus a
-# handful of individually cherry-picked 5-piece endings common enough in real play to be worth
-# their size specifically (KRPvKR's 29 MB alone would eat most of the remaining budget for one
-# config, so it's deliberately not included -- the repetition backstop already resolves the
-# canonical Lucena/Philidor case that config would cover, see tools/endgame_regression.py).
-# ~26 MB of WDL+DTZ data covering exactly the hard conversions this session's search alone
-# couldn't reliably close out -- the mop-up and KBN-corner-target eval terms are heuristic
-# guesses at the same problem this solves exactly, by table lookup instead of search. Explicitly
-# permitted as shipped data (chess.syzygy ships in the base image for exactly this), distinct
-# from shipping another engine's move/eval opinions: this is exact, retrograde-solved
-# game-theoretic truth, not a heuristic. A position matching a 5-piece config not among the ones
-# actually downloaded just falls through to search -- get_wdl/get_dtz return None on a missing
-# table rather than raising, and _tablebase_move treats that the same as no coverage at all. A
-# *corrupted* table is a different failure mode get_wdl/get_dtz do NOT catch internally (they
-# only handle the missing-table KeyError, and a bad file raises OSError instead) -- confirmed
-# directly against a deliberately corrupted file, not assumed: _tablebase_move's own outer
-# exception handler is what actually saves that case, falling back to plain search rather than
-# crashing the game. Directory may be absent in a stripped-down local checkout; fails open too.
-#
-# Loading is wrapped, not called bare: this runs at import time, and the platform gives 90
-# seconds before the clock starts but an *exception* here, not a slow load, would fail the
-# import outright -- an agent that doesn't import loses every single game, not just the ones
-# that would have used the tablebase. A corrupted file in the zip transfer, an unexpected
-# filesystem quirk on the platform, or anything else improbable-but-not-impossible here should
-# cost this one feature, never the whole submission. Same reasoning applies to the book below.
+# Complete three/four-piece tables and selected five-piece configurations.
+# A compact exact KRPvKR policy covers a verified graph of Lucena conversions;
+# the full KQRvKR tables continue after queen promotion. Missing configurations
+# fall through to search. All probes are guarded against asset read failures.
 def _open_tablebase() -> "chess.syzygy.Tablebase | None":
     directory = Path(__file__).resolve().parent / "syzygy"
     if not directory.is_dir():
@@ -385,6 +370,15 @@ def _choose_move(board: chess.Board, legal_moves: list[chess.Move], time_left_ms
         _record_our_move(board, book_move)
         _start_pondering(board, book_move)
         return book_move.uci()
+
+    rook_move = cre.winning_move(board) if complete else None
+    if rook_move is not None and cst.pack_move(
+        rook_move.from_square, rook_move.to_square, rook_move.promotion or 0,
+    ) not in claims:
+        print(f"move={rook_move.uci()} source=rook_policy", file=sys.stderr)
+        _record_our_move(board, rook_move)
+        _start_pondering(board, rook_move)
+        return rook_move.uci()
 
     tablebase_move = _tablebase_move(board, claims)
     if tablebase_move is not None:

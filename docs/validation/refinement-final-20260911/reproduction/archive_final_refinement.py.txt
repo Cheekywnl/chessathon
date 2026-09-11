@@ -1,0 +1,51 @@
+import datetime,hashlib,json,shutil,subprocess
+from pathlib import Path
+root=Path(__file__).resolve().parent
+repo=root/'final-refinement'
+out=repo/'docs/validation/refinement-final-20260911'
+out.mkdir(parents=True,exist_ok=True)
+def copy(path,relative):
+    dest=out/relative
+    dest.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copyfile(path,dest)
+# Preserve exact original evidence bytes and keep executable research separate from runtime.
+for pattern in ('*-summary.json','*-speed-summary.json','current-benchmarks-summary.json','final-rook-*','final-endgame-rook-policy.log','final-submission-audit.log','final-draw-after-policy.log','rules-final.md','agent-contract-final.md','cpu-core-topology.json'):
+    for path in root.glob(pattern):
+        if path.is_file():copy(path,'checks/'+path.name)
+for pattern in ('evalcache-*.json','evasions-*.json','opt2-scratch-*.json','opt3-scratch-*.json','scratch-*.json'):
+    for path in root.glob(pattern):copy(path,'benchmarks/'+path.name)
+for path in (root/'final-artifacts').glob('*.json'):copy(path,'artifact/'+path.name)
+for path in (repo/'data/runs').iterdir():
+    if path.is_file() and not path.name.startswith('final-vs-penultimate'):
+        copy(path,'checks/'+path.name)
+folders=tuple(sorted(p.name for p in root.glob('next-*') if p.is_dir()))
+for folder in folders:
+    trial=root/folder
+    if not trial.exists():continue
+    run=trial/'data/runs'
+    if run.exists():
+        for path in run.iterdir():
+            if path.is_file() and path.suffix in ('.json','.jsonl','.log') and path.stat().st_size<20_000_000:
+                copy(path,'trials/'+folder+'/'+path.name)
+    patch=out/'trials'/folder/'runtime-and-tools.patch'
+    patch.parent.mkdir(parents=True,exist_ok=True)
+    subprocess.run(['git','diff','5cb6574ca92b900d165242bd97583a788c8881c2','--output='+str(patch),'--','*.py','tools','pyproject.toml'],cwd=trial,check=True,stderr=subprocess.DEVNULL)
+    untracked=subprocess.check_output(['git','ls-files','--others','--exclude-standard','--','*.py','tools'],cwd=trial,text=True).splitlines()
+    for name in untracked:
+        path=trial/name
+        if path.is_file() and path.suffix=='.py':copy(path,'trials/'+folder+'/new-source/'+name+'.txt')
+for folder,runname in (('next-broadteacher','teacher-broad-128'),('next-teacherstrong','teacher-strong-128'),('next-teacher192','teacher-broad-192')):
+    for path in (root/folder/'data/runs'/runname).iterdir():
+        if path.suffix in ('.json','.jsonl'):copy(path,'training/'+runname+'/'+path.name)
+copy(root/'next-broadteacher/data/teacher-cache/manifest.json','training/teacher-cache-manifest.json')
+for path in (root/'teacher-tools').iterdir():
+    if path.is_file() and (path.name.endswith('.manifest.json') or path.suffix=='.py' or path.name in ('stockfish-release.json','labels-merged.rejected.json')):
+        copy(path,'training/offline-annotation/'+path.name+('.txt' if path.suffix=='.py' else ''))
+for name in ('build_final_base.py','build_final_artifact.py','build_rook_policy.py','check_rook_policy.py','check_rook_conversions.py','prepare_broad_teacher.py','build_stronger_teacher_trial.py','build_teacher192_trial.py','audit_final_selection.py','build_finalist_trials.py','audit_earlycache_benchmark.py','check_scratch_benchmark.py'):
+    copy(root/name,'reproduction/'+name+'.txt')
+for name in ('finetune_teacher_mix.py','quantize_halfkp.py','halfkp_quant_check.py','halfkp_data.py','train_phaseheads.py'):
+    copy(root/'next-broadteacher/tools'/name,'reproduction/tools/'+name+'.txt')
+copy(root/'next-bitloops/data/runs/openings-next-fresh.json','openings-next-fresh.json')
+copy(Path(__file__),'reproduction/archive_final_refinement.py.txt')
+(out/'SHA256.json').write_text(json.dumps({str(p.relative_to(out)).replace('\\','/'):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file() and p.name!='SHA256.json'},indent=2)+'\n')
+print(json.dumps(dict(files=sum(p.is_file() for p in out.rglob('*')),bytes=sum(p.stat().st_size for p in out.rglob('*') if p.is_file()),path=str(out))))

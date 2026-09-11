@@ -1,0 +1,2 @@
+Bit primitives exact for 100066 words
+{"primitive_words": 100066, "positions": 29954, "legal_moves": 857981, "ordered_move_arrays_exact": true, "independent_referee_agrees": true, "feature_arrays_exact": true, "classical_evaluation_exact": true, "seconds": 25.58402400000341, "playing_strength_validated": false}

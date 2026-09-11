@@ -1,0 +1,6 @@
+{
+  "unix": 1789103619.1215084,
+  "excluded_entire_batch": true,
+  "reason": "CPU jobs could migrate between pool workers and create duplicate idle agents; stopped before host memory exhaustion. Runtime unchanged; rerun with one worker queue per CPU.",
+  "completed_rows": 8
+}

@@ -1,0 +1,25 @@
+{
+  "positions": 10000,
+  "integer_reference_mismatches": 0,
+  "bitboard_inference_mismatches": 0,
+  "cpu_affinity": [
+    0
+  ],
+  "mean_abs_error_cp": 4.249936367790349,
+  "p99_abs_error_cp": 16.07476652910152,
+  "max_abs_error_cp": 26.576924498691938,
+  "float_probability_mse": 0.009218733570357587,
+  "quant_probability_mse": 0.009250459099274426,
+  "microseconds_per_call": {
+    "classical": [
+      10.211865000019316,
+      10.107549999884213
+    ],
+    "quantized": [
+      13.404015000196523,
+      12.998544999936712
+    ]
+  },
+  "checksum": -711200,
+  "playing_strength_validated": false
+}

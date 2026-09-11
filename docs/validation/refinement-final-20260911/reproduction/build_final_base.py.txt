@@ -1,0 +1,47 @@
+"""Prepare an isolated final candidate from the current tested model and exact optimizations."""
+import shutil
+import subprocess
+from pathlib import Path
+
+root = Path(__file__).resolve().parent
+destination = root / "final-refinement"
+assert not destination.exists()
+subprocess.run(["git", "worktree", "add", "-b", "final-release", str(destination),
+                "5cb6574ca92b900d165242bd97583a788c8881c2"], cwd=root / "hour-release", check=True)
+for path in (root / "next-combo128").glob("*.py"):
+    shutil.copy2(path, destination / path.name)
+shutil.copy2(root / "next-evasions/chess_movegen.py", destination / "chess_movegen.py")
+shutil.copy2(root / "next-broadteacher/weights/halfkp.npz", destination / "weights/halfkp.npz")
+path = destination / "agent.py"
+text = path.read_text().replace("import gzip\n", "import gzip\nimport os\n")
+old = "import chess\n"
+assert text.count(old) == 1
+text = text.replace(old,
+    "# This optimization level reduced both cold compilation and search time in\n"
+    "# both benchmark orders, with every fixed-depth search state unchanged.\n"
+    "os.environ[\"NUMBA_OPT\"] = \"2\"\n\n"
+    + old)
+path.write_bytes(text.encode())
+path = destination / "chess_movegen.py"
+text = path.read_text()
+end = text.index('"""', 3) + 3
+text = ('"""Legal chess move generation on bitboards, compiled during agent import.\n\n'
+        'Pins and checkers determine legal destinations for ordinary non-king moves.\n'
+        'A single check requires capturing or blocking its checker; double check\n'
+        'permits only king moves through that path. King moves and en passant use\n'
+        'a full resulting-position attack check. Move order is deterministic.\n\n'
+        'The optimized generator matched the previous generator and python-chess\n'
+        'across 29,954 mixed positions and another 39,668 positions selected to\n'
+        'exercise checks, pins, promotions and en passant.\n'
+        '"""' + text[end:])
+path.write_bytes(text.encode())
+for name in ("platform_agent.py", "sprt_arena.py", "compiled_search_check.py",
+             "eval_cache_check.py", "qendgame_check.py"):
+    shutil.copy2(root / "next-combo128/tools" / name, destination / "tools" / name)
+for path in destination.glob("*.py"):
+    path.write_bytes(path.read_text().encode("utf8"))
+path = destination / ".gitattributes"
+text = path.read_text() + "\n# Make tested runtime source bytes reproducible across checkouts.\n/*.py text eol=lf\n"
+path.write_bytes(text.encode())
+(destination / "data/runs").mkdir(parents=True)
+print(destination)

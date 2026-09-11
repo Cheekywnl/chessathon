@@ -1,0 +1,145 @@
+"""Held-out float/quantized comparison, exact integer reference and one-core latency."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+import chess
+import numpy as np
+
+import chess_eval as ce
+import chess_halfkp_int as qi
+from tools.halfkp_data import RECORD, encode_row, split_bucket
+
+
+def weight_args(w: qi.QuantizedWeights) -> tuple[Any, ...]:
+    return (w.w1, w.b1, w.w2, w.b2, w.w3, w.b3, w.w4, w.b4,
+            w.scale2, w.scale3, w.output_divisor)
+
+
+def float_reference(row: Any, weights: dict[str, np.ndarray]) -> float:
+    n = int(row["count"])
+    head = sum(n > cutoff for cutoff in (10, 18, 25))
+    aw = (weights["W1"][row["white"][:n]].sum(0) + weights["b1"]).clip(0, 1)
+    ab = (weights["W1"][row["black"][:n]].sum(0) + weights["b1"]).clip(0, 1)
+    joined = np.concatenate((aw, ab) if row["stm"] else (ab, aw))
+    h1 = (weights["W2"][head] @ joined + weights["b2"][head]).clip(0, 1)
+    h2 = (weights["W3"][head] @ h1 + weights["b3"][head]).clip(0, 1)
+    return float((weights["W4"][head] @ h2 + weights["b4"][head]).item())
+
+
+def integer_reference(row: Any, w: qi.QuantizedWeights) -> float:
+    n = int(row["count"])
+    head = sum(n > cutoff for cutoff in (10, 18, 25))
+    block = slice(head * 32, (head + 1) * 32)
+    aw = (w.w1[row["white"][:n]].astype(np.int64).sum(0) + w.b1).clip(0, 255)
+    ab = (w.w1[row["black"][:n]].astype(np.int64).sum(0) + w.b1).clip(0, 255)
+    joined = np.concatenate((aw, ab) if row["stm"] else (ab, aw))
+    h1 = ((w.w2[block].astype(np.int64) @ joined + w.b2[block] + w.scale2 // 2)
+          // w.scale2).clip(0, 255)
+    h2 = ((w.w3[block].astype(np.int64) @ h1 + w.b3[block] + w.scale3 // 2)
+          // w.scale3).clip(0, 255)
+    return float((w.w4[block].astype(np.int64) @ h2 + w.b4[head]) / w.output_divisor)
+
+
+def board_args(board: chess.Board) -> tuple[Any, ...]:
+    return (np.uint64(board.pawns), np.uint64(board.knights), np.uint64(board.bishops),
+            np.uint64(board.rooks), np.uint64(board.queens), np.uint64(board.kings),
+            np.uint64(board.occupied_co[chess.WHITE]), np.uint64(board.occupied_co[chess.BLACK]),
+            board.turn)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--float", dest="source", type=Path, required=True)
+    parser.add_argument("--quantized", type=Path, required=True)
+    parser.add_argument("--heldout", type=Path, required=True)
+    parser.add_argument("--positions", type=int, default=10000)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--cpu", type=int, default=2)
+    args = parser.parse_args()
+    import psutil  # type: ignore[import-untyped]
+
+    psutil.Process().cpu_affinity([args.cpu])
+    w = qi.load_weights(args.quantized)
+    qi.warm_up(w)
+    ce.warm_up()
+    with np.load(args.source, allow_pickle=False) as archive:
+        floats = {k: archive[k] for k in ("W1", "b1", "W2", "b2", "W3", "b3", "W4", "b4")}
+    errors, float_values, quant_values, targets = [], [], [], []
+    head_counts = [0, 0, 0, 0]
+    observed_counts: set[int] = set()
+    boards: list[chess.Board] = []
+    wa = weight_args(w)
+    record = np.zeros(1, dtype=RECORD)
+    with args.heldout.open(newline="", encoding="utf8") as stream:
+        reader = csv.DictReader(stream)
+        for _, row in zip(range(args.positions), reader, strict=False):
+            fen = row["fen"]
+            assert split_bucket(fen) < 10, "training row leaked into held-out test"
+            encode_row(fen, 0, True, record[0])
+            actual = qi.forward(record[0]["white"], record[0]["black"],
+                                int(record[0]["count"]), bool(record[0]["stm"]), *wa)
+            exact = integer_reference(record[0], w)
+            assert actual == exact, (fen, actual, exact)
+            n = int(record[0]["count"])
+            head_counts[sum(n > cutoff for cutoff in (10, 18, 25))] += 1
+            observed_counts.add(n)
+            own = qi.accumulate(record[0]["white"], n, w.w1, w.b1)
+            other = qi.accumulate(record[0]["black"], n, w.w1, w.b1)
+            if not record[0]["stm"]:
+                own, other = other, own
+            assert qi.forward_accumulators(own, other, *wa[2:], n) == exact
+            expected = float_reference(record[0], floats)
+            board = chess.Board(fen)
+            assert qi.evaluate(*board_args(board), *wa) == round(actual)
+            errors.append(abs(actual - expected))
+            float_values.append(expected)
+            quant_values.append(actual)
+            targets.append(float(row["target"]))
+            if len(boards) < 100:
+                boards.append(board)
+    if not errors:
+        raise ValueError("empty held-out input")
+    assert min(head_counts) > 0
+    assert {10, 11, 18, 19, 25, 26}.issubset(observed_counts)
+    arrays = [board_args(board) for board in boards]
+    repeats = 200
+    timings: dict[str, list[float]] = {"classical": [], "quantized": []}
+    checksum = 0
+    for order in (("classical", "quantized"), ("quantized", "classical")):
+        for label in order:
+            start = time.perf_counter()
+            for _ in range(repeats):
+                for board, ba in zip(boards, arrays, strict=True):
+                    if label == "classical":
+                        checksum += ce.evaluate_board(board, 20)
+                    else:
+                        checksum += qi.evaluate(*ba, *wa)
+            timings[label].append((time.perf_counter() - start) * 1e6 / (repeats * len(boards)))
+    float_prob = 1 / (1 + np.exp(-np.clip(float_values, -16000, 16000) / 400))
+    quant_prob = 1 / (1 + np.exp(-np.clip(quant_values, -16000, 16000) / 400))
+    result: dict[str, Any] = {"positions": len(errors), "integer_reference_mismatches": 0,
+              "head_counts": head_counts, "observed_nonking_counts": sorted(observed_counts),
+              "cached_dense_mismatches": 0,
+              "bitboard_inference_mismatches": 0, "cpu_affinity": [args.cpu],
+              "mean_abs_error_cp": float(np.mean(errors)),
+              "p99_abs_error_cp": float(np.percentile(errors, 99)),
+              "max_abs_error_cp": float(max(errors)),
+              "float_probability_mse": float(np.mean((float_prob - targets) ** 2)),
+              "quant_probability_mse": float(np.mean((quant_prob - targets) ** 2)),
+              "microseconds_per_call": timings, "checksum": checksum,
+              "playing_strength_validated": False}
+    args.out.write_text(json.dumps(result, indent=2), encoding="utf8")
+    print(json.dumps(result, indent=2))
+    if result["mean_abs_error_cp"] > 10 or result["p99_abs_error_cp"] > 40:
+        raise SystemExit("Quantization error exceeds the screening threshold; revise quantization")
+
+
+if __name__ == "__main__":
+    main()

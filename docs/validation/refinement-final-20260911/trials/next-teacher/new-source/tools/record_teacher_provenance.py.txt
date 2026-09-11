@@ -1,0 +1,31 @@
+"""Attach verified offline annotation provenance to the prepared dataset."""
+import json
+from pathlib import Path
+
+from tools.halfkp_data import file_hash
+
+source = Path("../teacher-tools")
+path = Path("data/teacher-cache/manifest.json")
+manifest = json.loads(path.read_text())
+assert manifest["complete"]
+annotations = []
+for index in range(2):
+    note = json.loads((source / f"labels-{index}.manifest.json").read_text())
+    assert note["labels_sha256"] == file_hash(source / f"labels-{index}.csv")
+    assert note["details_sha256"] == file_hash(source / f"labels-{index}.jsonl")
+    assert note["input_sha256"] == file_hash(source / "positions.json")
+    annotations.append(note)
+manifest["source"] = "Team local game positions independently annotated offline by Stockfish 19"
+manifest["teacher_annotations"] = annotations
+manifest["offline_only"] = True
+manifest["positions_manifest_sha256"] = file_hash(source / "positions.json")
+manifest["annotation_source_sha256"] = file_hash(source / "annotate_positions.py")
+manifest["release_metadata_sha256"] = file_hash(source / "stockfish-release.json")
+manifest["rules_snapshot_sha256"] = file_hash(source / "rules-20260911.md")
+manifest["selection"] = (
+    "No checks at source; teacher best move quiet and non-promoting; abs(cp)<=1800; "
+    "at least depth6 after 12000-node searches; all sampled and excluded results retained"
+)
+path.write_text(json.dumps(manifest, indent=2))
+print(json.dumps({"train": manifest["train_rows"], "heldout": manifest["validation_rows"],
+                  "manifest_sha256": file_hash(path)}, indent=2))

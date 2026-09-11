@@ -1,0 +1,39 @@
+"""Exhaust every unclipped numerator for shipped scales, plus outer boundaries."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from numba import njit
+
+import chess_halfkp_int as qi
+
+
+@njit(cache=False)
+def check(scale: int) -> int:
+    inverse = 1.0 / scale
+    shift = qi.binary_scale_shift(scale)
+    count = 0
+    for total in range(-scale, 256 * scale):
+        expected = min(255, max(0, (total + scale // 2) // scale))
+        assert qi.clip_scaled(total, scale, inverse) == expected
+        assert qi.clip_dense(total, scale, inverse, shift) == expected
+        count += 1
+    for total in (-2147483648, -2147483647, 2147483646, 2147483647):
+        expected = min(255, max(0, (total + scale // 2) // scale))
+        assert qi.clip_scaled(total, scale, inverse) == expected
+        assert qi.clip_dense(total, scale, inverse, shift) == expected
+        count += 1
+    return count
+
+
+def main() -> None:
+    weights = qi.load_weights("weights/halfkp.npz")
+    scales = sorted({1, 2, 3, 7, 255, 256, 257, 32767, 32768, weights.scale2, weights.scale3})
+    result = {"scales": scales, "integer_checks": sum(check(s) for s in scales), "mismatches": 0}
+    Path("data/runs/dense-division-check.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result), flush=True)
+
+
+if __name__ == "__main__":
+    main()

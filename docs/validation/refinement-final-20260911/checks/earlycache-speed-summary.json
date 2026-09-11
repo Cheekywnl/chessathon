@@ -1,0 +1,17 @@
+{
+  "positions": 20,
+  "depth": 9,
+  "nodes_each_run": 3930395,
+  "mismatches": 0,
+  "before_seconds": 30.489196099973924,
+  "after_seconds": 29.983489999984158,
+  "speed_ratio": 1.0168661520053213,
+  "seconds_by_run": {
+    "before-a": 14.664374499989208,
+    "after-a": 15.051751599989075,
+    "after-b": 14.931738399995083,
+    "before-b": 15.824821599984716
+  },
+  "timing_caveat": "Concurrent screens briefly approached host memory pressure; replicate before a firm speed claim",
+  "playing_strength_validated": false
+}

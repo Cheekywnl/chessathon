@@ -1,0 +1,40 @@
+"""Exercise king attacks, pins, checking promotions and evasions against python-chess."""
+import json
+import random
+from pathlib import Path
+
+import chess
+import chess_movegen as mg
+
+def main():
+    rng = random.Random(20260923)
+    board = chess.Board()
+    checked = checks = double_checks = en_passant = promotions = 0
+    seen = set()
+    for index in range(40000):
+        if board.is_game_over() or index % 200 == 0:
+            board = chess.Board()
+        legal = list(board.legal_moves)
+        checking = [move for move in legal if board.gives_check(move)]
+        board.push(rng.choice(checking if checking and rng.random() < 0.8 else legal))
+        fen = board.fen()
+        if fen in seen:
+            continue
+        seen.add(fen)
+        expected = set(board.legal_moves)
+        actual = set(mg.fast_legal_moves(board))
+        assert actual == expected, (fen, actual - expected, expected - actual)
+        checked += 1
+        checks += board.is_check()
+        double_checks += len(board.checkers()) > 1
+        en_passant += board.has_legal_en_passant()
+        promotions += any(move.promotion for move in expected)
+    result = {"positions": checked, "in_check": checks, "double_checks": double_checks,
+              "en_passant_available": en_passant, "promotion_available": promotions,
+              "independent_legal_move_mismatches": 0}
+    assert checks > 5000 and double_checks > 0
+    Path("data/runs/evasion-check-focused.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result))
+
+if __name__ == "__main__":
+    main()

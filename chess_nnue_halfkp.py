@@ -33,6 +33,8 @@ from pathlib import Path
 import numpy as np
 from numba import njit
 
+from chess_bits import lsb_index
+
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
 
 INPUT_SIZE = 40_960
@@ -86,23 +88,19 @@ def active_features_halfkp(
     position's active HalfKP feature indices per perspective, returns how many were written.
     Piece-type numbering matches tools/train_nnue_halfkp.py exactly: PAWN=0, KNIGHT=1, BISHOP=2,
     ROOK=3, QUEEN=4 (kings are never their own feature, only the per-perspective anchor)."""
-    white_king_sq = 0
-    black_king_sq = 0
-    for s in range(64):
-        bit = np.uint64(1) << np.uint64(s)
-        if kings & white & bit:
-            white_king_sq = s
-        if kings & black & bit:
-            black_king_sq = s
+    white_king_sq = lsb_index(kings & white) if kings & white else 0
+    black_king_sq = lsb_index(kings & black) if kings & black else 0
     black_king_mirrored = black_king_sq ^ 56
 
     piece_bb = (pawns, knights, bishops, rooks, queens)
     n = 0
     for piece_type in range(5):
         bb = piece_bb[piece_type]
-        for square in range(64):
+        while bb:
+            square = lsb_index(bb)
+            bb &= bb - np.uint64(1)
             mask = np.uint64(1) << np.uint64(square)
-            if bb & white & mask:
+            if white & mask:
                 rel_color_white = 0
                 white_out[n] = square + (piece_type * 2 + rel_color_white + white_king_sq * 10) * 64
                 mirrored_square = square ^ 56
@@ -110,7 +108,7 @@ def active_features_halfkp(
                 bp_idx = piece_type * 2 + rel_color_black
                 black_out[n] = mirrored_square + (bp_idx + black_king_mirrored * 10) * 64
                 n += 1
-            elif bb & black & mask:
+            elif black & mask:
                 rel_color_white = 1
                 white_out[n] = square + (piece_type * 2 + rel_color_white + white_king_sq * 10) * 64
                 mirrored_square = square ^ 56

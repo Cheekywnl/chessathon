@@ -1,0 +1,12 @@
+{
+  "source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacher192\\data\\runs\\teacher-broad-192\\fullrange_quantized.npz",
+  "source_sha256": "6cf3333f3badd3a9c7b9a6cdb597c13456597e9ab30ed37285ec07a92962c862",
+  "out": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacher192\\data\\runs\\teacher-broad-192\\fullrange_bzip2.npz",
+  "sha256": "7d96daeb0f2093154c3190864a3a28ca7681729a6335287cbfa644292ebcd566",
+  "source_bytes": 10546301,
+  "bytes": 8579802,
+  "compression": "bzip2",
+  "all_tensor_bytes_identical": true,
+  "pack_seconds": 1.3511943000048632,
+  "verify_seconds": 2.836918799999694
+}

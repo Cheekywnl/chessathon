@@ -1,0 +1,20 @@
+"""Capture the teacher's UCI output at the first unfinished annotation position."""
+import json
+import logging
+from pathlib import Path
+
+import chess
+import chess.engine
+import psutil
+
+root = Path(__file__).resolve().parent
+psutil.Process().cpu_affinity([0])
+logging.basicConfig(filename=root / "teacher-debug.log", level=logging.DEBUG, filemode="w")
+rows = json.loads((root / "positions-broad.json").read_text())["positions"][::2]
+completed = len((root / "labels-broad-0.jsonl").read_text().splitlines())
+row = rows[completed]
+print(json.dumps({"completed": completed, "position": row}), flush=True)
+with chess.engine.SimpleEngine.popen_uci(str(root / "stockfish-offline/stockfish/stockfish-windows-x86-64-universal.exe")) as engine:
+    engine.configure({"Threads": 1, "Hash": 64, "NumaPolicy": "none"})
+    info = engine.analyse(chess.Board(row["fen"]), chess.engine.Limit(nodes=12000), game=completed)
+    print(info, flush=True)

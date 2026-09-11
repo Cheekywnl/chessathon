@@ -1,0 +1,16 @@
+{
+  "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacher\\data\\runs\\teacher-mix-128-v2\\best_float.npz",
+  "source_sha256": "81572f519697ce34cd2819ac5b3d3377f986b865b889ee53247f5828c49846a7",
+  "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacher\\data\\runs\\teacher-mix-128-v2\\quantized.npz",
+  "sha256": "0a24e0bb3b1bb7bccf9f437aac9e47d8fa1766cf3b5d5712939c2c5dfe71b560",
+  "file_bytes": 6942876,
+  "int16_accumulator_absolute_bound": 15191,
+  "weight_scales": [
+    160.0,
+    155.0,
+    0.20861297707367477
+  ],
+  "width": 128,
+  "dense_scaling": "fullrange",
+  "playing_strength_validated": false
+}

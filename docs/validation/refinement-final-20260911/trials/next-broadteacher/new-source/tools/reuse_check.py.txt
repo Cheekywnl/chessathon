@@ -1,0 +1,38 @@
+"""Compare complete agent state after fresh import and after repeated resets."""
+import json
+from pathlib import Path
+
+import chess
+from tools.reuse_platform_agent import close_all, local
+
+def main():
+    positions = [chess.STARTING_FEN,
+        "r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10",
+        "8/8/3k4/8/8/8/p7/K6b w - - 0 1",
+        "8/8/8/8/8/4K3/8/R5k1 w - - 0 1",
+        "8/8/3k4/8/8/8/6r1/K7 w - - 0 1"]
+    agent = local(Path("."), cpu=8, python="../halfkp-trial/.venv/Scripts/python.exe")
+    results = []
+    times = []
+    try:
+        for cycle in range(3):
+            agent.start(90)
+            times.append(agent.init_seconds)
+            rows = [agent.verify(fen) for fen in positions]
+            for fen, row in zip(positions, rows, strict=True):
+                assert chess.Move.from_uci(row["move"]) in chess.Board(fen).legal_moves
+            if results:
+                assert rows == results[0], (cycle, rows, results[0])
+            results.append(rows)
+            agent.stop()
+            assert "fallback" not in agent.stderr_tail and "Traceback" not in agent.stderr_tail
+    finally:
+        close_all()
+    result = {"fresh_and_reset_states_exact": True, "cycles": 3, "positions_each": 5,
+              "initialization_seconds": times, "records": results[0],
+              "screening_only": True, "fresh_process_final_validation_required": True}
+    Path("data/runs/reuse-check.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2))
+
+if __name__ == "__main__":
+    main()

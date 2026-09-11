@@ -1,0 +1,34 @@
+"""Repeat baseline initialization with diagnostics after the invalid test batch."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import chess
+
+from tools.platform_agent import local
+
+
+def main() -> None:
+    results = []
+    for index in range(2):
+        agent: Any = local(Path("../next-bitking"), cpu=4,
+                           python="../halfkp-trial/.venv/Scripts/python.exe")
+        try:
+            agent.start(90)
+            board = chess.Board()
+            move = agent.move(board.fen(), 120000)
+            assert chess.Move.from_uci(move) in board.legal_moves
+        finally:
+            agent.stop()
+        row = {"index": index, "init_seconds": agent.init_seconds,
+               "peak_rss": agent.peak_rss_bytes, "move": move,
+               "diagnostics": agent.init_diagnostics, "log": agent.stderr_tail}
+        results.append(row)
+        print(json.dumps(row), flush=True)
+        Path("data/runs/baseline-init-probe.json").write_text(json.dumps(results, indent=2))
+
+
+if __name__ == "__main__":
+    main()

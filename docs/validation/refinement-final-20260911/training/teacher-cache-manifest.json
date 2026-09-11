@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "record_bytes": 128,
+  "shard_rows": 250000,
+  "split": "blake2b(canonical first 4 FEN fields, digest_size=8, person=halfkp-split-v1), little-endian modulo 1000; <10 held out",
+  "labels": "cp: White-relative, sigmoid(stm_cp/400); WDL: White-result, complemented for Black to move",
+  "source": "Own game and sampled Lichess positions annotated offline by Stockfish 19",
+  "sources": [
+    {
+      "path": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\teacher-tools\\labels-merged.csv",
+      "bytes": 3246037,
+      "mtime_ns": 1789102576930191400,
+      "rows": 51173,
+      "rows_seen": 51173,
+      "header": [
+        "fen",
+        "depth",
+        "cp"
+      ],
+      "sha256": "fc57ffc0e59af8853b54c26206e7b741aeec151af799e23014fd8af17d25096f"
+    }
+  ],
+  "train": [
+    {
+      "path": "train-00000.npy",
+      "rows": 50663
+    }
+  ],
+  "validation": [
+    {
+      "path": "validation-00000.npy",
+      "rows": 510
+    }
+  ],
+  "rows": 51173,
+  "train_rows": 50663,
+  "validation_rows": 510,
+  "rejected_rows": 0,
+  "rejection_reasons": {},
+  "rejection_examples": [],
+  "complete": true,
+  "preparation_seconds": 1.0354268000010052,
+  "pilot_limit": null,
+  "teacher_annotations": [
+    {
+      "engine_id": {
+        "name": "Stockfish 19",
+        "author": "the Stockfish developers (see AUTHORS file)"
+      },
+      "binary_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+      "input_sha256": "c1a60e2beee4d9b3196821b285776f6e156b43b9f4f16ca50e9c3f679dc5c408",
+      "labels_sha256": "2aa635d187026dddf3155a6ef7721daeba19a9022704bbfa6802a978f68df87c",
+      "details_sha256": "157aba05f390f94a5339b8b1b55300021b260dd1c9d2c677d423b199b77b4966",
+      "nodes_per_position": 12000,
+      "cpu": 0,
+      "index": 0,
+      "workers": 2,
+      "positions": 9579,
+      "accepted": 6947,
+      "seconds": 355.6869999999981,
+      "offline_only": true
+    },
+    {
+      "engine_id": {
+        "name": "Stockfish 19",
+        "author": "the Stockfish developers (see AUTHORS file)"
+      },
+      "binary_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+      "input_sha256": "c1a60e2beee4d9b3196821b285776f6e156b43b9f4f16ca50e9c3f679dc5c408",
+      "labels_sha256": "ae591f9127223661cd474c69048fecd272c46192c51fbdd5ed17a178a3941235",
+      "details_sha256": "390a1d17d10c6505e2ad2d45b72775d364581a1ce5f7f1dcd6406c644e5da505",
+      "nodes_per_position": 12000,
+      "cpu": 6,
+      "index": 1,
+      "workers": 2,
+      "positions": 9579,
+      "accepted": 6986,
+      "seconds": 336.68700000000536,
+      "offline_only": true
+    },
+    {
+      "engine_id": {
+        "name": "Stockfish 19",
+        "author": "the Stockfish developers (see AUTHORS file)"
+      },
+      "binary_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+      "input_sha256": "11bcb34e3d5fab8a49e26f7278d23d28b977f03f262b55ce6cff96aed23bf7bd",
+      "labels_sha256": "f15c957d6832fae3b6accdeab02421630dcc15f80692ecc4397af2ba609f677d",
+      "details_sha256": "bbcdf73a21aa7861df552e47c2193996d2d1c85edd2fbe52c67b5e2d122f6ac1",
+      "nodes_per_position": 12000,
+      "cpu": 2,
+      "index": 0,
+      "workers": 2,
+      "positions": 25000,
+      "accepted": 18619,
+      "seconds_this_invocation": 835.5630000000019,
+      "resumed_after_positions": 1757,
+      "offline_only": true,
+      "annotation_source_sha256": "bcb279a81457f148bbc961fb497650e43763ed71976e8820a505aba2b8b276cc"
+    },
+    {
+      "engine_id": {
+        "name": "Stockfish 19",
+        "author": "the Stockfish developers (see AUTHORS file)"
+      },
+      "binary_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+      "input_sha256": "11bcb34e3d5fab8a49e26f7278d23d28b977f03f262b55ce6cff96aed23bf7bd",
+      "labels_sha256": "9722f471991f5f2dfcbee87e97c7a05366e114f9058b353d14e279661fe79edc",
+      "details_sha256": "fb7c9446f5a89ff5c24e6d5d547cbea536e45b44fc92b4c6e4f79f8e03c402e8",
+      "nodes_per_position": 12000,
+      "cpu": 0,
+      "index": 1,
+      "workers": 2,
+      "positions": 25000,
+      "accepted": 18621,
+      "seconds_this_invocation": 917.8289999999979,
+      "resumed_after_positions": 131,
+      "offline_only": true,
+      "annotation_source_sha256": "bcb279a81457f148bbc961fb497650e43763ed71976e8820a505aba2b8b276cc"
+    }
+  ],
+  "offline_only": true,
+  "merge_source_sha256": "c7aac7ef0e3da551107ff744fbdece739a10e0bc2c900193d79d4adad5790987",
+  "rules_snapshot_sha256": "53b82cdca51f5558ff2c70cf3751b5bc181390f910791a4898e97abc6cd19945",
+  "duplicates_removed": 0,
+  "promotion_budget_rejected": 0,
+  "selection": "Quiet best move, depth >=6, 12000 nodes, abs(cp)<=1800; hash heldout split unchanged"
+}

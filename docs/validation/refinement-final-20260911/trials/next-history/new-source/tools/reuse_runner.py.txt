@@ -1,0 +1,59 @@
+"""Private screening runner: reload game state while retaining compiled functions.
+
+This tool never ships. Final validation uses the unchanged platform runner and
+a genuinely fresh process for every game. Move requests use the same protocol.
+"""
+import atexit
+import gc
+import hashlib
+import importlib
+import json
+import os
+import sys
+
+protocol = os.fdopen(os.dup(1), "w")
+os.dup2(2, 1)
+sys.path.insert(0, sys.argv[1])
+agent = importlib.import_module("agent")
+
+def reply(value):
+    protocol.write(json.dumps(value) + "\n")
+    protocol.flush()
+
+def reset():
+    global agent
+    agent._stop_pondering()
+    agent._close_book()
+    atexit.unregister(agent._close_book)
+    if agent._TABLEBASE is not None:
+        agent._TABLEBASE.close()
+    agent = importlib.reload(agent)
+    gc.collect()
+    assert not agent._GAME_HISTORY and agent._ponder_thread is None
+    assert (agent._TT.storage.flags == -1).all()
+
+def snapshot():
+    digest = hashlib.sha256()
+    table = agent._TT.storage
+    for name in ("keys", "depths", "scores", "flags", "moves"):
+        digest.update(getattr(table, name).tobytes())
+    return {"tt": digest.hexdigest(), "history": sorted(agent._GAME_HISTORY.items()),
+            "ponder": agent._ponder_thread is None,
+            "quiet_history_sha256": hashlib.sha256(agent._QUIET_HISTORY.tobytes()).hexdigest()}
+
+reply({"ready": True})
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("command") == "reset":
+        reset()
+        reply({"ready": True})
+    elif request.get("command") == "verify":
+        depth = agent.MAX_SEARCH_DEPTH
+        try:
+            agent.MAX_SEARCH_DEPTH = 5
+            move = agent.get_move(request["fen"], 3_600_000)
+        finally:
+            agent.MAX_SEARCH_DEPTH = depth
+        reply({"move": move, "snapshot": snapshot()})
+    else:
+        reply({"move": agent.get_move(request["fen"], request["time_left_ms"])})

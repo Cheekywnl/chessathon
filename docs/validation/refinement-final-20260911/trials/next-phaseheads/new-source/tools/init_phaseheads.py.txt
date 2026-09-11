@@ -1,0 +1,80 @@
+"""Replicate this team's own dense head before phase-specific training."""
+from __future__ import annotations
+
+import argparse
+import json
+import time
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from tools.halfkp_data import file_hash
+from tools.train_halfkp_stream import HalfKPTrainNet as OriginalNet
+from tools.train_halfkp_stream import batches, tensors
+from tools.train_phaseheads import HalfKPTrainNet
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--parent", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    assert not args.out.exists()
+    torch.set_num_threads(1)
+    parent_note = json.loads((args.parent.parent / "run.json").read_text())
+    assert parent_note["lineage_random_initialization"]
+    assert parent_note["published_network_used"] is False
+    assert parent_note["checkpoint_sha256"] == file_hash(args.parent)
+    checkpoint = torch.load(args.parent, map_location="cpu", weights_only=True)
+    original = OriginalNet(parent_note["width"], parent_note["factorization"])
+    original.load_state_dict(checkpoint["state_dict"])
+    expanded = {}
+    for name, value in checkpoint["state_dict"].items():
+        expanded[name] = value.repeat(4, 1) if name.startswith("fc") and value.ndim == 2 else (
+            value.repeat(4) if name.startswith("fc") else value)
+    phase = HalfKPTrainNet(parent_note["width"], parent_note["factorization"])
+    phase.load_state_dict(expanded)
+    original.to("cuda").eval()
+    phase.to("cuda").eval()
+    prepared = Path(parent_note["source_manifest"]).parent
+    manifest = json.loads((prepared / "manifest.json").read_text())
+    checked, maximum = 0, 0.0
+    counts = [0, 0, 0, 0]
+    with torch.no_grad():
+        for records in batches(prepared, manifest["validation"][:5], 4096, None):
+            white, black, offsets, stm, _target = tensors(records, torch.device("cuda"))
+            expected = original(white, black, offsets, stm)
+            actual = phase(white, black, offsets, stm)
+            assert torch.allclose(expected, actual, atol=1e-5, rtol=1e-5)
+            maximum = max(maximum, float((expected - actual).abs().max()))
+            head = ((records["count"] > 10).astype(np.int64) +
+                    (records["count"] > 18) + (records["count"] > 25))
+            for index in range(4):
+                counts[index] += int(np.count_nonzero(head == index))
+            checked += len(records)
+    assert all(counts)
+    phase.cpu()
+    optimizer = torch.optim.Adam(phase.parameters(), lr=0.0002)
+    args.out.mkdir(parents=True)
+    torch.save({"state_dict": phase.state_dict(), "optimizer": optimizer.state_dict(),
+                "rows": 0, "seed": parent_note["seed"]}, args.out / "best_checkpoint.pt")
+    np.savez(args.out / "best_float.npz", allow_pickle=False, **phase.export_arrays())
+    note = {"random_initialization": False, "lineage_random_initialization": True,
+            "published_network_used": False, "parent_checkpoint": str(args.parent.resolve()),
+            "parent_checkpoint_sha256": file_hash(args.parent), "seed": parent_note["seed"],
+            "source_manifest": parent_note["source_manifest"],
+            "source_manifest_sha256": parent_note["source_manifest_sha256"],
+            "width": parent_note["width"], "phase_heads": 4,
+            "phase_max_nonking": [10, 18, 25], "optimizer_reset": True,
+            "conversion": "Identical copies of this team's trained dense head; shared features unchanged",
+            "checked_positions": checked, "head_counts": counts, "max_logit_error": maximum,
+            "checkpoint_sha256": file_hash(args.out / "best_checkpoint.pt"),
+            "float_weights_sha256": file_hash(args.out / "best_float.npz"),
+            "unix": time.time()}
+    (args.out / "run.json").write_text(json.dumps(note, indent=2) + "\n")
+    print(json.dumps(note), flush=True)
+
+
+if __name__ == "__main__":
+    main()

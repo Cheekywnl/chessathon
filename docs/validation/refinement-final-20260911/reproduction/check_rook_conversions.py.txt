@@ -1,0 +1,54 @@
+import io,json,sys,time
+from pathlib import Path
+import chess,chess.pgn,chess.syzygy
+root=Path(__file__).resolve().parent
+
+sys.path.insert(0,str(root/'final-extracted'))
+import agent
+import chess_rook_endgame as policy
+oracle=chess.syzygy.open_tablebase(str(root/'final-extracted/syzygy'))
+oracle.add_directory(str(root/'endgame-oracle'))
+initial=chess.Board('1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1')
+results=[]
+for name,board in [('original',initial.copy()),('file_mirror',initial.transform(chess.flip_horizontal)),('black',initial.mirror()),('black_file_mirror',initial.mirror().transform(chess.flip_horizontal))]:
+    agent._GAME_HISTORY={}
+    agent._TT=agent.cs.TranspositionTable(16)
+    winning=board.turn
+    for ply in range(160):
+        outcome=board.outcome(claim_draw=True)
+        if outcome:
+            assert outcome.winner==winning,(name,outcome,board.fen())
+            game=chess.pgn.Game.from_board(board)
+            results.append(dict(name=name,plies=ply,termination=outcome.termination.name.lower(),pgn=str(game)))
+            break
+        if board.turn==winning:
+            move=chess.Move.from_uci(agent.get_move(board.fen(),20000))
+        else:
+            ranked=[]
+            for candidate in board.legal_moves:
+                zeroing=board.is_zeroing(candidate)
+                board.push(candidate)
+                wdl=-oracle.probe_wdl(board)
+                dtz=1 if zeroing else abs(oracle.probe_dtz(board))+1
+                board.pop()
+                ranked.append(((wdl,dtz if wdl<0 else -dtz,candidate.uci()),candidate))
+            move=max(ranked,key=lambda x:x[0])[1]
+        assert move in board.legal_moves
+        board.push(move)
+    else:
+        raise AssertionError((name,'ply cap'))
+# Supply a real-game history in which the recorded winning move instead repeats.
+board=initial.copy();board.halfmove_clock=10
+recorded=policy.winning_move(board);assert recorded is not None
+board.push(recorded);repeated=agent.cs.hash_of_board(board);board.pop()
+agent._GAME_HISTORY={repeated:2}
+agent._TT=agent.cs.TranspositionTable(16)
+claims,complete=agent.cd.root_claims(board,agent._GAME_HISTORY,list(board.legal_moves),time.monotonic()+60)
+packed=agent.cst.pack_move(recorded.from_square,recorded.to_square,recorded.promotion or 0)
+assert complete and packed in claims
+selected=chess.Move.from_uci(agent.get_move(board.fen(),5000))
+assert selected in board.legal_moves and selected!=recorded
+result=dict(passed=True,conversions=results,policy_repetition_claim_rejected=True,recorded_move=recorded.uci(),safe_move=selected.uci())
+(root/'final-rook-conversions.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result,indent=2))
+

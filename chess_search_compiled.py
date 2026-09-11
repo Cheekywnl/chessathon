@@ -97,6 +97,23 @@ spec = [
     ("acc_black", types.int32[::1]),
     ("previous", types.uint64[::1]),
     ("acc_valid", types.boolean),
+    ("king_sums", types.int32[:, :, ::1]),
+    ("king_positions", types.uint64[:, :, ::1]),
+    ("king_valid", types.boolean[:, ::1]),
+    ("clipped_white", types.int16[::1]),
+    ("clipped_black", types.int16[::1]),
+    ("hidden1", types.int16[::1]),
+    ("hidden2", types.int16[::1]),
+    ("inverse2", types.float64),
+    ("inverse3", types.float64),
+    ("shift2", types.int64),
+    ("shift3", types.int64),
+    ("eval_keys", types.uint64[::1]),
+    ("eval_scores", types.int32[::1]),
+    ("eval_valid", types.boolean[::1]),
+    ("eval_mask", types.int64),
+    ("eval_hits", types.int64),
+    ("eval_misses", types.int64),
 ]
 
 
@@ -136,6 +153,23 @@ class Context:
         self.acc_black = np.zeros(len(b1), dtype=np.int32)
         self.previous = np.zeros(8, dtype=np.uint64)
         self.acc_valid = False
+        self.king_sums = np.zeros((2, 64, len(b1)), dtype=np.int32)
+        self.king_positions = np.zeros((2, 64, 8), dtype=np.uint64)
+        self.king_valid = np.zeros((2, 64), dtype=np.bool_)
+        self.clipped_white = np.empty(len(b1), dtype=np.int16)
+        self.clipped_black = np.empty(len(b1), dtype=np.int16)
+        self.hidden1 = np.empty(32, dtype=np.int16)
+        self.hidden2 = np.empty(32, dtype=np.int16)
+        self.inverse2, self.inverse3 = 1.0 / s2, 1.0 / s3
+        self.shift2, self.shift3 = qi.binary_scale_shift(s2), qi.binary_scale_shift(s3)
+        # Static evaluation is position-only for a fixed Search's weights and
+        # parameters. Keep it separate from selective search bounds and draws.
+        eval_size = 1 << 18
+        self.eval_keys = np.zeros(eval_size, dtype=np.uint64)
+        self.eval_scores = np.empty(eval_size, dtype=np.int32)
+        self.eval_valid = np.zeros(eval_size, dtype=np.bool_)
+        self.eval_mask = eval_size - 1
+        self.eval_hits, self.eval_misses = 0, 0
 
 
 @njit(cache=False)
@@ -283,16 +317,7 @@ def evaluate(s: State, mobility: int, ctx: Any) -> int:
         or (not nonking & s[7])
     ):
         return classical
-    # Full refresh is cheaper on sparse boards, where king moves and large
-    # changes between sibling leaves can erase the benefit of cached sums.
-    if ce._popcount(s[6] | s[7]) >= 24:
-        neural = cached_neural(s, ctx)
-    else:
-        neural = qi.evaluate(
-            s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8],
-            ctx.w1, ctx.b1, ctx.w2, ctx.b2, ctx.w3, ctx.b3, ctx.w4, ctx.b4,
-            ctx.scale2, ctx.scale3, ctx.divisor,
-        )
+    neural = cached_neural(s, ctx)
     bonus = int(ce.mop_up_bonus(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], ctx.params))
     neural = max(-20000, min(20000, neural)) + (bonus if s[8] else -bonus)
     return (
@@ -304,64 +329,77 @@ def evaluate(s: State, mobility: int, ctx: Any) -> int:
 
 @njit(cache=False)
 def cached_neural(s: State, ctx: Any) -> int:
-    """Update from the last evaluated board, even across siblings and null moves.
+    """Keep an exact feature sum for each perspective and king square.
 
-    Exact piece-set differences make this independent of search-ply bookkeeping.
-    Each perspective refreshes when its king anchor changes. Int32 raw sums avoid
-    intermediate overflow; clipping happens only after every removal/addition.
-    The cache belongs to one Search, never the shared transposition table.
+    A king move selects its own remembered board. Piece-set differences update
+    that sum even when the search visits siblings, returns upward, or changes
+    game position. The cache belongs to one Search and contains no clipped sums.
     """
-    old = ctx.previous
     white_king = cst._lsb_index(s[5] & s[6])
     black_king = cst._lsb_index(s[5] & s[7]) ^ 56
-    refresh_white = not ctx.acc_valid or (old[5] & old[6]) != (s[5] & s[6])
-    refresh_black = not ctx.acc_valid or (old[5] & old[7]) != (s[5] & s[7])
     width = len(ctx.b1)
-    if refresh_white:
-        for j in range(width):
-            ctx.acc_white[j] = ctx.b1[j]
-    if refresh_black:
-        for j in range(width):
-            ctx.acc_black[j] = ctx.b1[j]
     pieces = (s[0], s[1], s[2], s[3], s[4])
-    for kind in range(5):
-        for color in range(2):
-            own = s[6] if color == 0 else s[7]
-            prior_own = old[6] if color == 0 else old[7]
-            now = pieces[kind] & own
-            prior = old[kind] & prior_own
-            changed = now ^ prior if ctx.acc_valid else now
-            visit = now | changed if refresh_white or refresh_black else changed
-            while visit:
-                square = cst._lsb_index(visit)
-                bit = U1 << np.uint64(square)
-                present = bool(now & bit)
-                delta = 1 if present else -1
-                white_delta = (1 if present else 0) if refresh_white else (
-                    delta if changed & bit else 0)
-                black_delta = (1 if present else 0) if refresh_black else (
-                    delta if changed & bit else 0)
-                if white_delta:
-                    feature = square + (kind * 2 + color + white_king * 10) * 64
-                    for j in range(width):
-                        ctx.acc_white[j] += white_delta * np.int32(ctx.w1[feature, j])
-                if black_delta:
-                    feature = (square ^ 56) + (kind * 2 + 1 - color + black_king * 10) * 64
-                    for j in range(width):
-                        ctx.acc_black[j] += black_delta * np.int32(ctx.w1[feature, j])
-                visit &= visit - U1
     raw = (s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7])
+    for perspective in range(2):
+        king = white_king if perspective == 0 else black_king
+        old = ctx.king_positions[perspective, king]
+        acc = ctx.king_sums[perspective, king]
+        valid = ctx.king_valid[perspective, king]
+        if not valid:
+            for j in range(width):
+                acc[j] = ctx.b1[j]
+        for kind in range(5):
+            for color in range(2):
+                own = s[6] if color == 0 else s[7]
+                prior_own = old[6] if color == 0 else old[7]
+                now = pieces[kind] & own
+                prior = old[kind] & prior_own
+                changed = now ^ prior if valid else now
+                while changed:
+                    square = cst._lsb_index(changed)
+                    bit = U1 << np.uint64(square)
+                    delta = 1 if now & bit else -1
+                    relative_square = square if perspective == 0 else square ^ 56
+                    relative_color = color if perspective == 0 else 1 - color
+                    feature = relative_square + (kind * 2 + relative_color + king * 10) * 64
+                    for j in range(width):
+                        acc[j] += delta * np.int32(ctx.w1[feature, j])
+                    changed &= changed - U1
+        for i in range(8):
+            old[i] = raw[i]
+        ctx.king_valid[perspective, king] = True
+    ctx.acc_white = ctx.king_sums[0, white_king]
+    ctx.acc_black = ctx.king_sums[1, black_king]
     for i in range(8):
-        old[i] = raw[i]
+        ctx.previous[i] = raw[i]
     ctx.acc_valid = True
-    white = np.empty(width, dtype=np.int16)
-    black = np.empty(width, dtype=np.int16)
+    white = ctx.clipped_white
+    black = ctx.clipped_black
     for j in range(width):
         white[j] = min(255, max(0, ctx.acc_white[j]))
         black[j] = min(255, max(0, ctx.acc_black[j]))
     own_acc, other_acc = (white, black) if s[8] else (black, white)
-    return round(qi.forward_accumulators(own_acc, other_acc, ctx.w2, ctx.b2, ctx.w3, ctx.b3,
-                 ctx.w4, ctx.b4, ctx.scale2, ctx.scale3, ctx.divisor))
+    return round(qi.forward_scratch(own_acc, other_acc, ctx.w2, ctx.b2, ctx.w3, ctx.b3,
+                 ctx.w4, ctx.b4, ctx.scale2, ctx.scale3, ctx.divisor,
+                 ctx.inverse2, ctx.inverse3, ctx.shift2, ctx.shift3, ctx.hidden1, ctx.hidden2))
+
+
+@njit(cache=False)
+def evaluate_cached(s: State, n: int, key: np.uint64, ctx: Any) -> int:
+    """Cache only static scores, with full keys and per-Search ownership.
+
+    Every caller still handles repetition, terminal positions and the clock.
+    The legal move count is deterministic for this position's full state key.
+    A collision replaces an entry and can affect speed only.
+    """
+    index = np.int64(key & np.uint64(ctx.eval_mask))
+    if ctx.eval_valid[index] and ctx.eval_keys[index] == key:
+        ctx.eval_hits += 1
+        return int(ctx.eval_scores[index])
+    score = evaluate(s, n, ctx)
+    ctx.eval_keys[index], ctx.eval_scores[index], ctx.eval_valid[index] = key, score, True
+    ctx.eval_misses += 1
+    return score
 
 
 @njit(cache=False)
@@ -494,15 +532,18 @@ def qsearch(
     if incheck:
         best = -MATE - 1
     else:
-        stand = evaluate(s, n, ctx)
+        stand = evaluate_cached(s, n, key, ctx)
         if stand >= beta:
             return stand
         alpha = max(alpha, stand)
         best = stand
     moves, caps, count = ordered(s, f, t, p, n, ctx, NO_MOVE, ply, True, incheck)
+    # In small endings a capture can remove mating material and save a draw;
+    # its value can exceed the victim's nominal material value by hundreds.
+    prune_material = ce._popcount(s[6] | s[7]) > 7
     for i in range(count):
         ff, tt, pp = unpack(moves[i])
-        if not incheck and caps[i] and (not pp):
+        if prune_material and not incheck and caps[i] and (not pp):
             victim = victim_at(s, ff, tt)
             if stand + VALUES[victim - 1] + limits.DELTA_MARGIN <= alpha:
                 continue
@@ -553,7 +594,7 @@ def negamax(
         return -(MATE - ply) if incheck else draw_score(ply)
     static = 0
     if not incheck:
-        static = evaluate(s, n, ctx)
+        static = evaluate_cached(s, n, key, ctx)
         if depth <= limits.REVERSE_FUTILITY_DEPTH and abs(beta) < MATE_THRESHOLD:
             margin = limits.REVERSE_FUTILITY_MARGIN_PER_PLY * depth
             if static - margin >= beta:

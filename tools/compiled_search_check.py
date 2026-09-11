@@ -40,6 +40,22 @@ def main() -> None:
     assert spec is not None and spec.loader is not None
     reference: Any = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(reference)
+    if not args.reference_backend:
+        # A source file retaining both recursion paths must actually exercise
+        # its Python path here; otherwise both sides use the same backend.
+        reference_init = reference.Search.__init__
+
+        def python_reference_init(self: Any, tt: Any, game_history: dict[int, int],
+                                  params: Any = None, stop_event: Any = None) -> None:
+            reference_init(self, tt, game_history, params, stop_event)
+            self._ctx = None
+            self.seen = dict(game_history)
+            self.killers = np.full((cs.MAX_PLY, 2), cs.NO_MOVE, dtype=np.int64)
+            self.history = {}
+            self.nodes = 0
+            self.deadline = 0.0
+
+        reference.Search.__init__ = python_reference_init
     if args.reference_backend:
         backend_spec = importlib.util.spec_from_file_location(
             "compiled_backend_reference", args.reference_backend,

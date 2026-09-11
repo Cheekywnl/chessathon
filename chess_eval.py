@@ -20,6 +20,8 @@ import chess
 import numpy as np
 from numba import njit
 
+from chess_bits import lsb_index, popcount
+
 Bitboard = np.uint64
 
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
@@ -172,11 +174,7 @@ ADJACENT_FILE_MASK = _adjacent_file_masks()
 
 @njit(cache=False)
 def _popcount(bb: np.uint64) -> int:
-    count = 0
-    while bb:
-        bb &= bb - np.uint64(1)
-        count += 1
-    return count
+    return popcount(bb)
 
 
 @njit(cache=False)
@@ -220,7 +218,9 @@ def evaluate(
             bishop_count_w = w_count
             bishop_count_b = b_count
 
-        for square in range(64):
+        while bb:
+            square = lsb_index(bb)
+            bb &= bb - np.uint64(1)
             mask = np.uint64(1) << np.uint64(square)
             if w_bb & mask:
                 if piece_type != KING:

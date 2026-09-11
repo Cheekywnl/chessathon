@@ -1,0 +1,26 @@
+{
+  "purpose": "Exploratory attribution of the selected model contribution with identical final optimized code; not combined with primary final comparison.",
+  "only_difference": [
+    "weights/halfkp.npz"
+  ],
+  "clock_ms": [
+    120000,
+    500
+  ],
+  "games": 16,
+  "opening_indices": [
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147
+  ],
+  "workers": [
+    0,
+    10
+  ],
+  "selection_rule": "Primary 60-game penultimate comparison remains the release-strength test; no post-hoc promotion on this small attribution sample."
+}

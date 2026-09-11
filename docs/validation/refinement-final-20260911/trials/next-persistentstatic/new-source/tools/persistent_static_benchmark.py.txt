@@ -1,0 +1,53 @@
+"""ABBA whole-agent timing with exact moves and persistent TT/history checks."""
+import json
+from pathlib import Path
+
+import chess
+from tools.reuse_platform_agent import close_all, local
+
+def main():
+    roots = {"before": Path("../next-combo128"), "after": Path(".")}
+    agents = {name: local(root, cpu=10, python="../halfkp-trial/.venv/Scripts/python.exe")
+              for name, root in roots.items()}
+    opponent = local(Path("../hour-release"), cpu=10,
+                     python="../halfkp-trial/.venv/Scripts/python.exe")
+    records = []
+    try:
+        for label in ("before", "after", "after", "before"):
+            agent = agents[label]
+            agent.start(90)
+            opponent.start(90)
+            board = chess.Board("r1bq1rk1/1p3ppp/p1nbpn2/3p4/1PP5/P3PN2/1B1N1PPP/R2QKB1R w KQ - 0 10")
+            moves = []
+            for step in range(16):
+                if board.is_game_over(claim_draw=True):
+                    break
+                reply = agent.benchmark(board.fen())
+                moves.append({"fen": board.fen(), **reply})
+                move = chess.Move.from_uci(reply["move"])
+                assert move in board.legal_moves
+                board.push(move)
+                if not board.is_game_over(claim_draw=True):
+                    reply = opponent.verify(board.fen())
+                    board.push(chess.Move.from_uci(reply["move"]))
+            agent.stop()
+            opponent.stop()
+            if records:
+                for actual, expected in zip(moves, records[0]["moves"], strict=True):
+                    for key in ("fen", "move", "snapshot"):
+                        assert actual[key] == expected[key], (label, key, actual, expected)
+            row = {"label": label, "moves": moves, "seconds": sum(r["seconds"] for r in moves)}
+            records.append(row)
+            print(json.dumps({k: v for k, v in row.items() if k != "moves"}), flush=True)
+    finally:
+        close_all()
+    before = sum(r["seconds"] for r in records if r["label"] == "before")
+    after = sum(r["seconds"] for r in records if r["label"] == "after")
+    result = {"whole_agent_states_exact": True, "order": "ABBA", "positions_each": len(records[0]["moves"]),
+              "depth": 9, "before_seconds": before, "after_seconds": after,
+              "speed_ratio": before / after, "records": records}
+    Path("data/runs/persistent-static-benchmark-v2.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps({k: v for k, v in result.items() if k != "records"}))
+
+if __name__ == "__main__":
+    main()

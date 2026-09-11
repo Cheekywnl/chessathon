@@ -56,7 +56,9 @@ def play_pair(job: dict[str, Any]) -> list[dict[str, Any]]:
                "white_peak_rss": getattr(wp, "peak_rss_bytes", None),
                "black_peak_rss": getattr(bp, "peak_rss_bytes", None),
                "white_init_seconds": getattr(wp, "init_seconds", None),
-               "black_init_seconds": getattr(bp, "init_seconds", None), "cpu": job["cpu"]}
+               "black_init_seconds": getattr(bp, "init_seconds", None), "cpu": job["cpu"],
+               "white_init_diagnostics": getattr(wp, "init_diagnostics", {}),
+               "black_init_diagnostics": getattr(bp, "init_diagnostics", {})}
         rows.append(row)
         side = "white" if agent_white else "black"
         print(f"game finished: pair {job['index'] + 1} {job['name']} agent={side}: "

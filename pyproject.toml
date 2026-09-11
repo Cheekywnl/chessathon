@@ -37,6 +37,7 @@ strict = true
 files = [
     "agent.py",
     "chess_draw.py",
+    "chess_rook_endgame.py",
     "chess_eval.py",
     "chess_nnue.py",
     "chess_nnue_halfkp.py",

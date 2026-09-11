@@ -1,0 +1,20 @@
+{
+  "engine_id": {
+    "name": "Stockfish 19",
+    "author": "the Stockfish developers (see AUTHORS file)"
+  },
+  "binary_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+  "input_sha256": "11bcb34e3d5fab8a49e26f7278d23d28b977f03f262b55ce6cff96aed23bf7bd",
+  "labels_sha256": "f15c957d6832fae3b6accdeab02421630dcc15f80692ecc4397af2ba609f677d",
+  "details_sha256": "bbcdf73a21aa7861df552e47c2193996d2d1c85edd2fbe52c67b5e2d122f6ac1",
+  "nodes_per_position": 12000,
+  "cpu": 2,
+  "index": 0,
+  "workers": 2,
+  "positions": 25000,
+  "accepted": 18619,
+  "seconds_this_invocation": 835.5630000000019,
+  "resumed_after_positions": 1757,
+  "offline_only": true,
+  "annotation_source_sha256": "bcb279a81457f148bbc961fb497650e43763ed71976e8820a505aba2b8b276cc"
+}

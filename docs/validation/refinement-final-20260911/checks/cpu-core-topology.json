@@ -1,0 +1,34 @@
+[
+  {
+    "Mask": 3,
+    "LogicalCPUs": "0,1"
+  },
+  {
+    "Mask": 12,
+    "LogicalCPUs": "2,3"
+  },
+  {
+    "Mask": 48,
+    "LogicalCPUs": "4,5"
+  },
+  {
+    "Mask": 192,
+    "LogicalCPUs": "6,7"
+  },
+  {
+    "Mask": 768,
+    "LogicalCPUs": "8,9"
+  },
+  {
+    "Mask": 3072,
+    "LogicalCPUs": "10,11"
+  },
+  {
+    "Mask": 12288,
+    "LogicalCPUs": "12,13"
+  },
+  {
+    "Mask": 49152,
+    "LogicalCPUs": "14,15"
+  }
+]

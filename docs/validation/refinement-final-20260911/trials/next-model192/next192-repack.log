@@ -1,0 +1,12 @@
+{
+  "source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-model192\\data\\runs\\next192-full\\halfkp-fullrange.npz",
+  "source_sha256": "72cb9878e7f82f96b4df3b74c046eb9e9be82737d8c57d17404d9374797d7643",
+  "out": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-model192\\data\\runs\\next192-full\\halfkp-bzip2.npz",
+  "sha256": "24efa9cbd5797973691cb5ad2607a03c057c940877b65792628ba47da46a7e97",
+  "source_bytes": 10546668,
+  "bytes": 8579739,
+  "compression": "bzip2",
+  "all_tensor_bytes_identical": true,
+  "pack_seconds": 1.4627517000044463,
+  "verify_seconds": 3.6127172999986215
+}

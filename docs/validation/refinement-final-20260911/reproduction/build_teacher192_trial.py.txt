@@ -1,0 +1,55 @@
+"""Fine-tune our own wider network after the first GPU experiment finishes."""
+import json
+import shutil
+import subprocess
+import time
+from pathlib import Path
+
+import psutil
+
+root = Path(__file__).resolve().parent
+destination = root / "next-teacher192"
+assert not destination.exists()
+subprocess.run(["git", "worktree", "add", "-b", "refine/teacher192-next",
+                str(destination), "ce3bdbb260fa714fecf4279f5befe6bce3ba1c4e"],
+               cwd=root / "hour-release", check=True)
+for path in (root / "next-combo128").glob("*.py"):
+    shutil.copy2(path, destination / path.name)
+for name in ("finetune_teacher_mix.py", "train_phaseheads.py", "platform_agent.py",
+             "sprt_arena.py", "compiled_search_check.py", "screen_arena.py",
+             "reuse_runner.py", "reuse_platform_agent.py"):
+    shutil.copy2(root / "next-teacherstrong/tools" / name, destination / "tools" / name)
+path = destination / "tools/finetune_teacher_mix.py"
+text = path.read_text().replace('    parser.add_argument("--old-ratio", type=int, default=3)',
+    '    parser.add_argument("--width", type=int, default=192)\n'
+    '    parser.add_argument("--old-ratio", type=int, default=3)')
+text = text.replace('model = model_class(128, True).to(device)',
+                    'model = model_class(args.width, True).to(device)')
+text = text.replace('"width": 128, "factorization": True',
+                    '"width": args.width, "factorization": True')
+path.write_text(text)
+(destination / "data/runs").mkdir(parents=True)
+psutil.Process().cpu_affinity([0])
+first = root / "next-teacherstrong/data/runs/teacher-strong-pipeline.log"
+print(json.dumps({"event": "waiting_for_first_gpu_pipeline"}), flush=True)
+while '"complete_training_and_quantization"' not in first.read_text():
+    time.sleep(5)
+out = destination / "data/runs/teacher-broad-192"
+subprocess.run([str(root / "cuda-env/Scripts/python.exe"), "-m", "tools.finetune_teacher_mix",
+    "--parent", "../next-model192/data/runs/next192-full/best_checkpoint.pt",
+    "--prepared", "../halfkp-trial/data/full-cache", "--teacher", "../next-broadteacher/data/teacher-cache",
+    "--out", str(out), "--epochs", "60", "--lr", "0.00003", "--ft-lr-scale", "0.25",
+    "--old-ratio", "3", "--old-regression", "0.02", "--seed", "20260925", "--width", "192"],
+    cwd=destination, check=True)
+python = str(root / "halfkp-trial/.venv/Scripts/python.exe")
+subprocess.run([python, "-m", "tools.quantize_halfkp", "--float", str(out / "best_float.npz"),
+    "--out", str(out / "fullrange_quantized.npz"), "--dense-scaling", "fullrange"],
+    cwd=destination, check=True)
+subprocess.run([python, "-m", "tools.repack_halfkp", "--source", str(out / "fullrange_quantized.npz"),
+    "--out", str(out / "fullrange_bzip2.npz"), "--compression", "bzip2"], cwd=destination, check=True)
+shutil.copy2(out / "fullrange_bzip2.npz", destination / "weights/halfkp.npz")
+subprocess.run([str(root / "cuda-env/Scripts/python.exe"), "-m", "tools.halfkp_quant_check",
+    "--float", str(out / "best_float.npz"), "--quantized", "weights/halfkp.npz",
+    "--heldout", "../halfkp-trial/data/full-cache/heldout_fens.csv", "--positions", "10000",
+    "--cpu", "0", "--out", "data/runs/teacher192-quant-check.json"], cwd=destination, check=True)
+print(json.dumps({"event": "complete_training_and_quantization", "runtime_ready_for_screen": True}), flush=True)

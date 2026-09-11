@@ -1,0 +1,100 @@
+{
+  "fresh_and_reset_states_exact": true,
+  "cycles": 3,
+  "positions_each": 5,
+  "initialization_seconds": [
+    55.46800000000076,
+    0.1879999999946449,
+    0.1569999999992433
+  ],
+  "records": [
+    {
+      "move": "e2e4",
+      "snapshot": {
+        "tt": "ba52b750e417c776cc815be9f7a9981b36d6a4d2540d17cfd4d2360036d0e2f9",
+        "history": [
+          [
+            8297033242844338671,
+            1
+          ]
+        ],
+        "ponder": true,
+        "quiet_history_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+      }
+    },
+    {
+      "move": "f1d3",
+      "snapshot": {
+        "tt": "1fa10e506b2d049cdf13abe66b601b24654f06d8cd764e037c00daf1bbb8c441",
+        "history": [
+          [
+            1775005655099728545,
+            1
+          ],
+          [
+            4795662400656504735,
+            1
+          ]
+        ],
+        "ponder": true,
+        "quiet_history_sha256": "f2a94a3521a20aca95db64d06012fca750d3addaf88f0992343bee38ea255e79"
+      }
+    },
+    {
+      "move": "a1b2",
+      "snapshot": {
+        "tt": "1fa10e506b2d049cdf13abe66b601b24654f06d8cd764e037c00daf1bbb8c441",
+        "history": [
+          [
+            1281754684985169057,
+            1
+          ],
+          [
+            4992510151157549143,
+            1
+          ]
+        ],
+        "ponder": true,
+        "quiet_history_sha256": "f2a94a3521a20aca95db64d06012fca750d3addaf88f0992343bee38ea255e79"
+      }
+    },
+    {
+      "move": "e3f3",
+      "snapshot": {
+        "tt": "cc49bffa9ef0b179e627722a576d3669bd619df1985945130c5c194484c07991",
+        "history": [
+          [
+            497998338971019704,
+            1
+          ],
+          [
+            2834514021071415422,
+            1
+          ]
+        ],
+        "ponder": true,
+        "quiet_history_sha256": "8b73972132403812af4148672f9f7b6b02cce85e596d29a1f45c9548c797b351"
+      }
+    },
+    {
+      "move": "a1b1",
+      "snapshot": {
+        "tt": "cc49bffa9ef0b179e627722a576d3669bd619df1985945130c5c194484c07991",
+        "history": [
+          [
+            2649072811153305890,
+            1
+          ],
+          [
+            7493573540330823099,
+            1
+          ]
+        ],
+        "ponder": true,
+        "quiet_history_sha256": "8b73972132403812af4148672f9f7b6b02cce85e596d29a1f45c9548c797b351"
+      }
+    }
+  ],
+  "screening_only": true,
+  "fresh_process_final_validation_required": true
+}

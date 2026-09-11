@@ -1,0 +1,2 @@
+{"index": 0, "init_seconds": 45.40600000000268, "peak_rss": 475893760, "move": "e2e4", "diagnostics": {"available_bytes_before": 3892400128}, "log": "move=e2e4 source=book\r\n"}
+{"index": 1, "init_seconds": 46.234000000004016, "peak_rss": 476930048, "move": "e2e4", "diagnostics": {"available_bytes_before": 3931234304}, "log": "move=e2e4 source=book\r\n"}

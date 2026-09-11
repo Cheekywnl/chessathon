@@ -1,0 +1,39 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    15000,
+    200
+  ],
+  "wins": 18,
+  "draws": 12,
+  "losses": 10,
+  "score": 0.6,
+  "terminations": {
+    "threefold_repetition": 12,
+    "checkmate": 28
+  },
+  "pair_score_counts": {
+    "0.5": 3,
+    "1.0": 8,
+    "2.0": 5,
+    "0.0": 1,
+    "1.5": 3
+  },
+  "log_sha256": {
+    "data\\runs\\combo-vs-penultimate-screen-v2.jsonl": "d821fce26c606b25cb4b8fb1c7b716b0b4d10fff8fa3e5d49278b7f1abb186f6"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "998526a215239ee4108f4a0cb261d2b931a42033f39a33f1136ff3348df50d3a",
+      "029bec79c7f2c75fdd0a1ca5badbee1c9aaa734c5a1675b0e6231871c46c776c"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 587251712,
+  "maximum_recorded_init_seconds": 53.312999999994645,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

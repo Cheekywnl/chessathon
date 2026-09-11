@@ -1,0 +1,53 @@
+"""Record an interrupted own run's last complete checkpoint after array verification."""
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from tools.halfkp_data import file_hash
+from tools.train_phaseheads_ftslow import HalfKPTrainNet
+
+
+def main() -> None:
+    source = Path("data/runs/phase-ftslow")
+    destination = Path("data/runs/phase-ftslow-recovered")
+    destination.mkdir()
+    torch.set_num_threads(1)
+    checkpoint = torch.load(source / "best_checkpoint.pt", weights_only=True, map_location="cpu")
+    net = HalfKPTrainNet(128, True)
+    net.load_state_dict(checkpoint["state_dict"])
+    exported = net.export_arrays()
+    with np.load(source / "best_float.npz", allow_pickle=False) as archive:
+        for key, value in exported.items():
+            assert np.array_equal(value, archive[key]), key
+    note = json.loads((source / "run.json").read_text())
+    parent = json.loads(Path(note["parent_run"]).read_text())
+    assert note["parent_checkpoint_sha256"] == parent["checkpoint_sha256"]
+    assert file_hash(Path(note["parent_run"]).parent / "best_checkpoint.pt") == parent["checkpoint_sha256"]
+    metrics = [json.loads(line) for line in (source / "metrics.jsonl").read_text().splitlines()]
+    validation = [v for v in metrics if v["event"] == "validation" and v["rows"] == checkpoint["rows"]]
+    assert len(validation) == 1
+    for filename in ("best_checkpoint.pt", "best_float.npz"):
+        shutil.copy2(source / filename, destination / filename)
+    note.update({
+        "recovery_reason": "Training stopped at its 1.5 GB available RAM guard; retained last completed best checkpoint",
+        "original_run": str(source.resolve()), "original_run_sha256": file_hash(source / "run.json"),
+        "original_metrics_sha256": file_hash(source / "metrics.jsonl"),
+        "original_log_sha256": file_hash(Path("data/runs/phase-ftslow.log")),
+        "checkpoint_rows": checkpoint["rows"],
+        "last_completed_validation_rows": metrics[-1]["rows"],
+        "best_validation_mse": validation[0]["validation_mse"],
+        "checkpoint_export_exact": True,
+        "checkpoint_sha256": file_hash(destination / "best_checkpoint.pt"),
+        "float_weights_sha256": file_hash(destination / "best_float.npz"),
+    })
+    (destination / "run.json").write_text(json.dumps(note, indent=2))
+    print(json.dumps(note, indent=2), flush=True)
+
+
+if __name__ == "__main__":
+    main()

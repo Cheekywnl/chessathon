@@ -1,0 +1,39 @@
+{
+  "evalcache": {
+    "evalcache-before-a": {
+      "initialization_seconds": 41.12264159999904,
+      "search_seconds": 15.726694700002554,
+      "nodes": 3928813
+    },
+    "evalcache-after-a": {
+      "initialization_seconds": 43.64329069999803,
+      "search_seconds": 12.738663100026315,
+      "nodes": 3928813
+    },
+    "evalcache-after-b": {
+      "initialization_seconds": 43.003210700000636,
+      "search_seconds": 12.989061000022048,
+      "nodes": 3928813
+    },
+    "evalcache-before-b": {
+      "initialization_seconds": 40.94864200000302,
+      "search_seconds": 14.89727960001619,
+      "nodes": 3928813
+    }
+  },
+  "compiler": {
+    "opt2-scratch-a": {
+      "initialization_seconds": 34.36829020000005,
+      "search_seconds": 15.06711410000571,
+      "nodes": 3928813
+    },
+    "opt3-scratch-a": {
+      "initialization_seconds": 38.13765240000066,
+      "search_seconds": 15.861612399996375,
+      "nodes": 3928813
+    }
+  },
+  "all_states_exact": true,
+  "playing_strength_validated": false,
+  "evalcache_speed_ratio": 1.1903102731096675
+}

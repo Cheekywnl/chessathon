@@ -1,0 +1,15 @@
+{"screening_only": true, "processes_reused_after_game_state_reload": true, "fresh_process_final_validation_required": true, "elo0": 0.0, "elo1": 50.0, "alpha": 0.05, "beta": 0.05, "min_pairs": 20, "cpus": [2, 4], "model": "pentanomial constrained MLE; 0.001 count per cell", "bounds": [-2.9444389791664403, 2.9444389791664403], "selfcheck": false}
+game finished: pair 2 20260917_051_ruy_lopez agent=white: draw by threefold_repetition
+game finished: pair 1 20260917_050_italian agent=white: white by checkmate
+game finished: pair 2 20260917_051_ruy_lopez agent=black: draw by threefold_repetition
+game finished: pair 1 20260917_050_italian agent=black: black by checkmate
+pair 1/20 20260917_050_italian: [1.0, 1.0]; +2 =0 -0; LLR=0.1340
+pair 2/20 20260917_051_ruy_lopez: [0.5, 0.5]; +2 =2 -0; LLR=0.2672
+game finished: pair 4 20260917_053_french agent=white: draw by threefold_repetition
+game finished: pair 3 20260917_052_sicilian_najdorf agent=white: draw by threefold_repetition
+game finished: pair 4 20260917_053_french agent=black: draw by threefold_repetition
+game finished: pair 3 20260917_052_sicilian_najdorf agent=black: black by checkmate
+pair 3/20 20260917_052_sicilian_najdorf: [0.5, 1.0]; +3 =3 -0; LLR=0.4008
+pair 4/20 20260917_053_french: [0.5, 0.5]; +3 =5 -0; LLR=0.5341
+game finished: pair 6 20260917_055_kings_indian agent=white: white by checkmate
+game finished: pair 5 20260917_054_queens_gambit_declined agent=white: white by checkmate

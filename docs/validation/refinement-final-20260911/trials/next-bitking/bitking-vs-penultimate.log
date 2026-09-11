@@ -1,0 +1,32 @@
+{"elo0": 0.0, "elo1": 50.0, "alpha": 0.05, "beta": 0.05, "min_pairs": 10, "cpus": [8, 10, 12, 14], "model": "pentanomial constrained MLE; 0.001 count per cell", "bounds": [-2.9444389791664403, 2.9444389791664403], "selfcheck": false}
+game finished: pair 3 20260916_072_ruy_lopez agent=white: white by checkmate
+game finished: pair 2 20260916_071_italian agent=white: draw by threefold_repetition
+game finished: pair 4 20260916_073_sicilian_najdorf agent=white: draw by threefold_repetition
+game finished: pair 1 20260916_070_startpos agent=white: draw by threefold_repetition
+game finished: pair 2 20260916_071_italian agent=black: black by checkmate
+game finished: pair 3 20260916_072_ruy_lopez agent=black: black by checkmate
+game finished: pair 4 20260916_073_sicilian_najdorf agent=black: draw by threefold_repetition
+game finished: pair 1 20260916_070_startpos agent=black: white by checkmate
+pair 1/10 20260916_070_startpos: [0.5, 0.0]; +0 =1 -1; LLR=-0.1546
+pair 2/10 20260916_071_italian: [0.5, 1.0]; +1 =2 -1; LLR=-0.0852
+pair 3/10 20260916_072_ruy_lopez: [1.0, 1.0]; +3 =2 -1; LLR=0.2814
+pair 4/10 20260916_073_sicilian_najdorf: [0.5, 0.5]; +3 =4 -1; LLR=0.3411
+game finished: pair 5 20260916_074_french agent=white: draw by threefold_repetition
+game finished: pair 6 20260916_075_caro_kann agent=white: draw by threefold_repetition
+game finished: pair 7 20260916_076_queens_gambit_declined agent=white: black by checkmate
+game finished: pair 8 20260916_077_kings_indian agent=white: black by checkmate
+game finished: pair 5 20260916_074_french agent=black: white by checkmate
+pair 5/10 20260916_074_french: [0.5, 0.0]; +3 =5 -2; LLR=0.0638
+game finished: pair 8 20260916_077_kings_indian agent=black: draw by threefold_repetition
+game finished: pair 6 20260916_075_caro_kann agent=black: black by checkmate
+pair 6/10 20260916_075_caro_kann: [0.5, 1.0]; +4 =6 -2; LLR=0.2758
+game finished: pair 7 20260916_076_queens_gambit_declined agent=black: black by checkmate
+pair 7/10 20260916_076_queens_gambit_declined: [0.0, 1.0]; +5 =6 -3; LLR=0.2812
+pair 8/10 20260916_077_kings_indian: [0.0, 0.5]; +5 =7 -4; LLR=-0.0319
+game finished: pair 9 20260916_078_english agent=white: black by checkmate
+game finished: pair 10 20260916_079_nimzo_indian agent=white: white by checkmate
+game finished: pair 9 20260916_078_english agent=black: draw by threefold_repetition
+pair 9/10 20260916_078_english: [0.0, 0.5]; +5 =8 -5; LLR=-0.3036
+game finished: pair 10 20260916_079_nimzo_indian agent=black: black by checkmate
+pair 10/10 20260916_079_nimzo_indian: [1.0, 1.0]; +7 =8 -5; LLR=0.1278
+{"decision": {"verdict": "inconclusive: opening/game cap"}, "games": 20, "pairs": 10, "wins": 7, "draws": 8, "losses": 5, "score": 0.55, "llr_including_inflight": 0.1278307000456661, "terminations": {"threefold_repetition": 8, "checkmate": 12}, "platform_elo_established": false}

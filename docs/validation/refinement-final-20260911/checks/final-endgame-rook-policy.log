@@ -1,0 +1,27 @@
+move=c1c4 source=rook_policy
+move=c4d4 source=rook_policy
+move=b8c7 source=rook_policy
+move=c7b6 source=rook_policy
+move=b6a6 source=rook_policy
+move=d4a4 source=rook_policy
+move=a6a7 source=rook_policy
+move=b7b8q source=rook_policy
+move=a4c4 source=tablebase
+move=a7b8 source=tablebase
+move=c4h4 source=tablebase
+move=b8c8 source=tablebase
+move=c8d8 source=tablebase
+move=h4h5 source=tablebase
+move=h5a5 source=tablebase
+move=d8e7 source=tablebase
+move=a5h5 source=tablebase
+move=h5g5 source=tablebase
+move=e7d7 source=tablebase
+move=g5h5 source=tablebase
+move=h5h6 source=tablebase
+move=d7c8 source=tablebase
+move=c8c7 source=tablebase
+move=h6a6 source=tablebase
+Lucena position: PASS (checkmate)
+
+1/1 endgame regression positions passed

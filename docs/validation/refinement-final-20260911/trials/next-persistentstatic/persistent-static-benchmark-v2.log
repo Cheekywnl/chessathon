@@ -1,0 +1,5 @@
+{"label": "before", "seconds": 9.841463799981284}
+{"label": "after", "seconds": 9.730109100004483}
+{"label": "after", "seconds": 9.324095499992836}
+{"label": "before", "seconds": 9.312075599998934}
+{"whole_agent_states_exact": true, "order": "ABBA", "positions_each": 16, "depth": 9, "before_seconds": 19.153539399980218, "after_seconds": 19.05420459999732, "speed_ratio": 1.0052132745537388}

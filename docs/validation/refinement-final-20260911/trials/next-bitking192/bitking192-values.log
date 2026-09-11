@@ -1,0 +1,23 @@
+{
+  "width": 192,
+  "parent_child_null_position_checks": 105643,
+  "legal_transitions": 50111,
+  "move_types": {
+    "white_quiet": 19173,
+    "white_capture": 3027,
+    "white_king": 2831,
+    "white_castling": 20,
+    "black_quiet": 19356,
+    "black_capture": 3070,
+    "black_king": 2463,
+    "black_castling": 27,
+    "white_en_passant": 5,
+    "black_en_passant": 3,
+    "white_capture_promotion": 4,
+    "white_promotion": 52,
+    "black_capture_promotion": 20,
+    "black_promotion": 60
+  },
+  "mismatches": 0,
+  "playing_strength_validated": false
+}

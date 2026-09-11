@@ -1,0 +1,41 @@
+"""Exercise collisions, age decay, wraparound and normalized mate distances."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import numpy as np
+
+import chess_search_compiled as compiled
+
+
+def main() -> None:
+    checks = 0
+    for generation in (0, 1, 100, 65535):
+        table = compiled.Table(2)
+        table.generation = generation
+        compiled.put(table, np.uint64(1), 12, 123, 0, 42, 0)
+        assert table.keys[1] == 1
+        compiled.put(table, np.uint64(5), 2, 456, 0, 77, 0)
+        assert table.keys[1] == 1, "fresh deep collision must survive"
+        table.generation = (generation + 2) & 65535
+        compiled.put(table, np.uint64(5), 2, 456, 0, 77, 0)
+        assert table.keys[1] == 1, "two sessions decay only eight plies"
+        table.generation = (generation + 3) & 65535
+        compiled.put(table, np.uint64(5), 2, 456, 0, 77, 0)
+        assert table.keys[1] == 5
+        assert compiled.probe(table, np.uint64(5), 2, -32000, 32000, 0) == (456, 77, True)
+        assert not compiled.probe(table, np.uint64(1), 0, -32000, 32000, 0)[2]
+        checks += 6
+        for score in (-31990, 31990):
+            compiled.put(table, np.uint64(5), 4, score, 0, 77, 3)
+            adjusted = score + (1 if score > 0 else -1)
+            assert compiled.probe(table, np.uint64(5), 4, -32000, 32000, 2)[0] == adjusted
+            checks += 1
+    result = {"checks": checks, "age_wraparound": True, "mismatches": 0}
+    Path("data/runs/tt-age-check.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result), flush=True)
+
+
+if __name__ == "__main__":
+    main()

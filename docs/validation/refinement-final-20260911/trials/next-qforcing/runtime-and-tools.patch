@@ -1,0 +1,82 @@
+diff --git a/chess_search.py b/chess_search.py
+index dc11060..a6857b9 100644
+--- a/chess_search.py
++++ b/chess_search.py
+@@ -658,7 +658,9 @@ class Search:
+             attacker = moving_type_i(pawns, knights, bishops, rooks, queens, f)
+             return int(PIECE_VALUES[victim - 1]) * 10 - int(PIECE_VALUES[attacker - 1])
+ 
++        prune_material = ce._popcount(state[6] | state[7]) > 7
+         for f, t, p, is_capture in sorted(cand, key=qscore, reverse=True):
++            child, child_key, child_in_check = apply_move_info(state, key, f, t, p)
+             # `and not p`: a capturing promotion's delta margin below only accounts for the
+             # captured piece's value, never the ~800cp the promotion itself gains -- pruning it
+             # on that alone would undervalue a move that's actually excellent. The pre-fix code
+@@ -670,14 +672,13 @@ class Search:
+             # being wrongly pruned), not caught by this session's own move/score/node-count A/B
+             # since that didn't happen to include a capturing promotion in the narrow alpha
+             # window where it mattered.
+-            if not in_check and is_capture and not p:
++            if prune_material and not in_check and not child_in_check and is_capture and not p:
+                 victim = captured_type_i(pawns, knights, bishops, rooks, queens, ep_square, f, t)
+                 if stand_pat + int(PIECE_VALUES[victim - 1]) + DELTA_MARGIN <= alpha:
+                     continue
+                 if see(state, f, t) < 0:
+                     continue
+ 
+-            child, child_key, child_in_check = apply_move_info(state, key, f, t, p)
+             self.seen[child_key] = self.seen.get(child_key, 0) + 1
+             try:
+                 score = -self.quiescence(
+diff --git a/chess_search_compiled.py b/chess_search_compiled.py
+index 639f86c..6bf47e7 100644
+--- a/chess_search_compiled.py
++++ b/chess_search_compiled.py
+@@ -500,15 +500,18 @@ def qsearch(
+         alpha = max(alpha, stand)
+         best = stand
+     moves, caps, count = ordered(s, f, t, p, n, ctx, NO_MOVE, ply, True, incheck)
++    # In small endings a capture can remove mating material and save a draw;
++    # its value can exceed the victim's nominal material value by hundreds.
++    prune_material = ce._popcount(s[6] | s[7]) > 7
+     for i in range(count):
+         ff, tt, pp = unpack(moves[i])
+-        if not incheck and caps[i] and (not pp):
++        child, childkey, childcheck = after(s, key, ff, tt, pp)
++        if prune_material and not incheck and not childcheck and caps[i] and (not pp):
+             victim = victim_at(s, ff, tt)
+             if stand + VALUES[victim - 1] + limits.DELTA_MARGIN <= alpha:
+                 continue
+             if see(s, ff, tt) < 0:
+                 continue
+-        child, childkey, childcheck = after(s, key, ff, tt, pp)
+         ctx.seen[childkey] = ctx.seen.get(childkey, 0) + 1
+         score = -qsearch(child, -beta, -alpha, ply + 1, childkey, childcheck, ctx)
+         # Only real history and the active path affect repetition. Keeping a
+diff --git a/tools/compiled_search_check.py b/tools/compiled_search_check.py
+index ec310db..e354aa2 100644
+--- a/tools/compiled_search_check.py
++++ b/tools/compiled_search_check.py
+@@ -40,6 +40,22 @@ def main() -> None:
+     assert spec is not None and spec.loader is not None
+     reference: Any = importlib.util.module_from_spec(spec)
+     spec.loader.exec_module(reference)
++    if not args.reference_backend:
++        # A source file retaining both recursion paths must actually exercise
++        # its Python path here; otherwise both sides use the same backend.
++        reference_init = reference.Search.__init__
++
++        def python_reference_init(self: Any, tt: Any, game_history: dict[int, int],
++                                  params: Any = None, stop_event: Any = None) -> None:
++            reference_init(self, tt, game_history, params, stop_event)
++            self._ctx = None
++            self.seen = dict(game_history)
++            self.killers = np.full((cs.MAX_PLY, 2), cs.NO_MOVE, dtype=np.int64)
++            self.history = {}
++            self.nodes = 0
++            self.deadline = 0.0
++
++        reference.Search.__init__ = python_reference_init
+     if args.reference_backend:
+         backend_spec = importlib.util.spec_from_file_location(
+             "compiled_backend_reference", args.reference_backend,

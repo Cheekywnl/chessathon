@@ -1,0 +1,38 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    15000,
+    200
+  ],
+  "wins": 10,
+  "draws": 14,
+  "losses": 16,
+  "score": 0.425,
+  "terminations": {
+    "checkmate": 26,
+    "threefold_repetition": 14
+  },
+  "pair_score_counts": {
+    "1.0": 8,
+    "0.5": 3,
+    "1.5": 5,
+    "0.0": 4
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacher192\\data\\runs\\teacher192-vs-broadteacher-screen.jsonl": "1c393a3349490176c549943760b30132804545192f7163f598121af62ed7a599"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "1b2a701b3ab60c8cf814dc93a35c1cf14c2b58ba87e1ee48a248fe389e9d500f",
+      "3ba80063d3aeefa78424ad86bd1f0166e7e2990ea2c21690f520a10a0ac0d731"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 593887232,
+  "maximum_recorded_init_seconds": 58.28199999999924,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

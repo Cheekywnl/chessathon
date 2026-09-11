@@ -1,0 +1,16 @@
+{
+  "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacherstrong\\data\\runs\\teacher-strong-128\\best_float.npz",
+  "source_sha256": "e7c32dfbc8e7ed6876e7719a167181285f2cec1b6326d408ae41e70d0a9991a1",
+  "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-teacherstrong\\data\\runs\\teacher-strong-128\\fullrange_quantized.npz",
+  "sha256": "f9df17f54c721a7c31876388bc0ab10a840a6ddf939104ddc8c2d3cf5ff8e1c2",
+  "file_bytes": 6942658,
+  "int16_accumulator_absolute_bound": 15191,
+  "weight_scales": [
+    155.0,
+    153.0,
+    0.20847273141149672
+  ],
+  "width": 128,
+  "dense_scaling": "fullrange",
+  "playing_strength_validated": false
+}

@@ -1,0 +1,339 @@
+WAC.001: pass
+WAC.002: FAIL
+WAC.003: pass
+WAC.004: pass
+WAC.005: pass
+WAC.006: pass
+WAC.007: pass
+WAC.008: pass
+WAC.009: pass
+WAC.010: pass
+WAC.011: pass
+WAC.012: pass
+WAC.013: pass
+WAC.014: pass
+WAC.015: pass
+WAC.016: pass
+WAC.017: pass
+WAC.018: pass
+WAC.019: pass
+WAC.020: pass
+WAC.021: pass
+WAC.022: pass
+WAC.023: pass
+WAC.024: pass
+WAC.025: pass
+WAC.026: pass
+WAC.027: pass
+WAC.028: pass
+WAC.029: pass
+WAC.030: pass
+WAC.031: pass
+WAC.032: pass
+WAC.033: pass
+WAC.034: pass
+WAC.035: pass
+WAC.036: pass
+WAC.037: pass
+WAC.038: pass
+WAC.039: pass
+WAC.040: pass
+WAC.041: FAIL
+WAC.042: pass
+WAC.043: pass
+WAC.044: pass
+WAC.045: pass
+WAC.046: pass
+WAC.047: pass
+WAC.048: pass
+WAC.049: pass
+WAC.050: pass
+WAC.051: pass
+WAC.052: pass
+WAC.053: pass
+WAC.054: pass
+WAC.055: FAIL
+WAC.056: pass
+WAC.057: pass
+WAC.058: pass
+WAC.059: pass
+WAC.060: pass
+WAC.061: pass
+WAC.062: pass
+WAC.063: pass
+WAC.064: pass
+WAC.065: pass
+WAC.066: pass
+WAC.067: pass
+WAC.068: pass
+WAC.069: pass
+WAC.070: pass
+WAC.071: pass
+WAC.072: pass
+WAC.073: pass
+WAC.074: pass
+WAC.075: pass
+WAC.076: pass
+WAC.077: pass
+WAC.078: pass
+WAC.079: pass
+WAC.080: FAIL
+WAC.081: pass
+WAC.082: pass
+WAC.083: pass
+WAC.084: pass
+WAC.085: pass
+WAC.086: pass
+WAC.087: pass
+WAC.088: pass
+WAC.089: pass
+WAC.090: pass
+WAC.091: FAIL
+WAC.092: FAIL
+WAC.093: FAIL
+WAC.094: pass
+WAC.095: pass
+WAC.096: pass
+WAC.097: pass
+WAC.098: pass
+WAC.099: pass
+WAC.100: FAIL
+WAC.101: pass
+WAC.102: pass
+WAC.103: pass
+WAC.104: pass
+WAC.105: pass
+WAC.106: pass
+WAC.107: pass
+WAC.108: pass
+WAC.109: FAIL
+WAC.110: pass
+WAC.111: FAIL
+WAC.112: pass
+WAC.113: pass
+WAC.114: pass
+WAC.115: pass
+WAC.116: pass
+WAC.117: pass
+WAC.118: pass
+WAC.119: pass
+WAC.120: pass
+WAC.121: pass
+WAC.122: pass
+WAC.123: pass
+WAC.124: pass
+WAC.125: pass
+WAC.126: pass
+WAC.127: pass
+WAC.128: pass
+WAC.129: pass
+WAC.130: pass
+WAC.131: FAIL
+WAC.132: pass
+WAC.133: pass
+WAC.134: pass
+WAC.135: pass
+WAC.136: pass
+WAC.137: pass
+WAC.138: pass
+WAC.139: pass
+WAC.140: pass
+WAC.141: FAIL
+WAC.142: pass
+WAC.143: pass
+WAC.144: pass
+WAC.145: FAIL
+WAC.146: pass
+WAC.147: pass
+WAC.148: pass
+WAC.149: pass
+WAC.150: FAIL
+WAC.151: pass
+WAC.152: pass
+WAC.153: pass
+WAC.154: pass
+WAC.155: pass
+WAC.156: pass
+WAC.157: pass
+WAC.158: pass
+WAC.159: pass
+WAC.160: pass
+WAC.161: pass
+WAC.162: pass
+WAC.163: FAIL
+WAC.164: pass
+WAC.165: pass
+WAC.166: pass
+WAC.167: pass
+WAC.168: pass
+WAC.169: pass
+WAC.170: pass
+WAC.171: pass
+WAC.172: pass
+WAC.173: pass
+WAC.174: pass
+WAC.175: pass
+WAC.176: FAIL
+WAC.177: pass
+WAC.178: FAIL
+WAC.179: pass
+WAC.180: pass
+WAC.181: pass
+WAC.182: pass
+WAC.183: pass
+WAC.184: pass
+WAC.185: pass
+WAC.186: pass
+WAC.187: pass
+WAC.188: pass
+WAC.189: pass
+WAC.190: pass
+WAC.191: pass
+WAC.192: pass
+WAC.193: pass
+WAC.194: pass
+WAC.195: pass
+WAC.196: FAIL
+WAC.197: pass
+WAC.198: pass
+WAC.199: pass
+WAC.200: pass
+WAC.201: pass
+WAC.202: pass
+WAC.203: pass
+WAC.204: pass
+WAC.205: pass
+WAC.206: pass
+WAC.207: pass
+WAC.208: pass
+WAC.209: pass
+WAC.210: pass
+WAC.211: pass
+WAC.212: pass
+WAC.213: FAIL
+WAC.214: pass
+WAC.215: pass
+WAC.216: pass
+WAC.217: pass
+WAC.218: pass
+WAC.219: pass
+WAC.220: pass
+WAC.221: pass
+WAC.222: FAIL
+WAC.223: pass
+WAC.224: pass
+WAC.225: pass
+WAC.226: pass
+WAC.227: pass
+WAC.228: pass
+WAC.229: FAIL
+WAC.230: FAIL
+WAC.231: pass
+WAC.232: FAIL
+WAC.233: pass
+WAC.234: pass
+WAC.235: FAIL
+WAC.236: pass
+WAC.237: pass
+WAC.238: pass
+WAC.239: pass
+WAC.240: pass
+WAC.241: FAIL
+WAC.242: pass
+WAC.243: pass
+WAC.244: pass
+WAC.245: FAIL
+WAC.246: pass
+WAC.247: FAIL
+WAC.248: pass
+WAC.249: FAIL
+WAC.250: pass
+WAC.251: pass
+WAC.252: pass
+WAC.253: pass
+WAC.254: pass
+WAC.255: pass
+WAC.256: pass
+WAC.257: pass
+WAC.258: pass
+WAC.259: pass
+WAC.260: pass
+WAC.261: FAIL
+WAC.262: pass
+WAC.263: pass
+WAC.264: FAIL
+WAC.265: pass
+WAC.266: pass
+WAC.267: pass
+WAC.268: pass
+WAC.269: pass
+WAC.270: pass
+WAC.271: pass
+WAC.272: pass
+WAC.273: pass
+WAC.274: pass
+WAC.275: pass
+WAC.276: pass
+WAC.277: FAIL
+WAC.278: pass
+WAC.279: pass
+WAC.280: pass
+WAC.281: pass
+WAC.282: pass
+WAC.283: pass
+WAC.284: pass
+WAC.285: pass
+WAC.286: pass
+WAC.287: FAIL
+WAC.288: pass
+WAC.289: pass
+WAC.290: pass
+WAC.291: FAIL
+WAC.292: pass
+WAC.293: FAIL
+WAC.294: pass
+WAC.295: pass
+WAC.296: pass
+WAC.297: pass
+WAC.298: pass
+WAC.299: FAIL
+WAC.300: pass
+
+265/300 (88.3%)
+
+failed:
+  WAC.002: wanted Rxb2, got h5  (8/7p/5k2/5p2/p1p2P2/Pr1pPK2/1P1R3P/8 b - - 0 1)
+  WAC.041: wanted Ka5/Kc5, got Ka6  (1k6/5RP1/1P6/1K6/6r1/8/8/8 w - - 0 1)
+  WAC.055: wanted Qxg7+, got Ref1  (r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0 1)
+  WAC.080: wanted Ra1, got d5  (r4rk1/p1B1bpp1/1p2pn1p/8/2PP4/3B1P2/qP2QP1P/3R1RK1 w - - 0 1)
+  WAC.091: wanted Be6, got Qd7  (2qr2k1/4b1p1/2p2p1p/1pP1p3/p2nP3/PbQNB1PP/1P3PK1/4RB2 b - - 0 1)
+  WAC.092: wanted Bxg4, got Bc4  (r4rk1/1p2ppbp/p2pbnp1/q7/3BPPP1/2N2B2/PPP4P/R2Q1RK1 b - - 0 1)
+  WAC.093: wanted Bh6, got Qg3  (r1b1k1nr/pp3pQp/4pq2/3pn3/8/P1P5/2P2PPP/R1B1KBNR w KQkq - 0 1)
+  WAC.100: wanted b6+, got Be3  (8/k1b5/P4p2/1Pp2p1p/K1P2P1P/8/3B4/8 w - - 0 1)
+  WAC.109: wanted c3, got f6  (rn2k1nr/pbp2ppp/3q4/1p2N3/2p5/QP6/PB1PPPPP/R3KB1R b KQkq - 0 1)
+  WAC.111: wanted Qf1+, got Qd1+  (6k1/p5p1/5p2/2P2Q2/3pN2p/3PbK1P/7P/6q1 b - - 0 1)
+  WAC.131: wanted Re8, got Ba1  (2rq1bk1/p4p1p/1p4p1/3b4/3B1Q2/8/P4PpP/3RR1K1 w - - 0 1)
+  WAC.141: wanted Qxf4, got Kf1  (4r1k1/p1qr1p2/2pb1Bp1/1p5p/3P1n1R/1B3P2/PP3PK1/2Q4R w - - 0 1)
+  WAC.145: wanted Re8, got Rf3  (r1bq4/1p4kp/3p1n2/p4pB1/2pQ4/8/1P4PP/4RRK1 w - - 0 1)
+  WAC.150: wanted Ba3/Bf8/e3, got Be5  (r3r1k1/5p2/pQ1b2pB/1p6/4p3/6P1/Pq2BP1P/2R3K1 b - - 0 1)
+  WAC.163: wanted Qg2+, got cxd5  (5rk1/2p4p/2p4r/3P4/4p1b1/1Q2NqPp/PP3P1K/R4R2 b - - 0 1)
+  WAC.176: wanted Rxh2+, got Bh3  (r1bq3r/ppp2pk1/3p1pp1/8/2BbPQ2/2NP2P1/PPP4P/R4R1K b - - 0 1)
+  WAC.178: wanted Nxe6, got Qxh7+  (3r2k1/p1rn1p1p/1p2pp2/6q1/3PQNP1/5P2/P1P4R/R5K1 w - - 0 1)
+  WAC.196: wanted Nb4, got Ng4  (rr4k1/p1pq2pp/Q1n1pn2/2bpp3/4P3/2PP1NN1/PP3PPP/R1B1K2R b KQ - 0 1)
+  WAC.213: wanted Rxh7+, got Bh6  (3r1r1k/1b4pp/ppn1p3/4Pp1R/Pn5P/3P4/4QP2/1qB1NKR1 w - - 0 1)
+  WAC.222: wanted Bf6, got bxa3  (2r1r2k/1q3ppp/p2Rp3/2p1P3/6QB/p3P3/bP3PPP/3R2K1 w - - 0 1)
+  WAC.229: wanted Rxh4/b4, got Rh7  (8/8/8/1p5r/p1p1k1pN/P2pBpP1/1P1K1P2/8 b - - 0 1)
+  WAC.230: wanted Rb4, got Bd7  (2b5/1r6/2kBp1p1/p2pP1P1/2pP4/1pP3K1/1R3P2/8 b - - 0 1)
+  WAC.232: wanted Qb5/Rxe8, got Qa7  (1R2rq1k/2p3p1/Q2p1pPp/8/4P3/8/P1r3PP/1R4K1 w - - 0 1)
+  WAC.235: wanted Qxf7+/Rxf7+, got Qe4  (5r2/1p1RRrk1/4Qq1p/1PP3p1/8/4B3/1b3P1P/6K1 w - - 0 1)
+  WAC.241: wanted Qxh7+, got Rxf6  (2rq1rk1/pp3ppp/2n2b2/4NR2/3P4/PB5Q/1P4PP/3R2K1 w - - 0 1)
+  WAC.245: wanted Qxg6+, got Nb5  (4rrn1/ppq3bk/3pPnpp/2p5/2PB4/2NQ1RPB/PP5P/5R1K w - - 0 1)
+  WAC.247: wanted Rxb5, got Qc5+  (2k1r3/1p2Bq2/p2Qp3/Pb1p1p1P/2pP1P2/2P5/2P2KP1/1R6 w - - 0 1)
+  WAC.249: wanted c5/d5, got Rad1  (r4rk1/pbq2pp1/1ppbpn1p/8/2PP4/1P1Q1N2/PBB2PPP/R3R1K1 w - - 0 1)
+  WAC.261: wanted Nd4, got Re8  (r5k1/1bp3pp/p2p4/1p6/5p2/1PBP1nqP/1PP3Q1/R4R1K b - - 0 1)
+  WAC.264: wanted Rab8, got Qe5  (r2r2k1/1R2qp2/p5pp/2P5/b1PN1b2/P7/1Q3PPP/1B1R2K1 b - - 0 1)
+  WAC.277: wanted Rg3/Rxg2, got Rg4  (1r4r1/p2kb2p/bq2p3/3p1p2/5P2/2BB3Q/PP4PP/3RKR2 b - - 0 1)
+  WAC.287: wanted Qh5, got Bc4  (rn3k1r/pp2bBpp/2p2n2/q5N1/3P4/1P6/P1P3PP/R1BQ1RK1 w - - 0 1)
+  WAC.291: wanted h3, got Kh1  (5r1k/3b2p1/p6p/1pRpR3/1P1P2q1/P4pP1/5QnP/1B4K1 w - - 0 1)
+  WAC.293: wanted Nfg5, got Qh5  (1nbq1r1k/3rbp1p/p1p1pp1Q/1p6/P1pPN3/5NP1/1P2PPBP/R4RK1 w - - 0 1)
+  WAC.299: wanted Nca4, got Na8+  (1n2rr2/1pk3pp/pNn2p2/2N1p3/8/6P1/PP2PPKP/2RR4 w - - 0 1)

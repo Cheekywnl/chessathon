@@ -1,4 +1,6 @@
-Current refined candidate: [release status and validation](docs/HOUR_RELEASE_20260911.md).
+Current candidate: [final refinement and validation](docs/FINAL_REFINEMENT_20260911.md).
+
+Selected network: [training and model provenance](docs/HALFKP_MODEL_CARD.md).
 
 # AI Chessathon starter
 

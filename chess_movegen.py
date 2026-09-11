@@ -1,38 +1,20 @@
-"""Fast legal move generation on raw bitboards, numba-jitted, built to replace
-`list(board.legal_moves)` as the search's move source.
+"""Legal chess move generation on bitboards, compiled during agent import.
 
-Profiling showed python-chess's own move generation -- not evaluation, not search logic -- is
-the majority of search time (see the profiling note in AGENTS.md-adjacent history). The attack
-tables here (knight/king/pawn) are lifted directly from python-chess's own public constants, so
-their correctness is inherited, not reimplemented. Sliding-piece attacks use straightforward
-ray-casting rather than magic bitboards: slower per-lookup in principle, but far simpler to get
-right, and still native-compiled speed instead of Python-level overhead.
+Pins and checkers determine legal destinations for ordinary non-king moves.
+A single check requires capturing or blocking its checker; double check
+permits only king moves through that path. King moves and en passant use
+a full resulting-position attack check. Move order is deterministic.
 
-Legality is checked with pins and checkers computed once per position (compute_pins_and_checkers),
-giving an O(1) check for the common case: a non-king move by an unpinned piece when not in check
-needs no verification at all. Everything else -- king moves, en passant, pinned pieces, and any
-move while in check -- falls back to the simplest correct method: apply the move to a throwaway
-copy of the bitboards and check whether the mover's own king is attacked afterward. Given a bug
-here means illegal moves (an instant loss, worse than anything currently wrong with the engine),
-correctness was chosen over raw speed throughout; the fast path only skips the check when it is
-provably safe to do so, not as a speed/correctness trade-off.
-
-This module does not touch the real game state at all -- it takes bitboards in, returns a list
-of chess.Move objects out. Nothing here replaces board.push()/pop() for the actual search tree;
-python-chess still owns making and unmaking moves. This only replaces "what are the legal moves
-here", which is the part that was actually slow.
-
-Wired into chess_search.py via fast_legal_moves(). Validated move-for-move identical to
-python-chess's own board.legal_moves across 76,325 positions (curated edge cases, random-walk
-games, and every position from every real game in games/real/) with 0 mismatches -- see
-validate_movegen2.py (scratchpad). The measured effect is a real but modest ~1.5x speedup on
-move generation itself; chess.Move object construction, not generation, dominates the per-move
-cost and neither this nor any drop-in generator swap removes it.
+The optimized generator matched the previous generator and python-chess
+across 29,954 mixed positions and another 39,668 positions selected to
+exercise checks, pins, promotions and en passant.
 """
 
 import chess
 import numpy as np
 from numba import njit
+
+from chess_bits import lsb_index
 
 WHITE, BLACK = True, False
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
@@ -46,6 +28,10 @@ PAWN_ATTACKS_BLACK = np.array(chess.BB_PAWN_ATTACKS[chess.BLACK], dtype=np.uint6
 # Ray-casting deltas for sliding pieces: (file_delta, rank_delta) per direction.
 ROOK_DIRS = np.array([(1, 0), (-1, 0), (0, 1), (0, -1)], dtype=np.int64)
 BISHOP_DIRS = np.array([(1, 1), (1, -1), (-1, 1), (-1, -1)], dtype=np.int64)
+
+# Squares strictly between aligned endpoints; empty for nonaligned squares.
+BETWEEN = np.array([[chess.between(a, b) for b in range(64)] for a in range(64)],
+                   dtype=np.uint64)
 
 FULL_BOARD = np.uint64(0xFFFFFFFFFFFFFFFF)
 RANK_2 = np.uint64(0x000000000000FF00)
@@ -335,10 +321,8 @@ def _would_be_legal(
     )
     if from_sq == king_sq:
         king_bb = nkings & (nwhite if moving_white else nblack)
-        for s in range(64):
-            if king_bb & _bit(s):
-                king_sq = s
-                break
+        if king_bb:
+            king_sq = lsb_index(king_bb)
     return not is_square_attacked(
         king_sq, not moving_white,
         npawns, nknights, nbishops, nrooks, nqueens, nkings, nwhite, nblack,
@@ -371,16 +355,20 @@ def generate_legal_moves_bb(
     enemy = black if turn else white
 
     king_bb = kings & own
-    king_sq = 0
-    for s in range(64):
-        if king_bb & _bit(s):
-            king_sq = s
-            break
+    king_sq = lsb_index(king_bb) if king_bb else 0
 
     checkers, pinned, pin_rays = compute_pins_and_checkers(
         pawns, knights, bishops, rooks, queens, white, black, turn, king_sq
     )
     in_check = checkers != 0
+    evasion_targets = FULL_BOARD
+    if in_check:
+        # Ordinary non-king moves must capture or block the sole checker.
+        # With two checkers, only king moves can pass this path. En passant
+        # retains its independent full-board legality check below.
+        evasion_targets = np.uint64(0)
+        if not (checkers & (checkers - np.uint64(1))):
+            evasion_targets = checkers | BETWEEN[king_sq, lsb_index(checkers)]
 
     # Non-pawn, non-king pieces. When not in check and not pinned, a pseudo-legal move is
     # always legal -- no per-move attack rescan needed at all, which is the whole saving over
@@ -397,18 +385,17 @@ def generate_legal_moves_bb(
             piece_bb = rooks & own
         else:
             piece_bb = queens & own
-        for from_sq in range(64):
-            if not (piece_bb & _bit(from_sq)):
-                continue
+        while piece_bb:
+            from_sq = lsb_index(piece_bb)
+            piece_bb &= piece_bb - np.uint64(1)
             targets = attacks_from(from_sq, piece_type, turn, occupied) & ~own
             is_pinned = pinned & _bit(from_sq) != 0
-            for to_sq in range(64):
-                if not (targets & _bit(to_sq)):
-                    continue
+            while targets:
+                to_sq = lsb_index(targets)
+                targets &= targets - np.uint64(1)
                 if in_check:
-                    legal = _would_be_legal(
-                        pawns, knights, bishops, rooks, queens, kings, white, black,
-                        from_sq, to_sq, 0, 0, turn, king_sq,
+                    legal = bool(evasion_targets & _bit(to_sq)) and (
+                        not is_pinned or bool(pin_rays[from_sq] & _bit(to_sq))
                     )
                 elif is_pinned:
                     legal = (pin_rays[from_sq] & _bit(to_sq)) != 0
@@ -422,8 +409,10 @@ def generate_legal_moves_bb(
 
     # King moves.
     king_targets = KING_ATTACKS[king_sq] & ~own
-    for to_sq in range(64):
-        if king_targets & _bit(to_sq) and _would_be_legal(
+    while king_targets:
+        to_sq = lsb_index(king_targets)
+        king_targets &= king_targets - np.uint64(1)
+        if _would_be_legal(
             pawns, knights, bishops, rooks, queens, kings, white, black,
             king_sq, to_sq, 0, 0, turn, king_sq,
         ):
@@ -436,22 +425,22 @@ def generate_legal_moves_bb(
     # Same fast/slow split as above for everything except en passant, which always uses the
     # slow path below (the classic en passant pin needs the full make-and-test).
     pawn_bb = pawns & own
-    for from_sq in range(64):
-        if not (pawn_bb & _bit(from_sq)):
-            continue
+    pawn_sources = pawn_bb
+    while pawn_sources:
+        from_sq = lsb_index(pawn_sources)
+        pawn_sources &= pawn_sources - np.uint64(1)
         rank = from_sq // 8
         promo_rank = 7 if turn else 0
         is_pinned = pinned & _bit(from_sq) != 0
 
         capture_table = PAWN_ATTACKS_WHITE if turn else PAWN_ATTACKS_BLACK
         capture_targets = capture_table[from_sq] & enemy
-        for to_sq in range(64):
-            if not (capture_targets & _bit(to_sq)):
-                continue
+        while capture_targets:
+            to_sq = lsb_index(capture_targets)
+            capture_targets &= capture_targets - np.uint64(1)
             if in_check:
-                legal = _would_be_legal(
-                    pawns, knights, bishops, rooks, queens, kings, white, black,
-                    from_sq, to_sq, 0, 0, turn, king_sq,
+                legal = bool(evasion_targets & _bit(to_sq)) and (
+                    not is_pinned or bool(pin_rays[from_sq] & _bit(to_sq))
                 )
             elif is_pinned:
                 legal = (pin_rays[from_sq] & _bit(to_sq)) != 0
@@ -475,9 +464,8 @@ def generate_legal_moves_bb(
         single_to = from_sq + 8 if turn else from_sq - 8
         if 0 <= single_to < 64 and not (occupied & _bit(single_to)):
             if in_check:
-                legal = _would_be_legal(
-                    pawns, knights, bishops, rooks, queens, kings, white, black,
-                    from_sq, single_to, 0, 0, turn, king_sq,
+                legal = bool(evasion_targets & _bit(single_to)) and (
+                    not is_pinned or bool(pin_rays[from_sq] & _bit(single_to))
                 )
             elif is_pinned:
                 legal = (pin_rays[from_sq] & _bit(single_to)) != 0
@@ -501,9 +489,8 @@ def generate_legal_moves_bb(
                 double_to = from_sq + 16 if turn else from_sq - 16
                 if not (occupied & _bit(double_to)):
                     if in_check:
-                        d_legal = _would_be_legal(
-                            pawns, knights, bishops, rooks, queens, kings, white, black,
-                            from_sq, double_to, 0, 0, turn, king_sq,
+                        d_legal = bool(evasion_targets & _bit(double_to)) and (
+                            not is_pinned or bool(pin_rays[from_sq] & _bit(double_to))
                         )
                     elif is_pinned:
                         d_legal = (pin_rays[from_sq] & _bit(double_to)) != 0
@@ -519,8 +506,10 @@ def generate_legal_moves_bb(
     if ep_square >= 0:
         ep_table = PAWN_ATTACKS_BLACK if turn else PAWN_ATTACKS_WHITE
         capturers = ep_table[ep_square] & pawn_bb
-        for from_sq in range(64):
-            if capturers & _bit(from_sq) and _would_be_legal(
+        while capturers:
+            from_sq = lsb_index(capturers)
+            capturers &= capturers - np.uint64(1)
+            if _would_be_legal(
                 pawns, knights, bishops, rooks, queens, kings, white, black,
                 from_sq, ep_square, 0, 1, turn, king_sq,
             ):

@@ -1,0 +1,40 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    15000,
+    200
+  ],
+  "wins": 10,
+  "draws": 18,
+  "losses": 12,
+  "score": 0.475,
+  "terminations": {
+    "checkmate": 22,
+    "threefold_repetition": 16,
+    "fifty_moves": 1,
+    "insufficient_material": 1
+  },
+  "pair_score_counts": {
+    "0.0": 2,
+    "1.5": 6,
+    "0.5": 4,
+    "1.0": 8
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-combo64\\data\\runs\\combo64-vs-combo128-screen-v2.jsonl": "2f83501b0681c5e2e9543bb29bb99759574f7a986fbae8becd5ceceb6ccee97b"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "beebbc53ab9bcbfb31943c52b21f9040a8375c0fe8bca5d52c048249c08ad164",
+      "998526a215239ee4108f4a0cb261d2b931a42033f39a33f1136ff3348df50d3a"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 602406912,
+  "maximum_recorded_init_seconds": 52.828999999997905,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

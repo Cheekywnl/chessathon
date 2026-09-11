@@ -658,6 +658,7 @@ class Search:
             attacker = moving_type_i(pawns, knights, bishops, rooks, queens, f)
             return int(PIECE_VALUES[victim - 1]) * 10 - int(PIECE_VALUES[attacker - 1])
 
+        prune_material = ce._popcount(state[6] | state[7]) > 7
         for f, t, p, is_capture in sorted(cand, key=qscore, reverse=True):
             # `and not p`: a capturing promotion's delta margin below only accounts for the
             # captured piece's value, never the ~800cp the promotion itself gains -- pruning it
@@ -670,7 +671,7 @@ class Search:
             # being wrongly pruned), not caught by this session's own move/score/node-count A/B
             # since that didn't happen to include a capturing promotion in the narrow alpha
             # window where it mattered.
-            if not in_check and is_capture and not p:
+            if prune_material and not in_check and is_capture and not p:
                 victim = captured_type_i(pawns, knights, bishops, rooks, queens, ep_square, f, t)
                 if stand_pat + int(PIECE_VALUES[victim - 1]) + DELTA_MARGIN <= alpha:
                     continue
@@ -901,7 +902,8 @@ class Search:
                         child, depth - 1, -window_alpha - 1, -window_alpha, 1,
                         key=child_key, in_check=child_in_check,
                     )
-                    if score > window_alpha:
+                    # A fail-high is retried by aspiration widening.
+                    if window_alpha < score < beta:
                         score = -self.negamax(
                             child, depth - 1, -beta, -window_alpha, 1,
                             key=child_key, in_check=child_in_check,

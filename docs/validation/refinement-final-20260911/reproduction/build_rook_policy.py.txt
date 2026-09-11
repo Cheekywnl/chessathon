@@ -1,0 +1,132 @@
+"""Build a compact, exact five-piece winning policy from verified Syzygy data."""
+import hashlib
+import json
+import time
+from collections import deque
+from pathlib import Path
+
+import chess
+import chess.syzygy
+import numpy as np
+import psutil
+
+root = Path(__file__).resolve().parent
+destination = root / "final-refinement"
+psutil.Process().cpu_affinity([2])
+hashes = {name: digest for digest, name in
+          (line.split() for line in (root / "tablebase-sha256").read_text().splitlines())}
+sources = {}
+for path in (root / "endgame-oracle").iterdir():
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert actual == hashes[path.name], path
+    sources[path.name] = actual
+oracle = chess.syzygy.open_tablebase(str(destination / "syzygy"))
+oracle.add_directory(str(root / "endgame-oracle"))
+
+def exact_material(board):
+    return (board.turn == chess.WHITE and board.occupied.bit_count() == 5
+            and len(board.pieces(chess.PAWN, chess.WHITE)) == 1
+            and len(board.pieces(chess.ROOK, chess.WHITE)) == 1
+            and len(board.pieces(chess.ROOK, chess.BLACK)) == 1)
+
+def encode(board):
+    pawn = board.pieces_mask(chess.PAWN, chess.WHITE).bit_length() - 1
+    if chess.square_file(pawn) >= 4:
+        board = board.transform(chess.flip_horizontal)
+    squares = [board.king(chess.WHITE), next(iter(board.pieces(chess.ROOK, chess.WHITE))),
+               next(iter(board.pieces(chess.PAWN, chess.WHITE))), board.king(chess.BLACK),
+               next(iter(board.pieces(chess.ROOK, chess.BLACK)))]
+    return sum(square << (6 * index) for index, square in enumerate(squares))
+
+def decode(key):
+    board = chess.Board(None)
+    for index, (kind, color) in enumerate(((chess.KING, chess.WHITE), (chess.ROOK, chess.WHITE),
+        (chess.PAWN, chess.WHITE), (chess.KING, chess.BLACK), (chess.ROOK, chess.BLACK))):
+        board.set_piece_at((key >> (6 * index)) & 63, chess.Piece(kind, color))
+    board.turn = chess.WHITE
+    return board
+
+seeds = ["1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1"]
+for file in (1, 2, 3):
+    for distance in (2, 3):
+        board = chess.Board(None)
+        for square, kind, color in (
+            (chess.square(file, 7), chess.KING, chess.WHITE),
+            (chess.square(file, 6), chess.PAWN, chess.WHITE),
+            (chess.square(file + 1, 0), chess.ROOK, chess.WHITE),
+            (chess.square(file + distance, 7), chess.KING, chess.BLACK),
+            (chess.A2, chess.ROOK, chess.BLACK),
+        ):
+            board.set_piece_at(square, chess.Piece(kind, color))
+        if board.is_valid():
+            seeds.append(board.fen())
+queue = deque(dict.fromkeys(encode(chess.Board(fen)) for fen in seeds))
+seen = set(queue)
+entries = {}
+started = time.monotonic()
+visited = skipped = 0
+while queue and len(entries) < 120000 and time.monotonic() - started < 300:
+    key = queue.popleft()
+    board = decode(key)
+    assert board.is_valid() and exact_material(board)
+    visited += 1
+    if oracle.probe_wdl(board) != 2:
+        skipped += 1
+        continue
+    best = None
+    for move in board.legal_moves:
+        if move.promotion and move.promotion != chess.QUEEN:
+            continue
+        zeroing = board.is_zeroing(move)
+        board.push(move)
+        try:
+            if -oracle.probe_wdl(board) != 2:
+                continue
+            distance = 1 if zeroing else abs(oracle.probe_dtz(board)) + 1
+        finally:
+            board.pop()
+        value = (distance, move.uci())
+        if best is None or value < best[0]:
+            best = value, move
+    if best is None or not 0 < best[0][0] < 100:
+        skipped += 1
+        continue
+    distance, _ = best[0]
+    move = best[1]
+    entries[key] = (move.from_square | move.to_square << 6 | (move.promotion or 0) << 12,
+                    distance)
+    board.push(move)
+    if board.occupied.bit_count() == 5 and board.pawns:
+        for reply in board.legal_moves:
+            board.push(reply)
+            if exact_material(board) and not board.is_game_over():
+                child = encode(board)
+                if child not in seen:
+                    seen.add(child)
+                    queue.append(child)
+            board.pop()
+    if len(entries) % 5000 == 0:
+        print(json.dumps({"entries": len(entries), "queue": len(queue),
+                          "seconds": time.monotonic() - started}), flush=True)
+keys = sorted(entries)
+out = destination / "syzygy/rook_wins.npz"
+assert not out.exists()
+np.savez_compressed(out, keys=np.asarray(keys, dtype=np.uint32),
+    moves=np.asarray([entries[k][0] for k in keys], dtype=np.uint16),
+    dtz=np.asarray([entries[k][1] for k in keys], dtype=np.uint8), format_version=np.int32(1))
+import shutil
+for suffix in ("rtbw", "rtbz"):
+    source = root / "endgame-oracle" / f"KQRvKR.{suffix}"
+    assert not (destination / "syzygy" / source.name).exists()
+    shutil.copy2(source, destination / "syzygy" / source.name)
+note = {"entries": len(entries), "visited": visited, "skipped": skipped,
+    "unexpanded_frontier": len(queue), "complete_for_seed_policy_graph": not queue,
+    "seeds": seeds, "maximum_piece_count": 5, "winning_pawn_side_only": True,
+    "all_opponent_legal_replies_expanded_until_cap": True,
+    "missing_position_behavior": "fall back to normal search or shipped Syzygy tables",
+    "sources": sources, "source_url": "https://tablebase.lichess.ovh/tables/standard/",
+    "sha256": hashlib.sha256(out.read_bytes()).hexdigest(), "bytes": out.stat().st_size,
+    "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    "seconds": time.monotonic() - started}
+(destination / "data/runs/rook-policy-build.json").write_text(json.dumps(note, indent=2))
+print(json.dumps(note, indent=2), flush=True)

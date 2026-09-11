@@ -1,0 +1,6 @@
+game 1/2: white by checkmate
+game 2/2: black by checkmate
+
+. vs baselines\random over 2 games
++2 =0 -0, score 100.0%
+terminations: checkmate 2

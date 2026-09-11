@@ -1,0 +1,97 @@
+"""One-core private screening adapter. Reinitializes all agent game state."""
+import atexit
+import json
+import os
+import sys
+import time
+from multiprocessing.util import Finalize
+from pathlib import Path
+
+from harness.sandbox import AgentFailure
+from tools.platform_agent import SuspendedAgent
+
+class ReuseAgent(SuspendedAgent):
+    def start(self, init_budget_s):
+        if self._process is None:
+            super().start(init_budget_s)
+            return
+        started = time.monotonic()
+        self._drain()
+        self._tail = b""
+        self.stderr_tail = ""
+        self.moves_returned = 0
+        self._resume()
+        try:
+            self._send({"command": "reset"})
+            line = self._await_line(started + init_budget_s)
+            if line is None or json.loads(line).get("ready") is not True:
+                raise AgentFailure("init")
+            self.init_seconds = time.monotonic() - started
+            self.init_diagnostics = {"screening_process_reused": True,
+                                     "game_state_reloaded": True}
+            self._measure_memory()
+        finally:
+            self._suspend()
+
+    def _send(self, value):
+        assert self._process is not None and self._process.stdin is not None
+        self._process.stdin.write(json.dumps(value).encode() + b"\n")
+
+    def _resume(self):
+        for process in self.controls:
+            process.resume()
+
+    def _suspend(self):
+        for process in reversed(self.controls):
+            if process.is_running():
+                process.suspend()
+
+    def verify(self, fen):
+        self._resume()
+        try:
+            self._send({"command": "verify", "fen": fen})
+            line = self._await_line(time.monotonic() + 30)
+            assert line is not None
+            return json.loads(line)
+        finally:
+            self._suspend()
+
+    def stop(self):
+        # The referee calls this after every private screening game.
+        self._drain()
+        self.stderr_tail = self._tail.decode("utf8", "replace")
+
+    def benchmark(self, fen):
+        self._resume()
+        try:
+            self._send({"command": "benchmark", "fen": fen})
+            line = self._await_line(time.monotonic() + 60)
+            assert line is not None
+            return json.loads(line)
+        finally:
+            self._suspend()
+
+    def close(self):
+        super().stop()
+
+_AGENTS = {}
+
+def close_all():
+    for agent in _AGENTS.values():
+        agent.close()
+    _AGENTS.clear()
+
+atexit.register(close_all)
+_FINALIZER = Finalize(None, close_all, exitpriority=10)
+
+def local(directory, cpu=2, python=None):
+    import psutil
+    psutil.Process().cpu_affinity([cpu])
+    for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMBA_NUM_THREADS"):
+        os.environ[key] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    key = (str(Path(directory).resolve()), cpu, python)
+    if key not in _AGENTS:
+        _AGENTS[key] = ReuseAgent([python or sys.executable,
+            str(Path(__file__).with_name("reuse_runner.py")), key[0]], cpu)
+    return _AGENTS[key]

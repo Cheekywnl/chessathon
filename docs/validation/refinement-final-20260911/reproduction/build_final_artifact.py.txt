@@ -1,0 +1,20 @@
+import hashlib,json,sys,zipfile
+from pathlib import Path
+root=Path(__file__).resolve().parent
+repo=root/'final-refinement'
+sys.path.insert(0,str(repo))
+from harness.package import build
+out=root/'final-artifacts';out.mkdir(exist_ok=True)
+archive=out/'submission-final.zip'
+assert not archive.exists()
+build(repo,archive,('weights','syzygy','book'))
+extracted=root/'final-extracted';assert not extracted.exists();extracted.mkdir()
+with zipfile.ZipFile(archive) as z:
+    assert sum(i.file_size for i in z.infolist())<=50_000_000
+    z.extractall(extracted)
+    files={i.filename.replace('\\','/'):dict(bytes=i.file_size,sha256=hashlib.sha256(z.read(i)).hexdigest()) for i in z.infolist()}
+for name,metadata in files.items():
+    assert (extracted/name).read_bytes()==(repo/name).read_bytes()
+result=dict(zip=str(archive),sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),zip_bytes=archive.stat().st_size,unzipped_bytes=sum(i['bytes'] for i in files.values()),files=files)
+(out/'artifact-manifest.json').write_text(json.dumps(result,indent=2))
+print({k:v for k,v in result.items() if k!='files'})

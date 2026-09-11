@@ -1,0 +1,113 @@
+move=c1c4 source=rook_policy
+move=c4d4 source=rook_policy
+move=b8c7 source=rook_policy
+move=c7b6 source=rook_policy
+move=b6a6 source=rook_policy
+move=d4a4 source=rook_policy
+move=a6a7 source=rook_policy
+move=b7b8q source=rook_policy
+move=b8b2 source=tablebase
+move=a4a5 source=tablebase
+move=b2g7 source=tablebase
+move=a5a6 source=tablebase
+move=a7b8 source=tablebase
+move=b8c8 source=tablebase
+move=c8d8 source=tablebase
+move=d8d7 source=tablebase
+move=d7e8 source=tablebase
+move=e8e7 source=tablebase
+move=e7f8 source=tablebase
+move=f8f7 source=tablebase
+move=a6h6 source=tablebase
+move=f1f4 source=rook_policy
+move=f4e4 source=rook_policy
+move=g8f7 source=rook_policy
+move=f7g6 source=rook_policy
+move=g6h6 source=rook_policy
+move=h6g5 source=rook_policy
+move=e4g4 source=rook_policy
+move=g7g8q source=rook_policy
+move=g8f7 source=tablebase
+move=f7c4 source=tablebase
+move=c4a4 source=tablebase
+move=a4a3 source=tablebase
+move=g5f5 source=tablebase
+move=a3e7 source=tablebase
+move=g4d4 source=tablebase
+move=d4d7 source=tablebase
+move=f5e6 source=tablebase
+move=d7c7 source=tablebase
+move=e6f6 source=tablebase
+move=f6g6 source=tablebase
+move=c7c8 source=tablebase
+move=c8c5 source=rook_policy
+move=c5d5 source=rook_policy
+move=b1c2 source=rook_policy
+move=c2b3 source=rook_policy
+move=b3a3 source=rook_policy
+move=d5a5 source=rook_policy
+move=a3a2 source=rook_policy
+move=b2b1q source=rook_policy
+move=a5h5 source=tablebase
+move=h5g5 source=tablebase
+move=g5g7 source=tablebase
+move=b1h7 source=tablebase
+move=f8f5 source=rook_policy
+move=f5e5 source=rook_policy
+move=g1f2 source=rook_policy
+move=f2g3 source=rook_policy
+move=g3h3 source=rook_policy
+move=h3g4 source=rook_policy
+move=e5g5 source=rook_policy
+move=g2g1q source=rook_policy
+move=g5d5 source=tablebase
+move=g1c5 source=tablebase
+move=c5b5 source=tablebase
+move=b5e8 source=tablebase
+move=e8b8 source=tablebase
+move=b8b3 source=tablebase
+move=g4f4 source=tablebase
+move=f4e4 source=tablebase
+move=d5d4 source=tablebase
+move=d4d3 source=tablebase
+move=e4e3 source=tablebase
+move=e3e2 source=tablebase
+move=d3d2 source=tablebase
+move=e2d1 source=tablebase
+move=d1c2 source=tablebase
+move=d2d3 source=tablebase
+move=d3a3 source=tablebase
+draw_claims=1 complete=1 ms=0.0
+move=c1d1 depth=8 score=206 nodes=61397 ms=125 time_left_ms=5000
+{
+  "passed": true,
+  "conversions": [
+    {
+      "name": "original",
+      "plies": 41,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rc4 Kd7 2. Rd4+ Ke7 3. Kc7 Rc2+ 4. Kb6 Rb2+ 5. Ka6 Kf7 6. Ra4 Kg8 7. Ka7 Kh8 8. b8=Q+ Kh7 9. Qxb2 Kh6 10. Ra5 Kh7 11. Qg7+ Kxg7 12. Ra6 Kh8 13. Kb8 Kh7 14. Kc8 Kg7 15. Kd8 Kf7 16. Kd7 Kg8 17. Ke8 Kg7 18. Ke7 Kh8 19. Kf8 Kh7 20. Kf7 Kh8 21. Rh6# 1-0"
+    },
+    {
+      "name": "file_mirror",
+      "plies": 41,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"1-0\"]\n[FEN \"4k1K1/6P1/8/8/8/8/7r/5R2 w - - 0 1\"]\n[SetUp \"1\"]\n\n1. Rf4 Rh3 2. Re4+ Kd7 3. Kf7 Rf3+ 4. Kg6 Rg3+ 5. Kh6 Rh3+ 6. Kg5 Rg3+ 7. Rg4 Rh3 8. g8=Q Ra3 9. Qf7+ Kc6 10. Qc4+ Kd7 11. Qa4+ Ke7 12. Qxa3+ Kf7 13. Kf5 Ke8 14. Qe7+ Kxe7 15. Rd4 Kf7 16. Rd7+ Ke8 17. Ke6 Kf8 18. Rc7 Kg8 19. Kf6 Kh8 20. Kg6 Kg8 21. Rc8# 1-0"
+    },
+    {
+      "name": "black",
+      "plies": 23,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"0-1\"]\n[FEN \"2r5/R7/8/8/8/8/1p6/1k1K4 b - - 0 1\"]\n[SetUp \"1\"]\n\n1... Rc5 2. Kd2 Rd5+ 3. Ke3 Kc2 4. Rc7+ Kb3 5. Rb7+ Ka3 6. Kf4 Ra5 7. Kg4 Ka2 8. Kh4 b1=Q 9. Rg7 Rh5+ 10. Kg4 Rg5+ 11. Kh4 Rxg7 12. Kh5 Qh7# 0-1"
+    },
+    {
+      "name": "black_file_mirror",
+      "plies": 49,
+      "termination": "checkmate",
+      "pgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"0-1\"]\n[FEN \"5r2/7R/8/8/8/8/6p1/4K1k1 b - - 0 1\"]\n[SetUp \"1\"]\n\n1... Rf5 2. Rh8 Re5+ 3. Kd2 Kf2 4. Rf8+ Kg3 5. Rg8+ Kh3 6. Rh8+ Kg4 7. Rg8+ Rg5 8. Rh8 g1=Q 9. Re8 Rd5+ 10. Kc3 Qc5+ 11. Kb3 Qb5+ 12. Kc3 Qxe8 13. Kc4 Qb8 14. Kc3 Qb3+ 15. Kxb3 Kf4 16. Kc4 Ke4 17. Kc3 Rd4 18. Kc2 Rd3 19. Kc1 Ke3 20. Kc2 Ke2 21. Kc1 Rd2 22. Kb1 Kd1 23. Ka1 Kc2 24. Ka2 Rd3 25. Ka1 Ra3# 0-1"
+    }
+  ],
+  "policy_repetition_claim_rejected": true,
+  "recorded_move": "c1c4",
+  "safe_move": "c1d1"
+}

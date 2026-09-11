@@ -1,0 +1,4 @@
+chess_halfkp_int.py:200: error: Incompatible return value type (got "int | SupportsDunderLT[Any] | SupportsDunderGT[Any]", expected "int")  [return-value]
+chess_halfkp_int.py:219: error: Argument 1 to "__call__" of "Dispatcher" has incompatible type "signedinteger[_32Bit]"; expected "int"  [arg-type]
+chess_halfkp_int.py:224: error: Argument 1 to "__call__" of "Dispatcher" has incompatible type "signedinteger[_32Bit]"; expected "int"  [arg-type]
+Found 3 errors in 1 file (checked 57 source files)

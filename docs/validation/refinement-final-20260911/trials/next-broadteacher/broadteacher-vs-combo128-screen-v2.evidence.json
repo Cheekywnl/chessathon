@@ -1,0 +1,39 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    15000,
+    200
+  ],
+  "wins": 19,
+  "draws": 13,
+  "losses": 8,
+  "score": 0.6375,
+  "terminations": {
+    "checkmate": 27,
+    "threefold_repetition": 13
+  },
+  "pair_score_counts": {
+    "0.0": 2,
+    "2.0": 4,
+    "1.5": 8,
+    "1.0": 5,
+    "0.5": 1
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-broadteacher\\data\\runs\\broadteacher-vs-combo128-screen-v2.jsonl": "9db048609c2f46738e7a8dafbdc7282bc7a9657cbc82738ab82712e5fa96a659"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "3ba80063d3aeefa78424ad86bd1f0166e7e2990ea2c21690f520a10a0ac0d731",
+      "998526a215239ee4108f4a0cb261d2b931a42033f39a33f1136ff3348df50d3a"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 594096128,
+  "maximum_recorded_init_seconds": 53.734000000004016,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

@@ -1,0 +1,101 @@
+"""Check tactical transposition bounds against uncached quiescence searches."""
+from __future__ import annotations
+
+import argparse
+import csv
+import importlib.util
+import json
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+import chess
+import numpy as np
+
+import chess_search as cs
+import chess_search_compiled as compiled
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reference-backend", type=Path, required=True)
+    parser.add_argument("--heldout", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    spec = importlib.util.spec_from_file_location(
+        "uncached_qsearch_reference", args.reference_backend)
+    assert spec is not None and spec.loader is not None
+    before: Any = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = before
+    spec.loader.exec_module(before)
+    assert cs.HALFKP_WEIGHTS is not None
+    contexts = {name: module.create_context(module.Table(14), {}, cs.ce.DEFAULT_PARAMS,
+                cs.HALFKP_WEIGHTS, cs.HALFKP_BLEND, None)
+                for name, module in (("before", before), ("after", compiled))}
+    for ctx in contexts.values():
+        ctx.deadline = time.monotonic() + 600
+    checks = 0
+    records = []
+    reference_pruning_disagreements = []
+    with args.heldout.open(newline="") as stream:
+        for index, row in enumerate(csv.DictReader(stream)):
+            if index >= 800:
+                break
+            board = chess.Board(row["fen"])
+            if not board.is_valid() or board.is_game_over(claim_draw=True):
+                continue
+            state = cs.state_from_board(board)
+            key = cs.hash_of_board(board)
+            for ctx in contexts.values():
+                ctx.seen.clear()
+                ctx.seen[np.uint64(key)] = 1
+                ctx.table.flags[:] = -1
+            start = time.perf_counter()
+            expected = before.qsearch(state, -cs.MATE, cs.MATE, 0, np.uint64(key),
+                                      board.is_check(), contexts["before"])
+            reference_seconds = time.perf_counter() - start
+            # Exercise fail-low and fail-high entries before demanding an exact result.
+            start = time.perf_counter()
+            for alpha, beta in ((expected + 25, expected + 26),
+                                (expected - 26, expected - 25), (-cs.MATE, cs.MATE)):
+                reference_narrow = before.qsearch(state, alpha, beta, 0, np.uint64(key),
+                                                  board.is_check(), contexts["before"])
+                actual = compiled.qsearch(state, alpha, beta, 0, np.uint64(key),
+                                          board.is_check(), contexts["after"])
+                reference_consistent = (reference_narrow <= alpha if expected <= alpha else
+                                        reference_narrow >= beta if expected >= beta else
+                                        reference_narrow == expected)
+                if not reference_consistent:
+                    reference_pruning_disagreements.append({"fen": board.fen(),
+                        "full_score": expected, "alpha": alpha, "beta": beta,
+                        "uncached_narrow_score": reference_narrow})
+                valid = (actual <= alpha if reference_narrow <= alpha else actual >= beta
+                         if reference_narrow >= beta else actual == reference_narrow)
+                assert valid, (index, board.fen(), reference_narrow, alpha, beta, actual)
+                assert not contexts["after"].aborted
+                checks += 1
+            for ctx in contexts.values():
+                assert dict(ctx.seen) == {key: 1}
+            records.append({"fen": board.fen(), "score": expected,
+                            "reference_seconds": reference_seconds,
+                            "three_cached_search_seconds": time.perf_counter() - start})
+    table = compiled.Table(4)
+    preservation_checks = 0
+    for key in (0, 2**64 - 1, 2**63, 16):
+        for score in (-31995, -20, 0, 300, 31995):
+            compiled.put(table, np.uint64(key), 5, score, 0, 42, 7)
+            compiled.put_quiet(table, np.uint64(key), 99, 1, 55, 0)
+            found, move, hit = compiled.probe(table, np.uint64(key), 5, -cs.MATE, cs.MATE, 7)
+            assert hit and found == score and move == 42
+            preservation_checks += 1
+    result = {"positions": len(records), "bound_checks": checks,
+              "reference_pruning_disagreements": reference_pruning_disagreements,
+              "preserve_deeper_checks": preservation_checks, "mismatches": 0,
+              "records": records, "playing_strength_validated": False}
+    args.out.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps({k: v for k, v in result.items() if k != "records"}), flush=True)
+
+
+if __name__ == "__main__":
+    main()

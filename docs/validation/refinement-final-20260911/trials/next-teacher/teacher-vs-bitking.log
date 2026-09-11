@@ -1,0 +1,12 @@
+{"elo0": 0.0, "elo1": 50.0, "alpha": 0.05, "beta": 0.05, "min_pairs": 10, "cpus": [4, 6], "model": "pentanomial constrained MLE; 0.001 count per cell", "bounds": [-2.9444389791664403, 2.9444389791664403], "selfcheck": false}
+game finished: pair 2 20260917_041_startpos agent=white: black by checkmate
+game finished: pair 1 20260917_040_nimzo_indian agent=white: black by checkmate
+game finished: pair 2 20260917_041_startpos agent=black: draw by threefold_repetition
+game finished: pair 1 20260917_040_nimzo_indian agent=black: draw by threefold_repetition
+pair 1/10 20260917_040_nimzo_indian: [0.0, 0.5]; +0 =1 -1; LLR=-0.1546
+pair 2/10 20260917_041_startpos: [0.0, 0.5]; +0 =2 -2; LLR=-0.3088
+game finished: pair 4 20260917_043_french agent=white: black by checkmate
+game finished: pair 3 20260917_042_italian agent=white: white by checkmate
+game finished: pair 3 20260917_042_italian agent=black: white by init
+game finished: pair 4 20260917_043_french agent=black: black by checkmate
+Invalid SPRT: 20260917_042_italian init 

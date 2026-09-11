@@ -1,0 +1,61 @@
+"""Check failed-import child cleanup and the unchanged successful wire protocol."""
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import psutil
+
+from harness.sandbox import AgentFailure
+from tools.platform_agent import SuspendedAgent
+
+
+def main() -> None:
+    psutil.Process().cpu_affinity([6])
+    with tempfile.TemporaryDirectory(prefix="chess-controller-check-") as tmp:
+        fixture = Path(tmp) / "never_ready.py"
+        fixture.write_text(
+            "import subprocess,sys,time\n"
+            "p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)'])\n"
+            "print('child_pid='+str(p.pid),file=sys.stderr,flush=True)\n"
+            "time.sleep(60)\n"
+        )
+        failed = SuspendedAgent([sys.executable, str(fixture)], 6)
+        try:
+            failed.start(0.75)
+            raise AssertionError("fixture unexpectedly became ready")
+        except AgentFailure as failure:
+            assert failure.reason == "init"
+        children = [p.pid for p in failed.controls]
+        assert len(children) >= 2
+        assert 0.7 <= failed.init_seconds < 5
+        assert failed.init_diagnostics["failure"] == "init"
+        assert failed.peak_rss_bytes > 0
+        failed.stop()
+        time.sleep(0.1)
+        assert not any(psutil.pid_exists(pid) for pid in children), children
+        ready = Path(tmp) / "ready.py"
+        ready.write_text(
+            "import json,sys\n"
+            "print(json.dumps({'ready':True}),flush=True)\n"
+            "for line in sys.stdin: print(json.dumps({'move':'e2e4'}),flush=True)\n"
+        )
+        normal = SuspendedAgent([sys.executable, str(ready)], 6)
+        try:
+            normal.start(5)
+            assert normal.move("unused fixture field", 1000) == "e2e4"
+            assert normal.moves_returned == 1
+            assert all(p.cpu_affinity() == [6] for p in normal.controls)
+        finally:
+            normal.stop()
+    result = {"failure_classification": "init", "failed_child_tree_killed": True,
+              "success_protocol_unchanged": True, "diagnostics": failed.init_diagnostics}
+    Path("data/runs/controller-init-check.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result), flush=True)
+
+
+if __name__ == "__main__":
+    main()

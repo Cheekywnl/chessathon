@@ -1,0 +1,33 @@
+{
+  "entries": 3139,
+  "visited": 3139,
+  "skipped": 0,
+  "unexpanded_frontier": 0,
+  "complete_for_seed_policy_graph": true,
+  "seeds": [
+    "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",
+    "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",
+    "1K2k3/1P6/8/8/8/8/r7/2R5 w - - 0 1",
+    "2K1k3/2P5/8/8/8/8/r7/3R4 w - - 0 1",
+    "2K2k2/2P5/8/8/8/8/r7/3R4 w - - 0 1",
+    "3K1k2/3P4/8/8/8/8/r7/4R3 w - - 0 1",
+    "3K2k1/3P4/8/8/8/8/r7/4R3 w - - 0 1"
+  ],
+  "maximum_piece_count": 5,
+  "winning_pawn_side_only": true,
+  "all_opponent_legal_replies_expanded_until_cap": true,
+  "missing_position_behavior": "fall back to normal search or shipped Syzygy tables",
+  "sources": {
+    "KQRvKR.rtbw": "13477ef681468dfb19d09ab8dbeb08d259f9db57a6e5e2c7cdb902880fc2166b",
+    "KQRvKR.rtbz": "6ed2eba7b9d5b7813a30751a0e1dd3561e499c1ffe76b5de98ea7ad5b006fdbd",
+    "KRPvKR.rtbw": "1100e6deaee14ca9a56b69441208462c02ef45b3f56daa3d75f687eb5cf12319",
+    "KRPvKR.rtbz": "184ce33fa4dcfa931f7a3b9955662e166287ec203224ae9681d527d3b8cd9c6f",
+    "KRRvKR.rtbw": "7897a69c7ad337adc93aa39c9d22dcf1a5e215908437b36d92db5e4bebf9217e",
+    "KRRvKR.rtbz": "dd0fe4d32ccbfc390e8d4468fa5a31484e26abdb45d712cdfe1b8b5fe0a05c14"
+  },
+  "source_url": "https://tablebase.lichess.ovh/tables/standard/",
+  "sha256": "e81ad2f3f1acb58a5c8c679b50dd200fcc7caa6b1c1838b883665f1ae36fbae9",
+  "bytes": 8847,
+  "generator_sha256": "40829067af04d1c9b354d99df79755f161f79967b79a0755b6220c49a0181b95",
+  "seconds": 142.42199999999866
+}

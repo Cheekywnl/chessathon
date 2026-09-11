@@ -1,0 +1,88 @@
+"""Freeze unique positions from completed local game pairs for offline annotation."""
+from __future__ import annotations
+
+import hashlib
+import io
+import json
+import random
+from collections import Counter
+from pathlib import Path
+
+import chess.pgn
+
+
+def sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def main() -> None:
+    root = Path(__file__).resolve().parents[1]
+    out = Path(__file__).resolve().parent
+    positions: dict[str, dict[str, object]] = {}
+    games: set[str] = set()
+    logs: set[str] = set()
+    sources = []
+    for path in sorted(root.glob("*/data/runs/*.jsonl")):
+        with path.open(encoding="utf8") as stream:
+            first = stream.readline()
+        if '"pgn"' not in first or '"agent_white"' not in first:
+            continue
+        digest = sha(path)
+        if digest in logs:
+            continue
+        records = [json.loads(line) for line in path.read_text(encoding="utf8").splitlines() if line]
+        pairs = Counter(str(row.get("opening")) for row in records)
+        if not records or any(n != 2 for n in pairs.values()):
+            continue
+        logs.add(digest)
+        sources.append({"path": str(path), "sha256": digest, "games": len(records)})
+        for row in records:
+            game = chess.pgn.read_game(io.StringIO(row["pgn"]))
+            assert game is not None and not game.errors
+            board = game.board()
+            moves = list(game.mainline_moves())
+            identity = board.fen() + " " + " ".join(move.uci() for move in moves)
+            game_id = hashlib.sha256(identity.encode()).hexdigest()
+            if game_id in games:
+                continue
+            games.add(game_id)
+            for ply, move in enumerate(moves):
+                assert move in board.legal_moves
+                board.push(move)
+                if ply % 2 or board.fullmove_number < 13:
+                    continue
+                pieces = len(board.piece_map())
+                if pieces < 6 or board.is_check() or board.is_game_over():
+                    continue
+                # The network has no fifty-move counter input. Label position
+                # strength from a fresh counter, with no imported game history.
+                sample = board.copy(stack=False)
+                sample.halfmove_clock = 0
+                fen = sample.fen()
+                key = " ".join(fen.split()[:4])
+                positions.setdefault(key, {"fen": fen, "pieces": pieces, "game": game_id})
+    rng = random.Random(20260918)
+    values = list(positions.values())
+    rng.shuffle(values)
+    buckets = [[r for r in values if int(r["pieces"]) <= 12],
+               [r for r in values if 13 <= int(r["pieces"]) <= 22],
+               [r for r in values if int(r["pieces"]) >= 23]]
+    selected = []
+    while any(buckets) and len(selected) < 30000:
+        for group in (0, 1, 0, 1, 2):
+            if buckets[group] and len(selected) < 30000:
+                selected.append(buckets[group].pop())
+    result = {"seed": 20260918, "sources": sources, "unique_games": len(games),
+              "unique_eligible_positions": len(values), "selected_positions": len(selected),
+              "piece_counts": dict(Counter(str(r["pieces"]) for r in selected)),
+              "selection": "Before teacher scores; unique completed game pairs; quiet check status; stratified material",
+              "positions": selected}
+    target = out / "positions.json"
+    assert not target.exists()
+    target.write_text(json.dumps(result, indent=2))
+    print(json.dumps({k: v for k, v in result.items() if k not in ("sources", "positions")}), flush=True)
+    print("positions_sha256=" + sha(target), flush=True)
+
+
+if __name__ == "__main__":
+    main()

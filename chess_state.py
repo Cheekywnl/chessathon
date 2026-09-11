@@ -20,6 +20,7 @@ import numpy as np
 from numba import njit
 
 import chess_movegen as mg
+from chess_bits import lsb_index
 
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
 
@@ -177,17 +178,8 @@ ZOBRIST_TURN = np.uint64(int(_rng.integers(0, 2**63, dtype=np.int64)))
 
 @njit(cache=False)
 def _lsb_index(bb: np.uint64) -> int:
-    """Index of the lowest set bit. A manual count-trailing-zeros loop rather than
-    `.bit_length()` on the isolated-lowest-bit trick used elsewhere in this codebase (the
-    Python-level `(bb & -bb).bit_length() - 1` idiom) -- numba's nopython mode does not
-    reliably support that method on integer types, so the plain loop is the portable choice
-    here. Only ever called once per set bit actually present (~20-32 per position), not once
-    per candidate square, which is the whole point of using it in zobrist_hash."""
-    idx = 0
-    while (bb & np.uint64(1)) == 0:
-        bb >>= np.uint64(1)
-        idx += 1
-    return idx
+    """Index of the lowest set bit using Numba's host compilation."""
+    return lsb_index(bb)
 
 
 @njit(cache=False)

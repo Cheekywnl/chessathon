@@ -1,0 +1,20 @@
+{
+  "all_states_exact": true,
+  "positions": 20,
+  "depth": 9,
+  "nodes_each_run": 3928813,
+  "totals": {
+    "2": {
+      "initialization_seconds": 80.26780770000187,
+      "search_seconds": 33.79616119999264
+    },
+    "3": {
+      "initialization_seconds": 89.81312480000634,
+      "search_seconds": 35.57545350001601
+    }
+  },
+  "search_speed_ratio": 1.0526477634395872,
+  "init_speed_ratio": 1.1189183730503736,
+  "both_orders_tested": true,
+  "playing_strength_validated": false
+}
