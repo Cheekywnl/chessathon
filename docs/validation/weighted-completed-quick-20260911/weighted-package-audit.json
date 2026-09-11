@@ -1,0 +1,31 @@
+{
+  "zip": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\draw-weighted\\submission.zip",
+  "sha256": "b461e96a43f7f11b413568ce0ab2ca71333738792ef7e39a0b18f5a552e8f6cc",
+  "unzipped_bytes": 49472153,
+  "file_count": 107,
+  "integer_network": true,
+  "init_seconds": 11.06849610000063,
+  "peak_rss_bytes": 230543360,
+  "cpu_affinity": [
+    10
+  ],
+  "smoke_moves": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "move": "e2e4",
+      "seconds": 0.000611299998126924
+    },
+    {
+      "fen": "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 4 21",
+      "move": "c3a4",
+      "seconds": 0.17737290000150097
+    },
+    {
+      "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 40",
+      "move": "e1f2",
+      "seconds": 0.03666910000174539
+    }
+  ],
+  "source_and_permitted_assets_only": true,
+  "playing_strength_validated": false
+}

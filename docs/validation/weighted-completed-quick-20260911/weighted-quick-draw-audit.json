@@ -1,0 +1,209 @@
+{
+  "games": 20,
+  "draw_count": 8,
+  "draw_terminations": {
+    "threefold_repetition": 8
+  },
+  "last_search_move_still_ge150": 0,
+  "last_search_move_scored_draw": 6,
+  "last_search_move_negative": 0,
+  "tablebase_draws": 2,
+  "logged_scan_count": 15,
+  "incomplete_scans": 0,
+  "max_logged_scan_ms": 15.0,
+  "note": "Logged root scores diagnose decisions; neither scores nor draw rate alone prove strength. The opponent is the previous neural release, unlike the earlier classical draw study.",
+  "draw_details": [
+    {
+      "opening": "20260914_153_sicilian_najdorf",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/3K2k1/6p1/1p4p1/1P4P1/8/8/2r5 b - - 11 51",
+      "last_logged_candidate_move": {
+        "move": "d6d7",
+        "depth": "33",
+        "score": "-20",
+        "nodes": "11583",
+        "ms": "344",
+        "time_left_ms": "5847"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 2,
+      "last_claim_scan": {
+        "draw_claims": "5",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -600
+    },
+    {
+      "opening": "20260914_156_queens_gambit_declined",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "5k2/5p2/7p/3P2p1/2n1P3/r4P1P/5KP1/8 b - - 10 47",
+      "last_logged_candidate_move": {
+        "move": "e2f2",
+        "depth": "15",
+        "score": "-20",
+        "nodes": "9507",
+        "ms": "359",
+        "time_left_ms": "5989"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "4",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -620
+    },
+    {
+      "opening": "20260914_158_english",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/8/4k3/pR6/Pb2p3/6r1/4K3/8 b - - 13 64",
+      "last_logged_candidate_move": {
+        "move": "h5b5",
+        "depth": "12",
+        "score": "-20",
+        "nodes": "9784",
+        "ms": "282",
+        "time_left_ms": "3955"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "14",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": -430
+    },
+    {
+      "opening": "20260914_159_nimzo_indian",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "6kN/3r4/4R3/1K6/8/8/8/8 w - - 10 81",
+      "last_logged_candidate_move": {
+        "move": "f7h8",
+        "source": "tablebase"
+      },
+      "last_search_score_cp": 359,
+      "last_move_source": "tablebase",
+      "claim_scans": 4,
+      "last_claim_scan": {
+        "draw_claims": "25",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 320
+    },
+    {
+      "opening": "20260914_159_nimzo_indian",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "6k1/7p/r2p2p1/8/2pP4/2P2P2/p1K3PP/R7 w - - 8 43",
+      "last_logged_candidate_move": {
+        "move": "b6a6",
+        "depth": "12",
+        "score": "-20",
+        "nodes": "21626",
+        "ms": "688",
+        "time_left_ms": "7703"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 2,
+      "last_claim_scan": {
+        "draw_claims": "2",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_160_startpos",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "5r2/6K1/8/8/6k1/8/R7/8 b - - 18 74",
+      "last_logged_candidate_move": {
+        "move": "h7g7",
+        "source": "tablebase"
+      },
+      "last_search_score_cp": -22,
+      "last_move_source": "tablebase",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "15",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_161_italian",
+      "candidate_white": true,
+      "termination": "threefold_repetition",
+      "final_fen": "8/5p2/4k1pK/p1p5/P1P1nP1P/4N3/8/8 b - - 7 54",
+      "last_logged_candidate_move": {
+        "move": "g5h6",
+        "depth": "13",
+        "score": "-20",
+        "nodes": "11043",
+        "ms": "391",
+        "time_left_ms": "5760"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 2,
+      "last_claim_scan": {
+        "draw_claims": "2",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 0
+    },
+    {
+      "opening": "20260914_161_italian",
+      "candidate_white": false,
+      "termination": "threefold_repetition",
+      "final_fen": "7k/6p1/5n2/5P2/7Q/8/1KB3qp/8 b - - 9 62",
+      "last_logged_candidate_move": {
+        "move": "g8h8",
+        "depth": "9",
+        "score": "-20",
+        "nodes": "10099",
+        "ms": "312",
+        "time_left_ms": "3880"
+      },
+      "last_search_score_cp": -20,
+      "last_move_source": "search",
+      "claim_scans": 1,
+      "last_claim_scan": {
+        "draw_claims": "5",
+        "complete": "1",
+        "ms": "0.0"
+      },
+      "actual_third_occurrence": false,
+      "claimable_repetition": true,
+      "candidate_material_cp": 90
+    }
+  ]
+}

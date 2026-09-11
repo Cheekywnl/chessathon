@@ -1,0 +1,73 @@
+from pathlib import Path
+import json
+import shutil
+import time
+
+work=Path(__file__).resolve().parent
+for dirname,prefix,filename in [
+    ('draw-fused','forced','FORCED_REPLY_REFINEMENT_20260911.md'),
+    ('draw-weighted','weighted','WEIGHTED_REJECTION_20260911.md'),
+]:
+    repo=work/dirname
+    summary=json.loads((repo/f'data/runs/{prefix}-quick-summary.json').read_text())
+    assert summary['games']==20 and summary['fingerprinted_logs']==5
+    assert not summary['baseline_diagnostics']
+    evidence=repo/f'docs/validation/{prefix}-completed-quick-20260911'
+    evidence.mkdir(parents=True,exist_ok=True)
+    patterns=[f'{prefix}-quick-*',f'{prefix}-validation-plan.json']
+    if prefix=='weighted':
+        patterns += ['weighted-gate.log','weighted-integration.*','weighted-endgame.log',
+                     'weighted-wac.log','weighted-package*']
+    else:
+        patterns += ['forced-no-ponder-endgame.log']
+    for pattern in patterns:
+        for p in (repo/'data/runs').glob(pattern):
+            if p.is_file(): shutil.copyfile(p,evidence/p.name)
+    shutil.copyfile(work/'finalize_short_screens.py',evidence/'finalize_short_screens.py.txt')
+    text=f'''\n## Completed short comparison
+
+All 20 games and 10 colour pairs completed at 20s+0.3s against frozen released neural
+7eda0fa. Result: **+{summary['wins']} ={summary['draws']} -{summary['losses']},
+{summary['score']*100:.1f}% score, {summary['wins']/20*100:.1f}% actual wins**.
+Every PGN replays legally, all runtime fingerprints remain fixed, and neither engine
+logged runtime failure/fallback diagnostics. Peak working set was
+{summary['maximum_recorded_peak_rss_bytes']:,} bytes; maximum import time was
+{summary['maximum_recorded_init_seconds']:.3f} seconds.
+
+This fails the declared promising gate and is far short of the 90% actual-win objective.
+No long tournament is launched. Main and the recommended upload remain the validated
+7eda0fa release. A selected short opening sample is not a platform rating measurement.
+'''
+    path=repo/'docs'/filename
+    if prefix=='weighted':
+        text='''# Reject the targeted phase-weighted model
+
+This trial combined the fused search and forced-reply draw fix with the team's new
+phase-weighted width-128 checkpoint. Only the model differed from draw-fused.
+Its provenance and full training logs are in the inherited forced-reply evidence.
+
+The candidate passed 10,000 integer-reference comparisons, integration, gate, Lucena,
+234/300 WAC and an extracted-package audit (49,472,153 unzipped bytes). Its runtime was
+c04155d73816ce8cf497b95d0c31ca390a6301eb75ca0d68b71d00a06c6c50f1. The tested quantized
+weight SHA256 was 598b8ec012b0339c73848c471e0279064d2aea784dbc34868e522b67a2df2779.
+Package SHA256 was b461e96a43f7f11b413568ce0ab2ca71333738792ef7e39a0b18f5a552e8f6cc.
+
+It used previously unused opening indices 152-161, with both colours. The improved
+fitting metric did not improve this match screen. The unselected weight and raw
+checkpoints remain outside Git, as required. This branch records the failed experiment;
+its committed inherited weight is the previous released model, not this rejected trial.
+''' + text
+        path.write_text(text,encoding='utf-8')
+    else:
+        before=path.read_text(encoding='utf-8')
+        before=before.replace('The short real-clock\ncomparison is in progress.',
+                              'The short real-clock\ncomparison completed at 60% score and failed its promising gate.')
+        if '## Completed short comparison' not in before:
+            path.write_text(before+text,encoding='utf-8')
+    with (repo/'viewer/activity_log.jsonl').open('a') as stream:
+        stream.write(json.dumps({'time':time.time(),'status':'issue','message':
+            f'{dirname} completed 20 games at 20s+0.3 vs 7eda0fa: '
+            f"+{summary['wins']} ={summary['draws']} -{summary['losses']}, "
+            f"{summary['score']*100:.1f}% score; zero failures/diagnostics, legal complete pairs. "
+            '90% actual-win target unmet; no long tournament or main promotion.'})+'\n')
+    print(dirname,summary['wins'],summary['draws'],summary['losses'])
