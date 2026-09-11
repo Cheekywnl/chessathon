@@ -1,0 +1,31 @@
+"""Use CPU0 only after its last predeclared full-clock colour pair is recorded."""
+import json,os,re,subprocess,sys,time
+from pathlib import Path
+import psutil
+work=Path(__file__).parent;repo=work/'two-hour-refinement'
+path=repo/'data/runs/twohour-final-vs-current-fullclock.jsonl'
+while True:
+    try:
+        lines=path.read_text().splitlines()
+        rows=[json.loads(line) for line in lines if line]
+        finished=[row for row in rows if row['pair_index']==16 and row['cpu']==0]
+        if len(finished)==2:
+            assert {row['agent_white'] for row in finished}=={True,False}
+            break
+    except (FileNotFoundError,json.JSONDecodeError):pass
+    time.sleep(10)
+psutil.Process().cpu_affinity([0])
+for key in ('OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS','NUMBA_NUM_THREADS'):os.environ[key]='1'
+os.environ['NUMBA_OPT']='2';os.environ['PYTHONIOENCODING']='utf-8'
+started=time.time()
+print('CPU0 completed its final assigned pair; starting final-payload WAC and endgame checks',flush=True)
+for name,module in (('wac','tools.wac_test'),('endgame','tools.endgame_regression')):
+    with (work/f'twohour-final-{name}.log').open('w') as log:
+        subprocess.run([str(work/'halfkp-trial/.venv/Scripts/python.exe'),'-u',str(work/'run_runtime_check.py'),str(work/'twohour-final-extracted'),str(repo),module],cwd=repo,stdout=log,stderr=subprocess.STDOUT,check=True)
+    print(name+' finished',flush=True)
+text=(work/'twohour-final-wac.log').read_text()
+match=re.search(r'(\d+)/300 \(',text);assert match
+assert '1/1 endgame regression positions passed' in (work/'twohour-final-endgame.log').read_text()
+result={'wac_passed':int(match[1]),'wac_total':300,'endgame_regression_passed':True,'cpu':0,'began_after_cpu_final_pair_index':16,'seconds':time.time()-started}
+(work/'twohour-final-late-checks.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result),flush=True)

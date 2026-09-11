@@ -1,0 +1,10 @@
+{
+  "commit": "e3a99a808e49374ce130182849448d4724dce588",
+  "zip_sha256": "2b25f386bcb7c4a795c43449cdc8c937f66f09c97763b5d56c181f4661b65719",
+  "runtime_sha256": "dc545883006320731603675f07c9f75263a60268fb3cc4be7ed9234498204adf",
+  "all_runtime_git_blobs_match_zip": true,
+  "runtime_files": 114,
+  "raw_evidence_git_blobs_match_hash_manifest": true,
+  "evidence_files": 157,
+  "harness_and_cpu_dependencies_unchanged": true
+}

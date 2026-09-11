@@ -1,0 +1,18 @@
+import json,os,subprocess,sys,time
+from pathlib import Path
+work=Path(__file__).parent;repo=work/'two-hour-refinement'
+assert json.loads((work/'twohour-artifacts/submission-audit.json').read_text())['fully_recursive_bytes']<50_000_000
+assert json.loads((work/'twohour-final-speed-abba.json').read_text())['all_moves_scores_nodes_tt_and_history_exact']
+assert (repo/'data/runs/twohour-final-draw-regression.json').exists()
+for name in ('foundation','deepteacher','sparsepruning'):
+    assert (repo/f'data/runs/twohour-{name}-screen2.result.json').exists()
+for key in ('OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS','NUMBA_NUM_THREADS'):
+    os.environ[key]='1'
+os.environ['NUMBA_OPT']='2';os.environ['PYTHONIOENCODING']='utf-8'
+subprocess.run([sys.executable,'-u','-m','tools.sprt_arena',
+    '--agent',str(work/'twohour-final-extracted'),'--opponent',str(work/'final-extracted-repacked'),
+    '--base-ms','120000','--increment-ms','500','--workers','0','2','4','6','8','10','12','14',
+    '--engine-python',str(work/'halfkp-trial/.venv/Scripts/python.exe'),
+    '--opening-file',str(repo/'data/runs/openings-twohour-fresh.json'),'--opening-start','20',
+    '--max-games','48','--min-pairs','20','--elo0','0','--elo1','50',
+    '--jsonl','data/runs/twohour-final-vs-current-fullclock.jsonl'],cwd=repo,check=True)

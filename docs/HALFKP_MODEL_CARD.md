@@ -45,12 +45,14 @@ rejected. Lower training loss alone did not select the final engine.
 
 The shared HalfKP transformer has 40,960 king-relative features, width 128 and a
 32 -> 32 -> 1 dense head over the two perspectives. Training-only piece-square
-factorization is folded into the transformer. Features/accumulators use int16;
-dense weights use int8 and integer sums. Full-range quantization has a conservative
+factorization is folded into the transformer. Transformer weights use int16;
+dense weights use int8, and incremental/dense sums use int32. Full-range quantization has a conservative
 absolute accumulator bound of 15,221.
 
 Inference uses Numba on one CPU core. Search reuses incremental king-bucket
-accumulators and exact static-evaluation cache entries. The blend remains 75%
+accumulators and exact static-evaluation cache entries. The final arithmetic
+backend skips zero activations using transposed dense weights and reuses an
+int32 scratch buffer; weights and integer outputs are unchanged. The blend remains 75%
 neural and 25% classical, with the classical route for seven or fewer pieces and
 bare-king endings. There is no GPU, Torch model inference, downloaded data or
 third-party engine executable in the submission.
@@ -79,3 +81,7 @@ remain local, outside Git and the submission.
 See [the release validation](FINAL_REFINEMENT_20260911.md) for games. Old results
 against classical or earlier neural versions do not establish a new gain over
 the penultimate release.
+
+The [additional final refinement](TWO_HOUR_REFINEMENT_20260911.md) retains this
+exact network. A further 48,000-node teacher continuation was trained and tested,
+but its 13W/12D/15L selection match did not support promotion.

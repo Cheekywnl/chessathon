@@ -130,3 +130,13 @@ The final frozen payload passes the full repository Ruff and strict mypy gates
 screening helpers have been archived outside executable source, so the final
 lint/type checks have no temporary tool exclusions. The original harness is
 unchanged. The full-clock result remains pending at this source checkpoint.
+
+
+The final draw-regression run passed 3,468 referee comparisons, detected all 26
+recorded draws, and passed nine fifty-move and four forced-reply root checks.
+Exact tablebase conversions and forced-move history recording passed; maximum
+draw-scan time was 4.34ms. Git object verification confirms all 114 runtime blobs
+match the frozen ZIP and every archived evidence file matches its SHA manifest.
+Fresh canonical rules and contract copies fetched at 08:12 UTC remain consistent
+with the selected package. The local test machine is an i7-10700K; the platform's
+published CPU is an AMD EPYC 9V74, so local timings are not remote measurements.

@@ -1,16 +1,27 @@
-Current candidate: [final refinement and validation](docs/FINAL_REFINEMENT_20260911.md).
+Current candidate: [11 September final refinement and validation](docs/TWO_HOUR_REFINEMENT_20260911.md).
+
+This fork contains the team's own compiled alpha-beta/PVS engine and a HalfKP
+network trained from random initialization. The current candidate adds exact
+sparse neural inference, reusable scratch storage and a verified 9,103-position
+rook-and-pawn winning policy. Its actual submission ZIP expands recursively to
+49,042,751 bytes. The 48-game comparison against the previous corrected upload is
+in progress; measured search speed is not an Elo result.
+
+Upload the packaged submission, not GitHub's repository ZIP. The repository also
+contains tools, baselines and validation records that are not submission files.
 
 Selected network: [training and model provenance](docs/HALFKP_MODEL_CARD.md).
 
-# AI Chessathon starter
+# Agent and local harness
 
-Fork this to build an agent for [AI Chessathon](https://aichessathon.com). It gives you a working
-submission, baselines to beat, and a local harness that speaks the same protocol and enforces the
-same clock as the platform, so you can see whether a change actually helped before you upload it.
+The project builds on the [AI Chessathon](https://aichessathon.com) starter's
+unchanged protocol, referee and packaging harness. Baselines and the harness are
+development tools; the submitted runtime uses the root Python modules and the
+selected assets in `weights/`, `book/` and `syzygy/`.
 
 ```
-git clone https://github.com/advitrocks9/aichessathon-starter
-cd aichessathon-starter
+git clone --branch final-release https://github.com/Cheekywnl/chess-codex-isolated-20260910.git
+cd chess-codex-isolated-20260910
 make setup
 make play
 ```
@@ -20,14 +31,15 @@ When you like it, `make zip` and drop `submission.zip` on your dashboard.
 
 ## Writing an agent
 
-`agent.py` is the whole submission. One function:
+`agent.py` is the submission entrypoint. Its public interface is:
 
 ```python
 def get_move(fen: str, time_left_ms: int) -> str:
     return "e2e4"
 ```
 
-The fork ships a legal random-mover, so the loop works before you write anything. Replace the body.
+The engine returns legal UCI moves through this interface. The separate random
+baseline is useful for protocol checks; beating it does not establish strength.
 
 ```
 make play                                          # one game, real time control

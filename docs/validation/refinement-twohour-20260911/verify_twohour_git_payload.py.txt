@@ -1,0 +1,20 @@
+import hashlib,json,subprocess,zipfile
+from pathlib import Path
+work=Path(__file__).parent;repo=work/'two-hour-refinement'
+manifest=json.loads((work/'twohour-artifacts/manifest.json').read_text())
+head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
+with zipfile.ZipFile(work/'twohour-artifacts/submission-final-locked.zip') as archive:
+    for name,expected in manifest['files'].items():
+        git_bytes=subprocess.check_output(['git','show',f'{head}:{name}'],cwd=repo)
+        assert hashlib.sha256(git_bytes).hexdigest()==expected,name
+        assert archive.read(name)==git_bytes,name
+validation=repo/'docs/validation/refinement-twohour-20260911'
+hashes=json.loads((validation/'SHA256.json').read_text())
+for name,expected in hashes.items():
+    path=f'docs/validation/refinement-twohour-20260911/{name}'
+    value=subprocess.check_output(['git','show',f'{head}:{path}'],cwd=repo)
+    assert hashlib.sha256(value).hexdigest()==expected,path
+assert not subprocess.check_output(['git','diff','c1b6dc4',head,'--','harness','uv.lock','pyproject.toml'],cwd=repo)
+result={'commit':head,'zip_sha256':manifest['zip_sha256'],'runtime_sha256':manifest['runtime_sha256'],'all_runtime_git_blobs_match_zip':True,'runtime_files':len(manifest['files']),'raw_evidence_git_blobs_match_hash_manifest':True,'evidence_files':len(hashes),'harness_and_cpu_dependencies_unchanged':True}
+(work/'twohour-git-payload-check.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result,indent=2))
