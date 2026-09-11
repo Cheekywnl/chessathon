@@ -1,0 +1,4 @@
+# These raw evidence archives contain byte-level SHA256 manifests.
+# Preserve their original line endings so GitHub downloads verify identically.
+docs/validation/refinement-*/** -text
+docs/validation/no-ponder-20260911/** -text
