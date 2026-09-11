@@ -1,0 +1,45 @@
+"""Test cache-local transposition entries without changing replacement policy."""
+from pathlib import Path
+import shutil
+
+work=Path(__file__).resolve().parent
+repo=work/'search-packed-tt'
+p=repo/'chess_search_compiled.py'
+s=p.read_text()
+start=s.index('@jitclass(')
+end=s.index('\n\nspec = ',start)
+s=s[:start]+'''# One cache-local 16-byte entry: full uint64 key, int32 score, int16 move,
+# int8 depth and flag. Search depth is capped at64; packed moves fit15 bits.
+TT_DTYPE = np.dtype([
+    ("key", np.uint64), ("score", np.int32), ("move", np.int16),
+    ("depth", np.int8), ("flag", np.int8),
+])
+
+
+@jitclass(  # type: ignore[no-untyped-call]
+    [
+        ("keys", types.uint64[:]),
+        ("depths", types.int8[:]),
+        ("scores", types.int32[:]),
+        ("flags", types.int8[:]),
+        ("moves", types.int16[:]),
+        ("mask", types.int64),
+    ]
+)
+class Table:
+    def __init__(self, power: int) -> None:
+        entries = np.zeros(1 << power, dtype=TT_DTYPE)
+        self.keys = entries["key"]
+        self.depths = entries["depth"]
+        self.scores = entries["score"]
+        self.flags = entries["flag"]
+        self.moves = entries["move"]
+        self.flags[:] = -1
+        self.moves[:] = -1
+        self.mask = (1 << power) - 1
+'''+s[end:]
+p.write_text(s,encoding='utf-8')
+for name in ('compiled_search_check.py',):
+    shutil.copyfile(work/'search-accumulator/tools'/name,repo/'tools'/name)
+(repo/'data/runs').mkdir(parents=True,exist_ok=True)
+print('Created experimental16-byte TT layout; no strength claim.')

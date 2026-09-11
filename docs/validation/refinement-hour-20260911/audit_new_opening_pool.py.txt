@@ -1,0 +1,47 @@
+"""Keep fresh test openings distinct under the actual shipped book too."""
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+work=Path(__file__).resolve().parent
+sys.path.insert(0,str(work/'search-accumulator'))
+import chess
+import chess.polyglot
+from tools.make_opening_suite import book_exit_key
+from tools.version_arena import OPENING_LINES
+
+repo=work/'search-accumulator'
+source=repo/'data/runs/openings-refinement-20260916.json'
+destination=repo/'data/runs/openings-refinement-fresh.json'
+assert not destination.exists()
+data=json.loads(source.read_text())
+prior_paths=[work/'halfkp-trial/data/runs/openings-final-20260914.json',
+             work/'halfkp-trial/data/runs/openings-20260910.json']
+seen=set()
+kept=[]; rejected=[]
+book=work/'halfkp-release/book/codekiddy.bin'
+with chess.polyglot.open_reader(book) as reader:
+    for line in OPENING_LINES.values():
+        board=chess.Board()
+        for san in line: board.push_san(san)
+        seen.add(book_exit_key(reader,board))
+    for path in prior_paths:
+        for row in json.loads(path.read_text())['positions']:
+            seen.add(book_exit_key(reader,chess.Board(row['fen'])))
+    for row in data['positions']:
+        actual_exit=book_exit_key(reader,chess.Board(row['fen']))
+        if actual_exit in seen:
+            rejected.append({'name':row['name'],'reason':'duplicate actual shipped-book exit',
+                             'actual_book_exit_key':actual_exit})
+        else:
+            kept.append({**row,'actual_book_exit_key':actual_exit})
+            seen.add(actual_exit)
+result={**data,'count':len(kept),'positions':kept,
+    'raw_generated_pool_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
+    'actual_shipped_book_sha256':hashlib.sha256(book.read_bytes()).hexdigest(),
+    'actual_book_exclusion':{'before_any_match':True,'kept':len(kept),'rejected':rejected}}
+assert len(kept)>=60
+destination.write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps({'kept':len(kept),'rejected':len(rejected),
+                  'sha256':hashlib.sha256(destination.read_bytes()).hexdigest()}))

@@ -1,9 +1,12 @@
 # Exact feature-sum cache candidate
 
 This candidate follows the frozen compiled engine that scored +17 =2 -1 in 20
-short games against released 7eda0fa. It has not yet demonstrated an additional
-playing-strength gain. The next 20-game paired screen uses unused indices 182-191
-at 20s+0.3s, with all results retained. Its opponent remains released 7eda0fa.
+short games against released 7eda0fa. Its completed 20-game screen scored **18 wins, 2 draws and no losses** against
+released 7eda0fa: **90% actual wins and 95% score**. All ten colour pairs from
+unused opening indices 182-191 at 20s+0.3s are retained. This meets the requested
+win fraction in this small screen, not a guarantee or a validated platform Elo.
+Different openings prevent attributing the change from the parent's 17 wins
+specifically to the cache; exact search comparisons establish a modest speed gain.
 
 ## Implementation
 
@@ -49,3 +52,24 @@ The selected released width 128 weight, all opening entries and 96 tablebase fil
 are unchanged. Width 256 was used only as an extra correctness check; its unselected
 weight and raw training checkpoints stay outside Git. Main and the existing
 recommended upload are unchanged pending the agreed release process.
+
+
+## Completed screen and ongoing hour of refinement
+
+All 20 PGNs replay legally; fingerprints remained fixed. There were 18 checkmates
+and two repetition draws, eight double-win pairs and two win/draw pairs. Both draws
+were recognized with draw scores in the final search, and all 18 logged root
+claim scans completed. Neither side logged failure/fallback diagnostics.
+Peak working set was 792,645,632 bytes and maximum initialization 51.484 seconds.
+
+The user requested publishing the best checked candidate at the end of an hour
+of refinement, before the long competition-clock tests. This screen is provisional
+evidence for that publication. Full-clock validation is still outstanding.
+
+Two other trials were rejected: the compiled width-256 model scored 261/300 WAC
+(same compiled width-128 search scored 273/300), despite its better training loss.
+The 16-byte packed transposition table passed 56 full search comparisons, 32 abort
+comparisons and 1,944 table probes, but took 6.072s versus 6.023s: no overall gain.
+Its unselected patch is archived, not shipped. The unselected width-256 model
+remains outside this branch; its SHA256 is
+36d3c10e4b0f4ed0ee8c5d6e45ad13c4ae9beaa9a7cb53851cd748c880bf4892.
