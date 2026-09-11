@@ -1,0 +1,26 @@
+{
+  "positions-broad.json": {
+    "bytes": 1573590,
+    "sha256": "c8ba7290ee0ca05594b4dd53bb5119fa3a9ace16caae37656b87dc4a0f6ea1da"
+  },
+  "labels-broad-0.csv": {
+    "bytes": 438079,
+    "sha256": "b151533f431e71cb4ed9653d41cbb0d310ead75ccc32d5b8af15f7d4868cb013"
+  },
+  "labels-broad-0.jsonl": {
+    "bytes": 1908113,
+    "sha256": "16bfeee1fbecf1844a8dad80a058d34bc2fd60fec85b93702deb4076a9572a36"
+  },
+  "training/best_checkpoint.pt": {
+    "bytes": 64022506,
+    "sha256": "71ad560381c628d4757b3e67743c53dd89cf70d9d77ffb575be1c53fe60f5776"
+  },
+  "training/best_float.npz": {
+    "bytes": 21011706,
+    "sha256": "470f70bd69914f0fe16df64b6c6b30c34d95ee0720b96a6f7e1a6bcdfc89b26a"
+  },
+  "halfkp.npz": {
+    "bytes": 5649335,
+    "sha256": "165cb2384293908d1bc57b5b06b503160a847af75805af196bade2e4a58670ea"
+  }
+}

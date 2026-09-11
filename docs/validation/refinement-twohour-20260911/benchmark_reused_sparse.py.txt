@@ -1,0 +1,66 @@
+import csv
+import json
+import statistics
+import sys
+import time
+from pathlib import Path
+work=Path(__file__).parent
+sys.path.insert(0,str(work/'twohour-sparse'))
+import chess
+import numpy as np
+from numba import njit
+import chess_halfkp_int as qi
+from dense_reused_variant import forward_reused
+
+w=qi.load_weights(work/'final-extracted-repacked/weights/halfkp.npz')
+width=len(w.b1)
+inputs=[]
+with (work/'teacher-tools/labels-merged.csv').open(newline='') as stream:
+    for row in csv.DictReader(stream):
+        board=chess.Board(row['fen'])
+        white=np.empty(30,dtype=np.int64); black=np.empty(30,dtype=np.int64)
+        count=qi.active_features_halfkp(*[np.uint64(v) for v in (board.pawns,board.knights,
+            board.bishops,board.rooks,board.queens,board.kings,board.occupied_co[chess.WHITE],
+            board.occupied_co[chess.BLACK])],white,black)
+        left=qi.accumulate(white,count,w.w1,w.b1)
+        right=qi.accumulate(black,count,w.w1,w.b1)
+        inputs.append((left,right) if board.turn else (right,left))
+        if len(inputs)==3000:break
+rng=np.random.default_rng(2026091102)
+for i in range(1000):
+    inputs.append(tuple(rng.integers(0,256,size=(2,width),dtype=np.int16)))
+own=np.ascontiguousarray([x[0] for x in inputs]); other=np.ascontiguousarray([x[1] for x in inputs])
+args=(w.w2,w.b2,w.w3,w.b3,w.w4,w.b4,w.scale2,w.scale3,w.output_divisor,
+      1/w.scale2,1/w.scale3,qi.binary_scale_shift(w.scale2),qi.binary_scale_shift(w.scale3))
+
+@njit
+def batch(fn,own,other,args,repeats):
+    h1=np.empty(32,dtype=np.int16);h2=np.empty(32,dtype=np.int32)
+    outputs=np.empty((len(own),65),dtype=np.float64)
+    for repeat in range(repeats):
+        for i in range(len(own)):
+            outputs[i,0]=fn(own[i],other[i],*args,h1,h2)
+            outputs[i,1:33]=h1
+            outputs[i,33:65]=h2
+    return outputs
+
+functions={'baseline':qi.forward_scratch,'sparse':forward_reused}
+transposed=(np.ascontiguousarray(w.w2.T),w.b2,np.ascontiguousarray(w.w3.T),*args[3:])
+arguments={'baseline':transposed,'sparse':transposed}
+reference=None
+for name,fn in functions.items():
+    result=batch(fn,own,other,arguments[name],1)
+    if reference is None:reference=result
+    else:assert np.array_equal(result,reference),name
+records={name:[] for name in functions}
+for order in (('baseline','sparse'),('sparse','baseline'))*3:
+    for name in order:
+        started=time.perf_counter();batch(functions[name],own[:3000],other[:3000],arguments[name],50)
+        records[name].append(time.perf_counter()-started)
+result={'cases':len(own),'real_position_cases':3000,'random_clipped_cases':1000,
+        'all_output_and_hidden_activations_exact':True,
+        'real_feature_zero_fraction':float(np.mean(own[:3000]==0)),
+        'records':records,'median_seconds':{k:statistics.median(v) for k,v in records.items()},
+        'playing_strength_validated':False}
+(work/'twohour-reused-sparse-benchmark.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result,indent=2),flush=True)

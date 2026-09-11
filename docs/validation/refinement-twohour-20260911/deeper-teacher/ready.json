@@ -1,0 +1,9 @@
+{
+  "ready_for_matches": true,
+  "runtime": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\twohour-deepteacher",
+  "model_sha256": "165cb2384293908d1bc57b5b06b503160a847af75805af196bade2e4a58670ea",
+  "old_model_sha256": "c3207d459bb089de8ba4207c4189d5e04da759f97941d4bd2f6b62d3f3bed768",
+  "training_run": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\deeper-teacher\\training\\run.json",
+  "quantization_check": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\deeper-teacher\\quant-check.json",
+  "playing_strength_validated": false
+}

@@ -1,0 +1,21 @@
+{"accepted": 10, "attempts": 16}
+{"accepted": 20, "attempts": 40}
+{"accepted": 30, "attempts": 52}
+{"accepted": 40, "attempts": 72}
+{"accepted": 50, "attempts": 85}
+{"accepted": 60, "attempts": 108}
+{"accepted": 70, "attempts": 132}
+{"accepted": 80, "attempts": 144}
+{
+  "count": 80,
+  "seed": 202609112,
+  "attempts": 144,
+  "source_sha256": "85e7a45da6d186b6a722c6269edc5a30e7614f7f9b771703785ea6ad1427e380",
+  "book_sha256": "f2108c0f818c46ce2037dbd09eb422bbd40572510f104dff2306b9ab578c2da8",
+  "selection": "Two seeded random quiet non-king plies; preserved baseline depth4 abs(score)<=100cp",
+  "distinct_book_exits": true,
+  "excluded_pool": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\next-bitloops\\data\\runs\\openings-next-fresh.json",
+  "no_candidate_results_used": true,
+  "seconds": 17.04699999999866,
+  "reserve": "indices0-19 selection;20-79 final confirmation only"
+}

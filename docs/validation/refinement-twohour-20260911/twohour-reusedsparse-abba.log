@@ -1,0 +1,34 @@
+before-a finished
+after-a finished
+after-b finished
+before-b finished
+{
+  "all_moves_scores_nodes_tt_and_history_exact": true,
+  "positions": 20,
+  "nodes_each_run": 4147709,
+  "depth": 9,
+  "records": {
+    "twohour-reusedsparse-before-a": {
+      "initialization_seconds": 52.37198779999744,
+      "search_seconds": 13.920528199982073,
+      "nodes": 4147709
+    },
+    "twohour-reusedsparse-after-a": {
+      "initialization_seconds": 50.351380499996594,
+      "search_seconds": 12.242725999974937,
+      "nodes": 4147709
+    },
+    "twohour-reusedsparse-after-b": {
+      "initialization_seconds": 51.37588799999503,
+      "search_seconds": 12.54132469999604,
+      "nodes": 4147709
+    },
+    "twohour-reusedsparse-before-b": {
+      "initialization_seconds": 48.378810900001554,
+      "search_seconds": 12.631246800003282,
+      "nodes": 4147709
+    }
+  },
+  "speed_ratio": 1.0713250760101314,
+  "playing_strength_validated": false
+}

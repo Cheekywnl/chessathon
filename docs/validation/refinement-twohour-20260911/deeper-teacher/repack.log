@@ -1,0 +1,12 @@
+{
+  "source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\deeper-teacher\\quantized-deflate.npz",
+  "source_sha256": "5aab3ceec5e1f75144e6d9711c8e72ff1968778d4868b52497cedb0a2bcc7a5d",
+  "out": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\deeper-teacher\\halfkp.npz",
+  "sha256": "165cb2384293908d1bc57b5b06b503160a847af75805af196bade2e4a58670ea",
+  "source_bytes": 6943074,
+  "bytes": 5649335,
+  "compression": "bzip2",
+  "all_tensor_bytes_identical": true,
+  "pack_seconds": 0.7291364000047906,
+  "verify_seconds": 1.4318634000010206
+}

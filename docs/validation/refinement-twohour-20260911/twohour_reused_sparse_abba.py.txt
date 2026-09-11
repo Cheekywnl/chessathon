@@ -1,0 +1,35 @@
+import os,subprocess,sys,json,hashlib
+from pathlib import Path
+import psutil
+work=Path(__file__).parent
+psutil.Process().cpu_affinity([0])
+for k in ('OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS','NUMBA_NUM_THREADS'):
+    os.environ[k]='1'
+os.environ['NUMBA_OPT']='2';os.environ['CUDA_VISIBLE_DEVICES']='-1'
+python=work/'halfkp-trial/.venv/Scripts/python.exe'
+paths=[]
+for label,root in (('before-a','twohour-foundation'),('after-a','twohour-reusedsparse'),
+                   ('after-b','twohour-reusedsparse'),('before-b','twohour-foundation')):
+    out=work/f'twohour-reusedsparse-{label}.json';assert not out.exists()
+    with (work/f'twohour-reusedsparse-{label}.log').open('w') as log:
+        subprocess.run([str(python),str(work/'search_runtime_sample.py'),'--root',str(work/root),
+            '--positions',str(work/'next-runtime-positions.json'),'--out',str(out),'--depth','9'],
+            stdout=log,stderr=subprocess.STDOUT,check=True)
+    paths.append(out)
+    print(label+' finished',flush=True)
+runs=[json.loads(p.read_text()) for p in paths]
+ref=runs[0]
+for run in runs[1:]:
+    assert run['nodes']==ref['nodes']
+    for left,right in zip(ref['records'],run['records'],strict=True):
+        for field in ('fen','nodes','depths','table_and_heuristics_sha256'):
+            assert left[field]==right[field],(run['root'],left['index'],field)
+result={'all_moves_scores_nodes_tt_and_history_exact':True,'positions':len(ref['records']),
+        'nodes_each_run':ref['nodes'],'depth':ref['depth'],
+        'records':{p.stem:{k:r[k] for k in ('initialization_seconds','search_seconds','nodes')}
+                   for p,r in zip(paths,runs,strict=True)},
+        'speed_ratio':(runs[0]['search_seconds']+runs[3]['search_seconds'])/
+                       (runs[1]['search_seconds']+runs[2]['search_seconds']),
+        'playing_strength_validated':False}
+(work/'twohour-reusedsparse-abba.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result,indent=2),flush=True)

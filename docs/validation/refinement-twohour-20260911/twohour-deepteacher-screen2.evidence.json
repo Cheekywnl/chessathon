@@ -1,0 +1,40 @@
+{
+  "games": 40,
+  "openings": 20,
+  "clock_ms": [
+    10000,
+    150
+  ],
+  "wins": 13,
+  "draws": 12,
+  "losses": 15,
+  "score": 0.475,
+  "terminations": {
+    "checkmate": 28,
+    "threefold_repetition": 11,
+    "fifty_moves": 1
+  },
+  "pair_score_counts": {
+    "0.5": 3,
+    "1.0": 11,
+    "0.0": 2,
+    "1.5": 3,
+    "2.0": 1
+  },
+  "log_sha256": {
+    "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\two-hour-refinement\\data\\runs\\twohour-deepteacher-screen2.jsonl": "6b5da3e011fce59c8acbcb94e571215c56534ca89b56ca84be195a307ceeaf5f"
+  },
+  "fingerprinted_logs": 1,
+  "runtime_fingerprints": [
+    [
+      "619b1afd2abd834c1c6399520a6bf59fc254500a5b588b0357d6b15d820014c3",
+      "99807db7aef6e128c8b1480b5baa5e46a7df821951ea2c87f47785aaec9a8900"
+    ]
+  ],
+  "maximum_recorded_peak_rss_bytes": 572706816,
+  "maximum_recorded_init_seconds": 50.39100000000326,
+  "legal_pgn_replay": true,
+  "candidate_failure_or_fallback_markers": 0,
+  "baseline_diagnostics": [],
+  "platform_elo_established": false
+}

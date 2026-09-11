@@ -1,0 +1,64 @@
+"""Summarize draw decisions from completed, independently audited A/B records."""
+import argparse
+import collections
+import io
+import json
+import re
+from pathlib import Path
+
+import chess.pgn
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('logs', nargs='+', type=Path)
+parser.add_argument('--out', type=Path, required=True)
+args = parser.parse_args()
+rows = [json.loads(line) for path in args.logs for line in path.read_text().splitlines() if line]
+draws = []
+scan_times = []
+incomplete_scans = 0
+for row in rows:
+    log = row['white_log'] if row['agent_white'] else row['black_log']
+    scans = [dict(re.findall(r'(\w+)=([^\s]+)', line))
+             for line in log.splitlines() if line.startswith('draw_claims=')]
+    scan_times.extend(float(s['ms']) for s in scans)
+    incomplete_scans += sum(s['complete'] != '1' for s in scans)
+    if row['result'] != 'draw':
+        continue
+    moves = [dict(re.findall(r'(\w+)=([^\s]+)', line))
+             for line in log.splitlines() if line.startswith('move=')]
+    game = chess.pgn.read_game(io.StringIO(row['pgn']))
+    assert game is not None and not game.errors
+    board = game.end().board()
+    last = moves[-1] if moves else {}
+    search_scores = [int(m['score']) for m in moves if 'score' in m]
+    draws.append({
+        'opening': row['opening'], 'candidate_white': row['agent_white'],
+        'termination': row['termination'], 'final_fen': board.fen(),
+        'last_logged_candidate_move': last,
+        'last_search_score_cp': search_scores[-1] if search_scores else None,
+        'last_move_source': last.get('source', 'search'),
+        'claim_scans': len(scans), 'last_claim_scan': scans[-1] if scans else None,
+        'actual_third_occurrence': board.is_repetition(3),
+        'claimable_repetition': board.can_claim_threefold_repetition(),
+        'candidate_material_cp': sum(
+            value * (len(board.pieces(pt, row['agent_white']))
+                     - len(board.pieces(pt, not row['agent_white'])))
+            for pt, value in ((1, 100), (2, 320), (3, 330), (4, 500), (5, 900))),
+    })
+search_draws = [d for d in draws if d['last_move_source'] == 'search'
+                and d['last_search_score_cp'] is not None]
+summary = {
+    'games': len(rows), 'draw_count': len(draws),
+    'draw_terminations': dict(collections.Counter(d['termination'] for d in draws)),
+    'last_search_move_still_ge150': sum(d['last_search_score_cp'] >= 150 for d in search_draws),
+    'last_search_move_scored_draw': sum(d['last_search_score_cp'] == -20 for d in search_draws),
+    'last_search_move_negative': sum(d['last_search_score_cp'] < -20 for d in search_draws),
+    'tablebase_draws': sum(d['last_move_source'] == 'tablebase' for d in draws),
+    'logged_scan_count': len(scan_times), 'incomplete_scans': incomplete_scans,
+    'max_logged_scan_ms': max(scan_times, default=0),
+    'note': 'Logged root scores diagnose decisions; neither scores nor draw rate alone prove strength. '
+            'Exact candidate and opponent identities are in each input log build manifest.',
+    'draw_details': draws,
+}
+args.out.write_text(json.dumps(summary, indent=2) + '\n', encoding='utf8')
+print(json.dumps({k: v for k, v in summary.items() if k != 'draw_details'}, indent=2))

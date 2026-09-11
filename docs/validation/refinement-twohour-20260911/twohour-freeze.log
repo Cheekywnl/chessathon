@@ -1,0 +1,15 @@
+{
+  "source_zip_sha256": "2e5f1e8d2d1153792201fcc3009950188058435420ff86a53cb51ca924397f00",
+  "zip_sha256": "2b25f386bcb7c4a795c43449cdc8c937f66f09c97763b5d56c181f4661b65719",
+  "zip_bytes": 41332226,
+  "unzipped_bytes": 45455743,
+  "fully_recursive_bytes": 49042751,
+  "margin_bytes": 957249,
+  "file_count": 114,
+  "all_payloads_byte_identical": true,
+  "metadata": "ZIP 2.0 DEFLATE; ASCII POSIX paths; regular files 0644; no extras/comments",
+  "unsupported_imports": [],
+  "remote_docker_build_validated": false,
+  "runtime_sha256": "dc545883006320731603675f07c9f75263a60268fb3cc4be7ed9234498204adf",
+  "selected_changes": "Exact sparse dense-layer inference, reused int32 scratch, complete expanded KRP/KR policy; original current network and book unchanged"
+}

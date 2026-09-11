@@ -1,0 +1,26 @@
+"""Wait for the frozen new opening pool, then run one bounded paired screen."""
+import json,os,subprocess,sys,time
+from pathlib import Path
+work=Path(__file__).parent;repo=work/'two-hour-refinement'
+name=sys.argv[1]
+jobs={'foundation':('twohour-foundation','final-extracted-repacked',[2,4]),
+      'deepteacher':('twohour-deepteacher','final-extracted-repacked',[6,8]),
+      'sparsepruning':('twohour-sparsepruning','twohour-foundation',[12,14])}
+agent,opponent,cpus=jobs[name]
+pool=repo/'data/runs/openings-twohour-fresh.json'
+deadline=time.monotonic()+600
+while True:
+    try:
+        data=json.loads(pool.read_text())
+        assert len(data['positions'])>=80
+        break
+    except (FileNotFoundError,json.JSONDecodeError):
+        if time.monotonic()>deadline:raise SystemExit('New opening pool did not finish in time')
+        time.sleep(2)
+os.environ['NUMBA_OPT']='2';os.environ['PYTHONIOENCODING']='utf-8'
+subprocess.run([sys.executable,'-u','-m','tools.screen_arena','--agent',str(work/agent),
+    '--opponent',str(work/opponent),'--base-ms','10000','--increment-ms','150',
+    '--workers',*[str(cpu) for cpu in cpus],'--engine-python',str(work/'halfkp-trial/.venv/Scripts/python.exe'),
+    '--opening-file',str(pool),'--opening-start','0','--max-games','40','--min-pairs','20',
+    '--elo0','0','--elo1','50','--jsonl',f'data/runs/twohour-{name}-screen2.jsonl'],
+    cwd=repo,check=True)

@@ -1,0 +1,29 @@
+import hashlib,json,shutil,sys,zipfile
+from pathlib import Path
+work=Path(__file__).parent
+repo=work/'two-hour-refinement'
+assert json.loads((work/'twohour-reusedsparse-abba.json').read_text())['speed_ratio']>1
+assert json.loads((repo/'data/runs/twohour-reusedsparse-accumulator.json').read_text())['mismatches']==0
+source=work/'twohour-reusedsparse'
+for name in ('chess_halfkp_int.py','chess_search_compiled.py'):
+    shutil.copy2(source/name,repo/name)
+sys.path.insert(0,str(repo))
+from harness.package import build
+from tools.portable_submission import rebuild
+from tools.match_evidence import build_manifest
+artifacts=work/'twohour-artifacts';artifacts.mkdir(exist_ok=True)
+raw=artifacts/'submission-twohour.raw.zip'
+final=artifacts/'submission-final-locked.zip'
+assert not raw.exists() and not final.exists()
+build(source,raw,('weights','book','syzygy'))
+report=rebuild(raw,final)
+target=work/'twohour-final-extracted';assert not target.exists()
+with zipfile.ZipFile(final) as archive:archive.extractall(target)
+assert build_manifest(source)['runtime_sha256']==build_manifest(target)['runtime_sha256']
+assert build_manifest(repo)['runtime_sha256']==build_manifest(target)['runtime_sha256']
+report['runtime_sha256']=build_manifest(target)['runtime_sha256']
+report['selected_changes']='Exact sparse dense-layer inference, reused int32 scratch, complete expanded KRP/KR policy; original current network and book unchanged'
+(artifacts/'manifest.json').write_text(json.dumps(report,indent=2)+'\n')
+text=(work/'twohour_sparse_abba.py').read_text().replace("'twohour-sparse'", "'twohour-final-extracted'").replace('twohour-sparse-', 'twohour-final-speed-')
+(work/'twohour_final_speed_abba.py').write_text(text)
+print(json.dumps({k:v for k,v in report.items() if k!='files'},indent=2))

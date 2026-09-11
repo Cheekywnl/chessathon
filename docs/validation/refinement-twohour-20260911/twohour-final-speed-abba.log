@@ -1,0 +1,34 @@
+before-a finished
+after-a finished
+after-b finished
+before-b finished
+{
+  "all_moves_scores_nodes_tt_and_history_exact": true,
+  "positions": 20,
+  "nodes_each_run": 4147709,
+  "depth": 9,
+  "records": {
+    "twohour-final-speed-before-a": {
+      "initialization_seconds": 46.27888260000327,
+      "search_seconds": 15.13558339998417,
+      "nodes": 4147709
+    },
+    "twohour-final-speed-after-a": {
+      "initialization_seconds": 41.10338429999683,
+      "search_seconds": 9.576338900005794,
+      "nodes": 4147709
+    },
+    "twohour-final-speed-after-b": {
+      "initialization_seconds": 39.45070890000352,
+      "search_seconds": 9.697867000009865,
+      "nodes": 4147709
+    },
+    "twohour-final-speed-before-b": {
+      "initialization_seconds": 37.57345599999826,
+      "search_seconds": 13.343984500017541,
+      "nodes": 4147709
+    }
+  },
+  "speed_ratio": 1.4776000654832984,
+  "playing_strength_validated": false
+}

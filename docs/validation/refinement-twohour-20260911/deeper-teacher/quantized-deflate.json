@@ -1,0 +1,16 @@
+{
+  "float_source": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\deeper-teacher\\training\\best_float.npz",
+  "source_sha256": "470f70bd69914f0fe16df64b6c6b30c34d95ee0720b96a6f7e1a6bcdfc89b26a",
+  "output": "C:\\Users\\cheek\\Documents\\Codex\\2026-09-10\\files-pasted-by-the-user-you\\work\\deeper-teacher\\quantized-deflate.npz",
+  "sha256": "5aab3ceec5e1f75144e6d9711c8e72ff1968778d4868b52497cedb0a2bcc7a5d",
+  "file_bytes": 6943074,
+  "int16_accumulator_absolute_bound": 15221,
+  "weight_scales": [
+    157.0,
+    154.0,
+    0.20729663909875184
+  ],
+  "width": 128,
+  "dense_scaling": "fullrange",
+  "playing_strength_validated": false
+}

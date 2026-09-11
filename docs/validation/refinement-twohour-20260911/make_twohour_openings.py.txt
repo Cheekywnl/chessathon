@@ -1,0 +1,58 @@
+"""Freeze fresh balanced opening deviations before any candidate result is observed."""
+import hashlib,json,random,sys,time
+from pathlib import Path
+import chess
+import chess.polyglot
+import psutil
+work=Path(__file__).parent;psutil.Process().cpu_affinity([0])
+sys.path.insert(0,str(work/'baseline-05046b2'))
+import chess_search as cs
+source=work/'next-bitloops/data/runs/openings-next-fresh.json'
+out=work/'two-hour-refinement/data/runs/openings-twohour-fresh.json'
+assert not out.exists()
+inputs=json.loads(source.read_text())['positions']
+seen={' '.join(row['fen'].split()[:4]) for row in inputs}
+book=work/'final-extracted-repacked/book/codekiddy.bin'
+def exit_key(reader,board):
+    board=board.copy()
+    while board.fullmove_number<=20 and not board.is_game_over(claim_draw=True):
+        entry=max(reader.find_all(board),key=lambda item:item.weight,default=None)
+        if entry is None:break
+        board.push(entry.move)
+    return ' '.join(board.fen().split()[:4])
+rng=random.Random(202609112)
+positions=[];attempts=0;started=time.monotonic()
+with chess.polyglot.open_reader(book) as reader:
+    exits={exit_key(reader,chess.Board(row['fen'])) for row in inputs}
+    while len(positions)<80:
+        row=inputs[attempts%len(inputs)];attempts+=1
+        if attempts>20000:raise RuntimeError('Could not produce the frozen opening pool')
+        board=chess.Board(row['fen']);moves=[]
+        for _ in range(2):
+            quiet=[m for m in board.legal_moves if not board.is_capture(m) and not m.promotion
+                   and board.piece_type_at(m.from_square)!=chess.KING]
+            if not quiet:break
+            move=rng.choice(quiet);board.push(move);moves.append(move.uci())
+        key=' '.join(board.fen().split()[:4])
+        if len(moves)!=2 or key in seen or not board.is_valid() or board.is_check():continue
+        if board.is_game_over(claim_draw=True) or len(board.piece_map())<26:continue
+        ending=exit_key(reader,board)
+        if ending in exits:continue
+        search=cs.Search(cs.TranspositionTable(16),{})
+        _,score,_=search.search_root(board,4,time.monotonic()+60)
+        if abs(score)>100:continue
+        seen.add(key);exits.add(ending)
+        positions.append({'name':f"202609112_{len(positions):03d}_{row['family']}",
+            'family':row['family'],'fen':board.fen(),'baseline_depth4_stm_cp':score,
+            'book_exit_key':ending,'source_opening':row['name'],'quiet_deviation_uci':moves,
+            'uci_line':row['uci_line']+moves})
+        if len(positions)%10==0:print(json.dumps({'accepted':len(positions),'attempts':attempts}),flush=True)
+note={'positions':positions,'count':len(positions),'seed':202609112,'attempts':attempts,
+      'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
+      'book_sha256':hashlib.sha256(book.read_bytes()).hexdigest(),
+      'selection':'Two seeded random quiet non-king plies; preserved baseline depth4 abs(score)<=100cp',
+      'distinct_book_exits':True,'excluded_pool':str(source),
+      'no_candidate_results_used':True,'seconds':time.monotonic()-started,
+      'reserve':'indices0-19 selection;20-79 final confirmation only'}
+tmp=out.with_suffix('.tmp');tmp.write_text(json.dumps(note,indent=2));tmp.replace(out)
+print(json.dumps({k:v for k,v in note.items() if k!='positions'},indent=2),flush=True)

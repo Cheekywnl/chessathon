@@ -1,0 +1,21 @@
+import json,hashlib,sys
+from pathlib import Path
+import chess
+work=Path(__file__).parent
+path=work/'two-hour-refinement/data/runs/openings-twohour-fresh.json'
+original=path.read_bytes()
+(work/'openings-twohour-missing-line.original.json').write_bytes(original)
+data=json.loads(original)
+source=json.loads((work/'next-bitloops/data/runs/openings-next-fresh.json').read_text())
+lookup={row['name']:row for row in source['positions']}
+for row in data['positions']:
+    row['uci_line']=lookup[row['source_opening']]['uci_line']+row['quiet_deviation_uci']
+    board=chess.Board()
+    for uci in row['uci_line']:board.push_uci(uci)
+    assert board.fen()==row['fen']
+data['metadata_repair']={'reason':'Supply the required legal replay line; no position changed; all screens failed before playing', 'original_sha256':hashlib.sha256(original).hexdigest()}
+path.write_text(json.dumps(data,indent=2))
+sys.path.insert(0,str(work/'two-hour-refinement'))
+from tools.version_arena import load_opening_file
+assert len(load_opening_file(path))==80
+print('PASS: all 80 positions unchanged and legal replay validated')

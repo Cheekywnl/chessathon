@@ -1,0 +1,51 @@
+"""Select fresh deeper labels; validation examples are never ranked by prediction error."""
+import csv,hashlib,json,random,sys
+from pathlib import Path
+import chess
+import numpy as np
+import psutil
+work=Path(__file__).parent
+psutil.Process().cpu_affinity([10])
+sys.path.insert(0,str(work/'two-hour-refinement'))
+from tools.halfkp_data import split_bucket
+import chess_halfkp_int as qi
+w=qi.load_weights(work/'final-extracted-repacked/weights/halfkp.npz')
+source=work/'teacher-tools/labels-merged.csv'
+train=[];heldout=[]
+with source.open(newline='') as stream:
+    for row in csv.DictReader(stream):
+        board=chess.Board(row['fen'])
+        if len(board.piece_map())<8:continue
+        if split_bucket(row['fen'])<10:
+            heldout.append(row);continue
+        raw=[np.uint64(v) for v in (board.pawns,board.knights,board.bishops,board.rooks,
+            board.queens,board.kings,board.occupied_co[True],board.occupied_co[False])]
+        cp=qi.evaluate(*raw,board.turn,w.w1,w.b1,w.w2,w.b2,w.w3,w.b3,w.w4,w.b4,
+                       w.scale2,w.scale3,w.output_divisor)
+        expected=int(row['cp'])*(1 if board.turn else -1)
+        row['residual_cp']=abs(cp-expected)
+        train.append(row)
+rng=random.Random(2026091108)
+rng.shuffle(train);rng.shuffle(heldout)
+selected=train[:5000]
+used={row['fen'] for row in selected}
+selected+=sorted((row for row in train if row['fen'] not in used),
+                 key=lambda row:row['residual_cp'],reverse=True)[:2000]
+selected+=heldout[:200]
+rng.shuffle(selected)
+destination=work/'deeper-teacher';destination.mkdir(exist_ok=False)
+positions=[{'fen':row['fen'],'game':'prior_teacher_training_source',
+            'prior_depth':int(row['depth']),'prior_cp_white':int(row['cp']),
+            'split_bucket':split_bucket(row['fen'])} for row in selected]
+note={'positions':positions,'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
+      'network_sha256':hashlib.sha256((work/'final-extracted-repacked/weights/halfkp.npz').read_bytes()).hexdigest(),
+      'selection':'5000 uniform training +2000 largest training-only residual +200 uniform heldout',
+      'heldout_ranked_by_residual':False,'new_nodes_per_position':48000,
+      'no_final_match_positions_used':True,'seed':2026091108}
+(destination/'positions-broad.json').write_text(json.dumps(note,indent=2))
+annotator=(work/'teacher-tools/annotate_broad_positions.py').read_text()
+annotator=annotator.replace('exe = root / "stockfish-offline/stockfish/stockfish-windows-x86-64-universal.exe"',
+    'exe = root.parent / "teacher-tools/stockfish-offline/stockfish/stockfish-windows-x86-64-universal.exe"')
+(destination/'annotate.py').write_text(annotator)
+print(json.dumps({'positions':len(positions),'heldout':sum(r['split_bucket']<10 for r in positions),
+    'selection':note['selection']},indent=2),flush=True)

@@ -103,7 +103,7 @@ spec = [
     ("clipped_white", types.int16[::1]),
     ("clipped_black", types.int16[::1]),
     ("hidden1", types.int16[::1]),
-    ("hidden2", types.int16[::1]),
+    ("hidden2", types.int32[::1]),
     ("inverse2", types.float64),
     ("inverse3", types.float64),
     ("shift2", types.int64),
@@ -159,7 +159,7 @@ class Context:
         self.clipped_white = np.empty(len(b1), dtype=np.int16)
         self.clipped_black = np.empty(len(b1), dtype=np.int16)
         self.hidden1 = np.empty(32, dtype=np.int16)
-        self.hidden2 = np.empty(32, dtype=np.int16)
+        self.hidden2 = np.empty(32, dtype=np.int32)
         self.inverse2, self.inverse3 = 1.0 / s2, 1.0 / s3
         self.shift2, self.shift3 = qi.binary_scale_shift(s2), qi.binary_scale_shift(s3)
         # Static evaluation is position-only for a fixed Search's weights and

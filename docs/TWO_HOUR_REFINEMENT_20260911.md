@@ -67,3 +67,66 @@ Initial 40-game, 8s+0.12s selection results, all against the exact starting engi
 All six logs pass legal PGN replay and runtime evidence checks. The first experiment
 crossed the rejection boundary; the others were statistically inconclusive.
 These selection results do not establish the requested 200 Elo target.
+
+## Final candidate selection
+
+Reusing a 32-element int32 output buffer for intermediate dense sums avoids an
+allocation on every evaluation. All 4,000 outputs and hidden layers still match.
+A second independent ABBA search comparison against the sparse foundation passed
+all move/score/node/table/history checks and measured another 1.0713x throughput.
+The final candidate's 105,643-position accumulator oracle check also passed.
+
+The second selection round used 20 new balanced, colour-swapped openings at
+10s+0.15s. The generator froze positions before candidate outcomes were seen.
+Missing legal replay metadata initially stopped all three runs before any games;
+the metadata was repaired and all 80 positions replayed to their unchanged FENs.
+Both failed attempts and corrected generator/positions are retained.
+
+| Candidate | Opponent | Wins | Draws | Losses | Score |
+|---|---|---:|---:|---:|---:|
+| Sparse foundation and expanded rook policy | Exact corrected current bot | 17 | 11 | 12 | 56.25% |
+| Deeper teacher network | Exact corrected current bot | 13 | 12 | 15 | 47.5% |
+| Revised pruning plus sparse foundation | Sparse foundation | 11 | 17 | 12 | 48.75% |
+
+All three were statistically inconclusive. The new training and pruning variants
+are not selected. The final model and opening book remain exactly those of the
+corrected current submission; improvements are arithmetic speed and exact rook
+coverage. No results from different candidates or opponents are pooled.
+
+The additional network was trained from our existing checkpoint on 6,870 accepted
+labels from an independently verified offline Stockfish teacher at 48,000 nodes,
+using stable position-hash train/heldout partitions. Teacher validation loss
+improved, but the match result did not support deploying it. Training provenance,
+metrics and hashes are archived; neither the teacher nor its executable, raw
+training data or checkpoint ships in the ZIP.
+
+The frozen candidate ZIP contains 114 permitted files, 41,332,226 compressed bytes,
+45,455,743 outer unzipped bytes, and **49,042,751 fully recursively expanded bytes**.
+The margin under 50,000,000 is 957,249 bytes. Its SHA-256 is
+`2b25f386bcb7c4a795c43449cdc8c937f66f09c97763b5d56c181f4661b65719`;
+runtime fingerprint `dc545883006320731603675f07c9f75263a60268fb3cc4be7ed9234498204adf`.
+The actual ZIP passed a fresh one-core import in 43.88 seconds, used 491,618,304
+bytes peak memory, and returned legal book, search and tablebase smoke moves.
+Remote organiser validation remains the authority for upload acceptance.
+
+Final confirmation is predeclared as 48 games (24 colour pairs), 120s+0.5s,
+eight independent one-core workers, fresh processes every game, original referee
+and runner, 600 total plies, and unseen opening indices 20-43. The hypotheses are
+0 versus 50 Elo with 5% error bounds and at least 20 completed pairs; all in-flight
+pairs are retained. Opponent: the exact corrected starting ZIP, runtime `99807db7...`.
+This confirmation has not completed at this checkpoint.
+
+## Frozen candidate verification
+
+A direct final-versus-starting-engine ABBA benchmark confirms the combined speed
+gain: 1.4776x throughput (47.8% more nodes per second), with
+exactly identical moves, scores, nodes and search-table/history contents across
+20 positions through depth nine. Every run visits 4,147,709 nodes. The before
+runs take 15.136s and 13.344s; final runs take 9.576s and 9.698s. Absolute timings
+depend on machine load; both test orders favour the final implementation.
+
+The final frozen payload passes the full repository Ruff and strict mypy gates
+(61 source files), plus two fresh five-second gate games by checkmate. Private
+screening helpers have been archived outside executable source, so the final
+lint/type checks have no temporary tool exclusions. The original harness is
+unchanged. The full-clock result remains pending at this source checkpoint.

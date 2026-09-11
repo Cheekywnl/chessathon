@@ -290,7 +290,10 @@ def forward_scratch(
 ) -> float:
     """Skip zero activations using contiguous transposed dense-layer weights."""
     width = len(own)
-    sums = b2.copy()
+    # The int32 second-layer output buffer also holds intermediate sums.
+    sums = h2
+    for j in range(32):
+        sums[j] = b2[j]
     for k in range(width):
         value = np.int32(own[k])
         if value:

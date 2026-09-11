@@ -1,0 +1,17 @@
+import shutil
+from pathlib import Path
+work=Path(__file__).parent
+target=work/'twohour-reusedsparse'
+assert not target.exists()
+shutil.copytree(work/'twohour-foundation',target,ignore=shutil.ignore_patterns('__pycache__'))
+path=target/'chess_halfkp_int.py';text=path.read_text()
+assert text.count('    sums = b2.copy()')==1
+text=text.replace('    sums = b2.copy()', '    # The int32 second-layer output buffer also holds intermediate sums.\n    sums = h2\n    for j in range(32):\n        sums[j] = b2[j]')
+path.write_text(text,newline='\n')
+path=target/'chess_search_compiled.py';text=path.read_text()
+assert text.count('("hidden2", types.int16[::1])')==1
+text=text.replace('("hidden2", types.int16[::1])','("hidden2", types.int32[::1])')
+text=text.replace('self.hidden2 = np.empty(32, dtype=np.int16)','self.hidden2 = np.empty(32, dtype=np.int32)')
+path.write_text(text,newline='\n')
+text=(work/'twohour_sparse_abba.py').read_text().replace("'final-extracted-repacked'", "'twohour-foundation'").replace("'twohour-sparse'", "'twohour-reusedsparse'").replace('twohour-sparse-', 'twohour-reusedsparse-')
+(work/'twohour_reused_sparse_abba.py').write_text(text)
